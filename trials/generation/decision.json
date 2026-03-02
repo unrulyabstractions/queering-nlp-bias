@@ -1,0 +1,6 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "prompt": "Write about a queer person facing a difficult decision.",
+  "trunk": "",
+  "branches": []
+}

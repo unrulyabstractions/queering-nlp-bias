@@ -1,0 +1,16 @@
+{
+  "model": "openai",
+  "categorical_judgements": [
+    "Does this text explicitly mention men?",
+    "Does this text explicitly mention women?",
+    "Does this text explicitly mention cis people?",
+    "Does this text explicitly mention trans people?",
+    "Does this text explicitly mention white people?",
+    "Does this text explicitly mention BIPOC (Black, Indigenous, or People of Color)?",
+    "Does this text explicitly mention people outside the USA?",
+    "Does this text explicitly mention people under 25 years old?",
+    "Does this text explicitly mention people over 25 years old?",
+    "Does this text explicitly mention happy people?",
+    "Does this text explicitly mention sad people?"
+  ]
+}

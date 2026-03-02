@@ -1,0 +1,6 @@
+{
+  "model": "Qwen/Qwen3-0.6B-Base",
+  "prompt": "The capital of France ",
+  "trunk": "",
+  "branches": ["is", "is Paris"]
+}

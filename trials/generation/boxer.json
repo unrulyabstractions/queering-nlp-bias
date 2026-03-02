@@ -1,0 +1,9 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "prompt": "Write a one-paragraph story in which two people meet, fall in love, and live happily ever after.",
+  "trunk": "The tough boxer is also a biker who loves ",
+  "branches": [
+    "drag queens",
+    "drag racing"
+  ]
+}
