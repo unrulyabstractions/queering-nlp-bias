@@ -41,6 +41,7 @@ from schemas.script_utils import (
     format_horizontal_tree,
     load_model,
     log_branch_header,
+    log_prompt_header,
     log_step,
     log_wrapped,
     parse_generation_args,
@@ -526,12 +527,20 @@ def generate_for_all_branches(
     prompt_length = config.compute_prompt_length(runner)
     trunk_length = config.compute_trunk_length(runner)
 
+    # Show prompt structure once at the start
+    log_prompt_header(config.prompt, config.trunk, config.branches)
+
     all_trajectories: list[GeneratedTrajectory] = []
     all_group_indices: list[int] = []
 
     for branch in branches:
         formatted_prompt = runner.apply_chat_template(config.prompt) + branch.prefill
-        log_branch_header(branch.name, formatted_prompt)
+        # Determine the branch-specific continuation
+        if branch.name == "trunk":
+            branch_continuation = config.trunk
+        else:
+            branch_continuation = config.trunk + branch.name
+        log_branch_header(branch.name, branch_continuation)
 
         result = generate_forking_paths_for_branch(
             runner,

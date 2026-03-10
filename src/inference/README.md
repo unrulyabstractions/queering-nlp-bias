@@ -2,6 +2,8 @@
 
 Model inference and trajectory generation.
 
+See [GENERATION.md](../../GENERATION.md) for conceptual background on generation methods.
+
 ## Directory Structure
 
 ```

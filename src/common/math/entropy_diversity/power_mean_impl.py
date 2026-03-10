@@ -24,7 +24,8 @@ def _power_mean_native(values: Sequence[float], alpha: float) -> float:
     """Generalized (power) mean of order α (pure Python).
 
     For min/max (α = ±∞), values of 0 are included.
-    For other cases, 0 values are excluded to avoid log(0) or division by 0.
+    For α > 0, values of 0 are included (0^α = 0 is valid).
+    For α ≤ 0, values of 0 are excluded to avoid log(0) or division by 0.
     """
     if not values:
         return 0.0
@@ -37,8 +38,12 @@ def _power_mean_native(values: Sequence[float], alpha: float) -> float:
     if alpha == float("inf"):
         return max(values)
 
-    # Filter to positive values for log/power operations
-    active = [v for v in values if v > _EPS]
+    # For α > 0, include zero values (0^α = 0 is valid)
+    # For α ≤ 0, exclude zero values to avoid log(0) or division by 0
+    if alpha > _EPS:
+        active = list(values)
+    else:
+        active = [v for v in values if v > _EPS]
     if not active:
         return 0.0
 
@@ -55,7 +60,8 @@ def _power_mean_numpy(values: np.ndarray, alpha: float) -> np.floating:
     """Generalized (power) mean of order α (NumPy).
 
     For min/max (α = ±∞), values of 0 are included.
-    For other cases, 0 values are excluded to avoid log(0) or division by 0.
+    For α > 0, values of 0 are included (0^α = 0 is valid).
+    For α ≤ 0, values of 0 are excluded to avoid log(0) or division by 0.
     """
     if values.size == 0:
         return np.float64(0.0)
@@ -68,8 +74,12 @@ def _power_mean_numpy(values: np.ndarray, alpha: float) -> np.floating:
     if alpha == float("inf"):
         return values.max()
 
-    # Filter to positive values for log/power operations
-    active = values[values > _EPS]
+    # For α > 0, include zero values (0^α = 0 is valid)
+    # For α ≤ 0, exclude zero values to avoid log(0) or division by 0
+    if alpha > _EPS:
+        active = values
+    else:
+        active = values[values > _EPS]
     if active.size == 0:
         return np.float64(0.0)
 
@@ -86,7 +96,8 @@ def _power_mean_torch(values: torch.Tensor, alpha: float) -> torch.Tensor:
     """Generalized (power) mean of order α (PyTorch).
 
     For min/max (α = ±∞), values of 0 are included.
-    For other cases, 0 values are excluded to avoid log(0) or division by 0.
+    For α > 0, values of 0 are included (0^α = 0 is valid).
+    For α ≤ 0, values of 0 are excluded to avoid log(0) or division by 0.
     """
     if values.numel() == 0:
         return torch.tensor(0.0, device=values.device)
@@ -99,8 +110,12 @@ def _power_mean_torch(values: torch.Tensor, alpha: float) -> torch.Tensor:
     if alpha == float("inf"):
         return values.max()
 
-    # Filter to positive values for log/power operations
-    active = values[values > _EPS]
+    # For α > 0, include zero values (0^α = 0 is valid)
+    # For α ≤ 0, exclude zero values to avoid log(0) or division by 0
+    if alpha > _EPS:
+        active = values
+    else:
+        active = values[values > _EPS]
     if active.numel() == 0:
         return torch.tensor(0.0, device=values.device)
 
@@ -126,7 +141,8 @@ def _weighted_power_mean_native(
     Assumes weights are already normalized (sum to 1).
 
     For min/max (α = ±∞), values of 0 are included.
-    For other cases, 0 values are excluded to avoid log(0) or division by 0.
+    For α > 0, values of 0 are included (0^α = 0 is valid).
+    For α ≤ 0, values of 0 are excluded to avoid log(0) or division by 0.
     """
     if len(values) != len(weights):
         raise ValueError("values and weights must have same length")
@@ -141,9 +157,12 @@ def _weighted_power_mean_native(
         weighted = [(v, w) for v, w in zip(values, weights) if w > _EPS]
         return max(v for v, _ in weighted) if weighted else 0.0
 
-    # Filter to active (non-zero weight, non-zero value)
-    # Required for log/power operations
-    active = [(v, w) for v, w in zip(values, weights) if w > _EPS and v > _EPS]
+    # For α > 0, include zero values (0^α = 0 is valid)
+    # For α ≤ 0, exclude zero values to avoid log(0) or division by 0
+    if alpha > _EPS:
+        active = [(v, w) for v, w in zip(values, weights) if w > _EPS]
+    else:
+        active = [(v, w) for v, w in zip(values, weights) if w > _EPS and v > _EPS]
     if not active:
         return 0.0
 
@@ -171,7 +190,8 @@ def _weighted_power_mean_numpy(
     Assumes weights are already normalized (sum to 1).
 
     For min/max (α = ±∞), values of 0 are included.
-    For other cases, 0 values are excluded to avoid log(0) or division by 0.
+    For α > 0, values of 0 are included (0^α = 0 is valid).
+    For α ≤ 0, values of 0 are excluded to avoid log(0) or division by 0.
     """
     if values.shape != weights.shape:
         raise ValueError("values and weights must have same shape")
@@ -190,9 +210,12 @@ def _weighted_power_mean_numpy(
             return np.float64(0.0)
         return values[weighted_mask].max()
 
-    # Filter to active (non-zero weight, non-zero value)
-    # Required for log/power operations
-    mask = (weights > _EPS) & (values > _EPS)
+    # For α > 0, include zero values (0^α = 0 is valid)
+    # For α ≤ 0, exclude zero values to avoid log(0) or division by 0
+    if alpha > _EPS:
+        mask = weights > _EPS
+    else:
+        mask = (weights > _EPS) & (values > _EPS)
     if not mask.any():
         return np.float64(0.0)
 
@@ -222,7 +245,8 @@ def _weighted_power_mean_torch(
     Assumes weights are already normalized (sum to 1).
 
     For min/max (α = ±∞), values of 0 are included.
-    For other cases, 0 values are excluded to avoid log(0) or division by 0.
+    For α > 0, values of 0 are included (0^α = 0 is valid).
+    For α ≤ 0, values of 0 are excluded to avoid log(0) or division by 0.
     """
     if values.shape != weights.shape:
         raise ValueError("values and weights must have same shape")
@@ -241,9 +265,12 @@ def _weighted_power_mean_torch(
             return torch.tensor(0.0, device=values.device)
         return values[weighted_mask].max()
 
-    # Filter to active (non-zero weight, non-zero value)
-    # Required for log/power operations
-    mask = (weights > _EPS) & (values > _EPS)
+    # For α > 0, include zero values (0^α = 0 is valid)
+    # For α ≤ 0, exclude zero values to avoid log(0) or division by 0
+    if alpha > _EPS:
+        mask = weights > _EPS
+    else:
+        mask = (weights > _EPS) & (values > _EPS)
     if not mask.any():
         return torch.tensor(0.0, device=values.device)
 

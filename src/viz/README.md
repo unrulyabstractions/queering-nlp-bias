@@ -2,6 +2,8 @@
 
 Tree visualization and plotting tools.
 
+See the main [README.md](../../README.md) for an overview of the project.
+
 ## Directory Structure
 
 ```

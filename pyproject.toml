@@ -57,6 +57,7 @@ dependencies = [
     "seaborn",
     # Embeddings
     "sentence-transformers",
+    "pypdf>=6.8.0",
 ]
 
 [project.optional-dependencies]

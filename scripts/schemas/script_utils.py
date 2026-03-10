@@ -1,27 +1,19 @@
-"""Shared utilities for generation scripts.
+"""Shared utilities for pipeline scripts.
 
-This module provides common functions used across all generate_by_*.py scripts
-to reduce code duplication.
+This module provides common functions used across generation, scoring,
+estimation, and experiment scripts to reduce code duplication.
 """
 
 from __future__ import annotations
 
 import argparse
-import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Literal, Protocol
 
 from src.common.analysis import analyze_token_tree
 from src.common.device_utils import clear_gpu_memory
-from src.common.log import log, log_section
-
-
-def _fmt_prob(p: float, width: int = 10) -> str:
-    """Format probability, using scientific notation for very small values."""
-    if p < 0.0001:
-        return f"{p:>{width}.1e}"
-    return f"{p:>{width}.4f}"
+from src.common.log import log, log_params, log_section
 from src.common.seed import set_seed
 from src.common.token_tree import TokenTree
 from src.common.viz_utils import preview
@@ -31,7 +23,52 @@ from .generation import (
     BranchGenerationResult,
     GenerationConfig,
     GenerationOutput,
+    OutputPaths,
 )
+
+# Re-export logging utilities from log_utils for backward compatibility
+from .log_utils import (
+    HEADER_WIDTH,
+    STAGE_GAP,
+    fmt_core,
+    fmt_prob,
+    log_banner,
+    log_box,
+    log_divider,
+    log_header,
+    log_major,
+    log_section_title,
+    log_stage,
+    log_step,
+    log_sub_banner,
+    log_table_header,
+    log_wrapped,
+    oneline,
+)
+
+
+def log_output_paths(paths: OutputPaths, gap: int = 0) -> None:
+    """Log output file paths."""
+    log("Output files:", gap=gap)
+    log(f"  -> {paths.generation}")
+    log(f"  -> {paths.judgment}")
+    log(f"  -> {paths.estimation}")
+
+
+def log_experiment_start(
+    title: str,
+    paths: OutputPaths,
+    **params: Any,
+) -> None:
+    """Log experiment header with params and output paths."""
+    log("═" * HEADER_WIDTH)
+    log(title)
+    log("═" * HEADER_WIDTH)
+    if params:
+        log_params(**params)
+    log_output_paths(paths, gap=1)
+    log("═" * HEADER_WIDTH)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Argument Parsing
@@ -108,29 +145,9 @@ def parse_generation_args(
     return ParsedArgs(config=config, config_path=config_path)
 
 
-def log_step(step_num: int, title: str, detail: str = "") -> None:
-    """Log a step header with consistent formatting."""
-    header = f"  Step {step_num}: {title}"
-    if detail:
-        header += f" ({detail})"
-    log(f"\n{header}")
-    log("  " + "─" * 50)
-
-
-def log_wrapped(text: str, indent: str = "  ", width: int = 78, gap: int = 0) -> None:
-    """Log text with word wrapping."""
-    words = text.split()
-    line = indent
-    first = True
-    for word in words:
-        if len(line) + len(word) + 1 > width:
-            log(line, gap=gap if first else 0)
-            first = False
-            line = indent + word
-        else:
-            line = line + " " + word if line != indent else indent + word
-    if line.strip():
-        log(line, gap=gap if first else 0)
+# ══════════════════════════════════════════════════════════════════════════════
+# Model Loading
+# ══════════════════════════════════════════════════════════════════════════════
 
 
 def load_model(config: GenerationConfig) -> ModelRunner:
@@ -139,47 +156,91 @@ def load_model(config: GenerationConfig) -> ModelRunner:
         raise ValueError("No model specified in generation config")
 
     log(f"Loading model: {config.model}")
-    return ModelRunner(config.model)
+    runner = ModelRunner(config.model)
+
+    # Get model type from runner (it detects chat models)
+    model_type = "CHAT/INSTRUCT" if runner._is_chat_model else "BASE"
+
+    box_content = f"MODEL TYPE: {model_type}"
+    log(f"\n  ╔{'═' * (len(box_content) + 4)}╗")
+    log(f"  ║  {box_content}  ║")
+    log(f"  ╚{'═' * (len(box_content) + 4)}╝\n")
+    return runner
 
 
-def log_branch_header(branch_name: str, formatted_prompt: str) -> None:
-    """Log section header and prompt for a branch.
+def log_prompt_header(prompt: str, trunk: str, branches: list[str]) -> None:
+    """Log the prompt and structure at the start of generation.
+
+    Args:
+        prompt: The user prompt
+        trunk: The trunk/shared prefix text
+        branches: List of branch continuation texts (e.g., [" boy", " cat"])
+    """
+    log_section("Generation Setup")
+    log("  Prompt:")
+    for line in prompt.split("\n"):
+        log(f"    {line}")
+    log(f'\n  Trunk (shared prefix): "{trunk}"')
+    if branches:
+        log(f"  Branches ({len(branches)}): {branches}")
+        log(f"  Total groups: {len(branches) + 1} (trunk + {len(branches)} branches)")
+
+
+def log_branch_header(branch_name: str, continuation: str) -> None:
+    """Log section header for a branch.
 
     Args:
         branch_name: Name of the branch ("trunk" or branch name)
-        formatted_prompt: The full formatted prompt to display
+        continuation: The branch-specific continuation text
     """
-    label = "Trunk" if branch_name == "trunk" else f"Branch: {branch_name}"
-    log_section(label)
-    log(f'  Prompt: "{preview(formatted_prompt, 70)}"')
+    if branch_name == "trunk":
+        label = "Trunk"
+        log_section(label)
+        log(f'  Continuation: "{continuation}"')
+    else:
+        label = f"Branch: {branch_name}"
+        log_section(label)
+        log(f'  Continuation: "{continuation}"')
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Tree Building
+# ══════════════════════════════════════════════════════════════════════════════
 
 
 def _log_trajectories(result: BranchGenerationResult, runner: ModelRunner) -> None:
-    """Log trajectory texts and conditional probabilities.
-
-    Shows two tables:
-    1. Trajectory index, branch, and decoded text
-    2. Conditional probabilities p(t|prompt), p(t|trunk), p(t|branch)
-    """
+    """Log trajectory texts and conditional probabilities."""
     prompt_len = result.prompt_length
     trunk_len = result.trunk_length
 
-    # Table 1: Trajectory texts
+    # Table 1: Trajectory continuations (not full text including prompt)
     log(f"  Trajectories ({len(result.trajectories)} total):")
-    log(f"  {'[#]':<4} {'branch':<10} text")
-    log("  " + "─" * 60)
+    log(f"  {'#':>3}  {'branch':<10} continuation")
+    log("  " + "─" * 70)
 
     for i, traj in enumerate(result.trajectories):
         group_idx = result.group_indices[i]
         display = "trunk" if group_idx == 0 else f"branch_{group_idx}"
-        text = runner.decode_ids(traj.token_ids)
-        log(f"  [{i}] {display:<10} {preview(text, 50)}")
+        # Show only continuation (tokens after trunk), not full text
+        continuation_ids = traj.token_ids[trunk_len:]
+        continuation_text = runner.decode_ids(continuation_ids)
+        # Show more text before cutting off (80 chars instead of 50)
+        log(f"  {i:>3}  {display:<10} {preview(continuation_text, 80)}")
     log("")
 
     # Table 2: Conditional probabilities
-    log(f"  Conditional probabilities (prompt_len={prompt_len}, trunk_len={trunk_len}):")
-    log(f"  {'[#]':<4} {'branch':<10} {'p(t|prompt)':>10}  {'p(t|trunk)':>10}  {'p(t|branch)':>10}")
-    log("  " + "─" * 50)
+    log(
+        f"  Conditional probabilities (prompt_len={prompt_len}, trunk_len={trunk_len}):"
+    )
+    log(
+        f"  {'#':>3}  {'branch':<10} {'p(t|prompt)':>11}  "
+        f"{'p(t|trunk)':>11}  {'p(t|branch)':>11}  {'Finished?':>9}"
+    )
+    log("  " + "─" * 67)
+
+    # Get EOS token from runner
+    eos_token = runner.eos_token
+    eos_token_id = runner.eos_token_id
 
     for i, traj in enumerate(result.trajectories):
         group_idx = result.group_indices[i]
@@ -189,12 +250,22 @@ def _log_trajectories(result: BranchGenerationResult, runner: ModelRunner) -> No
             p_trunk = traj.get_conditional_prob(trunk_len, traj.length) or 0.0
             p_branch = p_trunk
         else:
-            # Branch token at trunk_len-1 due to BPE merge
             p_trunk = traj.get_conditional_prob(trunk_len - 1, traj.length) or 0.0
             p_branch = traj.get_conditional_prob(trunk_len, traj.length) or 0.0
 
+        # Check if trajectory has EOS token (by token ID or text)
+        continuation_ids = traj.token_ids[trunk_len:]
+        is_finished = (eos_token_id is not None and eos_token_id in continuation_ids)
+        if not is_finished and eos_token:
+            continuation_text = runner.decode_ids(continuation_ids)
+            is_finished = eos_token in continuation_text
+        finished_str = "YES" if is_finished else "NO"
+
         display = "trunk" if group_idx == 0 else f"branch_{group_idx}"
-        log(f"  [{i}] {display:<10} {_fmt_prob(p_prompt)}  {_fmt_prob(p_trunk)}  {_fmt_prob(p_branch)}")
+        log(
+            f"  {i:>3}  {display:<10} {fmt_prob(p_prompt, 11)}  "
+            f"{fmt_prob(p_trunk, 11)}  {fmt_prob(p_branch, 11)}  {finished_str:>9}"
+        )
     log("")
 
 
@@ -234,11 +305,18 @@ def build_and_save_tree(
     tree.pop_heavy()
     clear_gpu_memory()
 
-    output = GenerationOutput.from_tree(config, config.model, tree, method=method)
+    output = GenerationOutput.from_tree(config, config.model, tree, method=method, eos_token=runner.eos_token)
     out_path = GenerationOutput.compute_output_path(config_path, method=method)
     output.save(out_path)
 
     log(f"Saved {len(result.trajectories)} trajectories to {out_path}", gap=1)
+
+    # Save human-readable summary
+    summary_path = GenerationOutput.compute_summary_path(config_path, method=method)
+    output.save_summary(summary_path)
+    log(f"Saved summary to {summary_path}")
+
+    output.summarize()
 
     return out_path
 
@@ -253,16 +331,11 @@ class TreePathLike(Protocol):
 
     path_id: int
     parent_id: int | None
-    branch_pos: int | None  # Relative token position where branched
-    continuation: str  # Text for display
+    branch_pos: int | None
+    continuation: str
 
     @property
     def token_ids(self) -> list[int]: ...
-
-
-def oneline(text: str) -> str:
-    """Collapse whitespace to single spaces for display."""
-    return re.sub(r"\s+", " ", text).strip()
 
 
 def format_horizontal_tree(
@@ -271,27 +344,15 @@ def format_horizontal_tree(
     max_new_tokens: int,
     width: int = 50,
 ) -> list[str]:
-    """Format tree as horizontal timeline showing token positions.
-
-    Example output:
-        tokens: 0    5    10   15   20   25   30
-        ├────────────────────────────────────● [0]
-        │         ├──────────────● [2]
-        │         └────────────────● [3]
-        └──────────────────┬─────────────────● [1]
-                           └────● [4]
-    """
+    """Format tree as horizontal timeline showing token positions."""
     if not tree_paths:
         return []
 
-    # Scale factor: chars per token (relative to generation start)
     scale = width / max(max_new_tokens, 1)
 
     def pos_to_col(rel_token_pos: int) -> int:
-        """Convert relative token position to column."""
         return int(rel_token_pos * scale)
 
-    # Build tree structure
     children: dict[int | None, list[TreePathLike]] = {}
     for path in tree_paths:
         parent = path.parent_id
@@ -301,7 +362,6 @@ def format_horizontal_tree(
 
     lines: list[str] = []
 
-    # Token position ruler (relative to generation start)
     prefix = "    "
     ruler = prefix
     step = max(5, max_new_tokens // 6)
@@ -312,7 +372,6 @@ def format_horizontal_tree(
     lines.append(ruler)
 
     def get_path_length(path: TreePathLike) -> int:
-        """Get the number of generated tokens (excluding prompt)."""
         return len(path.token_ids) - prompt_len
 
     def render_path(
@@ -325,11 +384,9 @@ def format_horizontal_tree(
         start_col = pos_to_col(start)
         end_col = pos_to_col(end)
 
-        # Build the line
         total_width = len(prefix) + width + 15
         line = list(row_prefix.ljust(total_width))
 
-        # Draw horizontal line from start to end
         line_start = len(prefix) + start_col
         line_end = len(prefix) + end_col
 
@@ -341,7 +398,6 @@ def format_horizontal_tree(
         if line_end < len(line):
             line[line_end] = "●"
 
-        # Add path label
         label = f" [{path.path_id}]"
         for i, c in enumerate(label):
             if line_end + 1 + i < len(line):
@@ -349,29 +405,24 @@ def format_horizontal_tree(
 
         lines.append("".join(line).rstrip())
 
-        # Render children
         path_children = children.get(path.path_id, [])
         for i, child in enumerate(path_children):
             child_is_last = i == len(path_children) - 1
 
-            # Build prefix for children
             total_width = len(prefix) + width + 15
             new_prefix = list(row_prefix.ljust(total_width))
 
-            # Vertical line from parent's start if parent continues
             if not is_last_sibling:
                 vert_col = len(prefix) + start_col
                 if vert_col < len(new_prefix):
                     new_prefix[vert_col] = "│"
 
-            # Vertical line at child's branch point
             branch_col = len(prefix) + pos_to_col(child.branch_pos or 0)
             if branch_col < len(new_prefix):
                 new_prefix[branch_col] = "│"
 
             render_path(child, "".join(new_prefix), child_is_last)
 
-    # Render all root paths
     root_paths = children.get(None, [])
     for i, root in enumerate(root_paths):
         is_last = i == len(root_paths) - 1
@@ -395,7 +446,8 @@ def format_tree_simple(
             lines.append(f'[{path.path_id}] "{text_preview}"')
         else:
             lines.append(
-                f'[{path.path_id}] <- [{path.parent_id}]@{path.branch_pos}: "{text_preview}"'
+                f'[{path.path_id}] <- [{path.parent_id}]@{path.branch_pos}: '
+                f'"{text_preview}"'
             )
 
     return lines
@@ -419,20 +471,9 @@ class SimplePath:
 def create_forking_tree_paths(
     greedy_traj_ids: list[int],
     greedy_continuation: str,
-    fork_points: list[
-        tuple[int, list[tuple[list[int], str]]]
-    ],  # [(position, [(token_ids, continuation), ...])]
+    fork_points: list[tuple[int, list[tuple[list[int], str]]]],
 ) -> list[SimplePath]:
-    """Create tree paths from forking paths result.
-
-    Args:
-        greedy_traj_ids: Token IDs of the greedy trajectory
-        greedy_continuation: Text continuation of greedy path
-        fork_points: List of (position, continuations) where each continuation is (token_ids, text)
-
-    Returns:
-        List of SimplePath objects for tree visualization
-    """
+    """Create tree paths from forking paths result."""
     paths = [
         SimplePath(
             path_id=0,
@@ -449,7 +490,7 @@ def create_forking_tree_paths(
             paths.append(
                 SimplePath(
                     path_id=path_id,
-                    parent_id=0,  # All forks come from greedy path
+                    parent_id=0,
                     branch_pos=position,
                     continuation=cont_text,
                     _token_ids=traj_ids,

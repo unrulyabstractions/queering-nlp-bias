@@ -11,6 +11,7 @@ from src.common.log import log
 from src.common.profiler import profile
 
 from .backends import (
+    AnthropicBackend,
     HuggingFaceBackend,
     MLXBackend,
     ModelBackend,
@@ -50,6 +51,8 @@ class ModelRunner:
 
         if backend == ModelBackend.OPENAI:
             self._init_openai()
+        elif backend == ModelBackend.ANTHROPIC:
+            self._init_anthropic()
         elif backend == ModelBackend.HUGGINGFACE:
             self._init_huggingface()
         elif backend == ModelBackend.MLX:
@@ -60,7 +63,7 @@ class ModelRunner:
         self._is_chat_model = self._detect_chat_model(model_name)
 
         log(f"Model loaded: {backend} {model_name} (chat={self._is_chat_model})")
-        if backend != ModelBackend.OPENAI:
+        if backend not in (ModelBackend.OPENAI, ModelBackend.ANTHROPIC):
             log(f"  n_layers={self.n_layers}, d_model={self.d_model}\n")
         else:
             log("")
@@ -281,6 +284,11 @@ class ModelRunner:
         if any(name.startswith(prefix) or name == prefix for prefix in openai_prefixes):
             return ModelBackend.OPENAI
 
+        # Anthropic models
+        anthropic_prefixes = ["anthropic", "claude"]
+        if any(name.startswith(prefix) or name == prefix for prefix in anthropic_prefixes):
+            return ModelBackend.ANTHROPIC
+
         # Default to recommended backend
         return get_recommended_backend_inference()
 
@@ -295,6 +303,24 @@ class ModelRunner:
 
         log(f"Using OpenAI API with model: {model}")
         self._backend = OpenAIBackend(self, model=model)
+
+    def _init_anthropic(self) -> None:
+        """Initialize Anthropic backend.
+
+        Note: Anthropic API does not provide logprobs, so all trajectory
+        logprobs will be 0.0. This backend is suitable for text generation
+        and categorical judgments, but not for probability-weighted metrics.
+        """
+        # Extract model name (e.g., "anthropic/claude-sonnet-4-20250514" -> "claude-sonnet-4-20250514")
+        model = self.model_name
+        if "/" in model:
+            model = model.split("/", 1)[1]
+        elif model.lower() == "anthropic":
+            model = None  # Use default
+
+        log(f"Using Anthropic API with model: {model or 'claude-sonnet-4-20250514'}")
+        log("  Note: Anthropic API does not provide logprobs; trajectory logprobs will be 0.0")
+        self._backend = AnthropicBackend(self, model=model)
 
     def _init_huggingface(self) -> None:
         from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -333,8 +359,12 @@ class ModelRunner:
         if any(x in name for x in ["-base", "_base"]):
             return False
 
-        # Qwen3 models are instruct/reasoning by default (no base variant)
-        if "qwen3" in name or "qwen/qwen3" in name:
+        # API-based models are always chat models
+        if any(x in name for x in ["claude", "anthropic", "gpt-4", "gpt-3", "openai"]):
+            return True
+
+        # Qwen3/Qwen3.5 models are instruct/reasoning by default (no base variant)
+        if any(x in name for x in ["qwen3", "qwen-3", "qwen_3"]):
             return True
 
         # Explicit chat/instruct indicators
@@ -375,5 +405,5 @@ class ModelRunner:
                     return True
 
         # Name-based heuristics for known reasoning models
-        reasoning_models = ["qwen3", "deepseek-r1", "o1", "o3"]
+        reasoning_models = ["qwen3", "qwen-3", "qwen_3", "deepseek-r1", "o1", "o3"]
         return any(model in name for model in reasoning_models)

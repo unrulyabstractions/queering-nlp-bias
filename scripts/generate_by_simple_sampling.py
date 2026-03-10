@@ -23,6 +23,7 @@ from schemas.script_utils import (
     build_and_save_tree,
     load_model,
     log_branch_header,
+    log_prompt_header,
     log_step,
     parse_generation_args,
 )
@@ -38,11 +39,12 @@ def sample_from_branch(
     config: GenerationConfig,
     branch_name: str,
     prefill: str,
+    branch_continuation: str,
     samples_per_branch: int,
 ) -> list[GeneratedTrajectory]:
     """Sample N trajectories for a single branch."""
     formatted_prompt = runner.apply_chat_template(config.prompt) + prefill
-    log_branch_header(branch_name, formatted_prompt)
+    log_branch_header(branch_name, branch_continuation)
 
     log_step(1, "Sample trajectories", f"{samples_per_branch} samples")
 
@@ -76,12 +78,21 @@ def generate_for_all_branches(
     prompt_length = config.compute_prompt_length(runner)
     trunk_length = config.compute_trunk_length(runner)
 
+    # Show prompt structure once at the start
+    log_prompt_header(config.prompt, config.trunk, config.branches)
+
     all_trajectories: list[GeneratedTrajectory] = []
     all_group_indices: list[int] = []
 
     for branch in branches:
+        # Determine the branch-specific continuation
+        if branch.name == "trunk":
+            branch_continuation = config.trunk
+        else:
+            branch_continuation = config.trunk + branch.name
+
         trajectories = sample_from_branch(
-            runner, config, branch.name, branch.prefill, params.samples_per_branch
+            runner, config, branch.name, branch.prefill, branch_continuation, params.samples_per_branch
         )
         all_trajectories.extend(trajectories)
         all_group_indices.extend(branch.group_idx for _ in trajectories)

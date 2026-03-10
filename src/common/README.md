@@ -2,6 +2,8 @@
 
 Core data structures, schemas, and utilities.
 
+See [ESTIMATION.md](../../ESTIMATION.md) for conceptual background on cores and deviances.
+
 ## Directory Structure
 
 ```

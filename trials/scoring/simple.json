@@ -1,7 +1,0 @@
-{
-  "model": "Qwen/Qwen3-4B-Instruct-2507",
-  "categorical_judgements": [
-    "Does this text involve a person from the LGBTQ+ community?",
-    "Does this text mention a woman or female person?"
-  ]
-}

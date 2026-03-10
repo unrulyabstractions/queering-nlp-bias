@@ -1,0 +1,3181 @@
+% This file was reformatted automatically from the original ref.bib
+% and organized to follow citation usage in paper.tex.
+%
+% Organization:
+%   1) References cited in paper.tex, grouped by section/subsection (use/topic) and then by entry type.
+%   2) References not currently cited, grouped by broad topic and then by entry type.
+%
+% Formatting conventions:
+%   - Consistent indentation and aligned '='
+%   - Keys preserved
+%   - Every entry includes a 'year' field (derived from 'date' or arXiv id when needed).
+%
+% ==============================================================================
+% REFERENCES CITED IN paper.tex
+% ==============================================================================
+
+% ------------------------------------------------------------------------------
+% LGBTQ+ and Gender Bias in LLMs
+% ------------------------------------------------------------------------------
+% Community-centered bias benchmarks and evaluation methods for queer and
+% gender-diverse populations. These papers develop methodologies for measuring
+% representational harms specific to LGBTQ+ communities.
+
+% [Conference Papers]
+
+% WinoQueer: Community-sourced benchmark for anti-LGBTQ+ bias
+% - Large corpus of counterfactual harmful statements with queer/non-queer subjects
+% - Tests if model prefers statements where queer people are subjects of harm
+% - Community-sourced base structures, templated to expand dataset
+% - Correction in v2 (2024) fixes evaluation bug; findings unchanged
+@inproceedings{winoqueer,
+  author        = {Felkner, Virginia K. and Chang, Ho-Chun Herbert and Jang, Eugene and May, Jonathan},
+  title         = {WinoQueer: A Community-in-the-Loop Benchmark for Anti-LGBTQ+ Bias in Large Language Models},
+  booktitle     = {Proceedings of the 61st Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Papers)},
+  publisher     = {Association for Computational Linguistics},
+  year          = {2023},
+  pages         = {9126--9140},
+  address       = {Toronto, Canada},
+  url           = {https://aclanthology.org/2023.acl-long.507},
+  doi           = {10.18653/v1/2023.acl-long.507},
+  note          = {v2 correction released October 2024},
+}
+
+% "I'm fully who I am": Transgender and non-binary bias measurement
+% - Measures misgendering/pronoun consistency via templates
+% - Templates from Nonbinary Wiki with pronouns and gendered names
+% - Also measures toxicity in response to gender identity disclosures
+% - Community-rooted methodology centering TGNB voices
+@inproceedings{tgnb-bias,
+  author        = {Ovalle, Anaelia and Goyal, Palash and Dhamala, Jwala and Jaggers, Zachary and Chang, Kai-Wei and Galstyan, Aram and Zemel, Richard and Gupta, Rahul},
+  title         = {"I'm fully who I am": Towards Centering Transgender and Non-Binary Voices to Measure Biases in Open Language Generation},
+  booktitle     = {Proceedings of the 2023 ACM Conference on Fairness, Accountability, and Transparency (FAccT '23)},
+  publisher     = {Association for Computing Machinery},
+  year          = {2023},
+  pages         = {1246--1266},
+  address       = {Chicago, IL, USA},
+  doi           = {10.1145/3593013.3594078},
+  url           = {https://arxiv.org/abs/2305.09941},
+}
+
+% Robust Pronoun Fidelity: Coreference resolution for diverse pronouns
+% - Introduces task of "pronoun fidelity": reuse correct pronoun in continuation
+% - RUFF dataset: 5M+ instances across pronoun types
+% - Models struggle with she/her, singular they, and neopronouns
+% - Even one distractor sentence drops accuracy by 34 percentage points
+@article{pronoun-fidelity,
+  author        = {Gautam, Vagrant and Bingert, Eileen and Zhu, Dawei and Lauscher, Anne and Klakow, Dietrich},
+  title         = {Robust Pronoun Fidelity with English LLMs: Are they Reasoning, Repeating, or Just Biased?},
+  journal       = {Transactions of the Association for Computational Linguistics},
+  year          = {2024},
+  volume        = {12},
+  pages         = {1713--1731},
+  publisher     = {MIT Press},
+  doi           = {10.1162/tacl_a_00719},
+  url           = {https://aclanthology.org/2024.tacl-1.95/},
+  note          = {Code and data: https://github.com/uds-lsv/robust-pronoun-fidelity},
+}
+
+% [Journal / Preprint Articles]
+
+% More of the Same: Persistent representational harms
+% - GAS(P) methodology for surfacing distribution-level group biases
+% - Evaluates when group membership is unprompted (not specified in input)
+% - Finds women more represented but representational biases persist
+% - Cautions that increasing representation may proliferate biases
+@inproceedings{more-of-same,
+  author        = {Mickel, Jennifer and others},
+  title         = {More of the Same: Persistent Representational Harms Under Increased Representation},
+  booktitle     = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2503.00333},
+  note          = {NeurIPS 2025 Poster},
+}
+
+
+% ------------------------------------------------------------------------------
+% Introduction
+% ------------------------------------------------------------------------------
+% [Books]
+@book{futurability,
+  author        = {Berardi, Franco},
+  title         = {Futurability: The Age of Impotence and the Horizon of Possibility},
+  publisher     = {Verso},
+  year          = {2017},
+  isbn          = {9781784787431},
+  location      = {London and New York},
+}
+
+@book{xenofeminism,
+  author        = {Hester, H.},
+  title         = {Xenofeminism},
+  series        = {Theory Redux},
+  publisher     = {Polity Press},
+  year          = {2018},
+  isbn          = {9781509520664},
+  url           = {https://books.google.com/books?id=VJNcDwAAQBAJ},
+}
+
+
+% [Edited Collections]
+@collection{subaltern,
+  editor        = {Nelson, Cary and Grossberg, Lawrence},
+  title         = {Can the Subaltern Speak?},
+  publisher     = {Macmillan},
+  year          = {1988},
+  address       = {Basingstoke},
+  author        = {Spivak, Gayatri Chakravorty},
+  booktitle     = {Marxism and the Interpretation of Culture},
+  pages         = {271--313},
+}
+
+
+% [Conference Papers]
+@inproceedings{hom-writing,
+  author        = {Agarwal, Dhruv and Naaman, Mor and Vashistha, Aditya},
+  title         = {AI Suggestions Homogenize Writing Toward Western Styles and Diminish Cultural Nuances},
+  booktitle     = {Proceedings of the 2025 CHI Conference on Human Factors in Computing Systems},
+  publisher     = {ACM},
+  year          = {2025},
+  pages         = {1–21},
+  doi           = {10.1145/3706598.3713564},
+  url           = {http://dx.doi.org/10.1145/3706598.3713564},
+  collection    = {CHI ’25},
+  month         = apr,
+  series        = {CHI ’25},
+}
+
+
+% [Journal / Preprint Articles]
+@article{gendered-epistemic,
+  author        = {Isobel Barry and Elise Stephenson},
+  title         = {The Gendered, Epistemic Injustices of Generative AI},
+  journal       = {Australian Feminist Studies},
+  year          = {2025},
+  volume        = {40},
+  number        = {123},
+  pages         = {1--21},
+  doi           = {10.1080/08164649.2025.2480927},
+  url           = {https://doi.org/10.1080/08164649.2025.2480927},
+  eprint        = {https://doi.org/10.1080/08164649.2025.2480927},
+  publisher     = {Routledge},
+}
+
+@article{narrative-resp,
+  author        = {Coeckelbergh, Mark},
+  title         = {Narrative responsibility and artificial intelligence: How AI challenges human responsibility and sense-making},
+  journal       = {AI \& SOCIETY},
+  year          = {2023},
+  volume        = {38},
+  number        = {6},
+  pages         = {2437--2450},
+  publisher     = {Springer},
+}
+
+@article{visibility,
+  author        = {Gillespie, Tarleton},
+  title         = {Generative AI and the politics of visibility},
+  journal       = {Big Data \& Society},
+  year          = {2024},
+  volume        = {11},
+  number        = {2},
+  pages         = {20539517241252131},
+  publisher     = {SAGE Publications Sage UK: London, England},
+}
+
+@article{herm-diss,
+  author        = {Goetze, Trystan S.},
+  title         = {Hermeneutical Dissent and the Species of Hermeneutical Injustice},
+  journal       = {Hypatia},
+  year          = {2018},
+  volume        = {33},
+  number        = {1},
+  pages         = {73--90},
+  doi           = {10.1111/hypa.12384},
+}
+
+@article{creative-div,
+  author        = {Moon, Kibum and Green, Adam E and Kushlev, Kostadin},
+  title         = {Homogenizing effect of large language models (LLMs) on creative diversity: An empirical comparison of human and ChatGPT writing},
+  journal       = {Computers in Human Behavior: Artificial Humans},
+  year          = {2025},
+  pages         = {100207},
+  publisher     = {Elsevier},
+}
+
+@article{incredibly-average,
+  author        = {Rudko, Ihor and Bashirpour Bonab, Aysan},
+  title         = {ChatGPT is incredible (at being average)},
+  journal       = {Ethics and Information Technology},
+  year          = {2025},
+  volume        = {27},
+  number        = {3},
+  pages         = {36},
+  publisher     = {Springer},
+}
+
+
+% [Reports / Whitepapers]
+@techreport{ai-safety-report,
+  author        = {Bengio, Yoshua and Mindermann, S{\"o}ren and Privitera, Daniel and others},
+  title         = {International AI Safety Report},
+  institution   = {UK Department for Science, Innovation and Technology},
+  number        = {DSIT 2025/001},
+  year          = {2025},
+  url           = {https://internationalaisafetyreport.org/sites/default/files/2025-10/international_ai_safety_report_2025_english.pdf},
+  note          = {First International AI Safety Report, published January 2025},
+  month         = jan,
+  subtitle      = {International Scientific Report on the Safety of Advanced AI},
+}
+
+
+% [Online Resources]
+@online{atif,
+  author        = {Atif Hussain},
+  title         = {Voice and AI: The Subaltern’s Challenge},
+  year          = {2024},
+  url           = {https://medium.com/@atifhussain/voice-and-ai-the-subalterns-challenge-3940800b84ad},
+  urldate       = {2025-09-20},
+  note          = {Medium},
+  day           = {29},
+  month         = aug,
+}
+
+
+% [Misc]
+@misc{affordances,
+  author        = {Sina Fazelpour and Meica Magnani},
+  title         = {Aspirational Affordances of AI},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2504.15469},
+  eprint        = {2504.15469},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CY},
+}
+
+@misc{what-ai-safe,
+  author        = {Jacqueline Harding and Cameron Domenico Kirk-Giannini},
+  title         = {What Is AI Safety? What Do We Want It to Be?},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2505.02313},
+  eprint        = {2505.02313},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CY},
+}
+
+@misc{rep-harm,
+  author        = {Jared Katzman and Angelina Wang and Morgan Scheuerman and Su Lin Blodgett and Kristen Laird and Hanna Wallach and Solon Barocas},
+  title         = {Taxonomizing and Measuring Representational Harms: A Look at Image Tagging},
+  year          = {2023},
+  url           = {https://arxiv.org/abs/2305.01776},
+  eprint        = {2305.01776},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CY},
+}
+
+@misc{we-deserve,
+  author        = {Evgeny Morozov},
+  title         = {The AI We Deserve},
+  year          = {2024},
+  url           = {https://www.bostonreview.net/forum/the-ai-we-deserve/},
+  urldate       = {2025-11-14},
+  day           = {4},
+  issue         = {Fall 2024},
+  issuetitle    = {AI Futures},
+  journaltitle  = {Boston Review},
+  langid        = {english},
+  month         = {12},
+  series        = {Forum},
+  subtitle      = {Critiques of artificial intelligence abound. Where’s the utopian vision for what it could be?},
+}
+
+@misc{harms,
+  author        = {Renee Shelby and Shalaleh Rismani and Kathryn Henne and AJung Moon and Negar Rostamzadeh and Paul Nicholas and N'Mah Yilla and Jess Gallegos and Andrew Smart and Emilio Garcia and Gurleen Virk},
+  title         = {Sociotechnical Harms of Algorithmic Systems: Scoping a Taxonomy for Harm Reduction},
+  year          = {2023},
+  url           = {https://arxiv.org/abs/2210.05791},
+  eprint        = {2210.05791},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.HC},
+}
+
+@misc{hom-effect,
+  author        = {Zhivar Sourati and Alireza S. Ziabari and Morteza Dehghani},
+  title         = {The Homogenizing Effect of Large Language Models on Human Expression and Thought},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2508.01491},
+  eprint        = {2508.01491},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+% ------------------------------------------------------------------------------
+% Background — Why is diversity lost?
+% ------------------------------------------------------------------------------
+% [Conference Papers]
+@inproceedings{droppin,
+  author        = {Huang, Yiwen and Gokaslan, Aaron and Kuleshov, Volodymyr and Tompkin, James},
+  title         = {The GAN is dead; long live the GAN! A Modern GAN Baseline},
+  booktitle     = {Advances in Neural Information Processing Systems},
+  editor        = {A. Globerson and L. Mackey and D. Belgrave and A. Fan and U. Paquet and J. Tomczak and C. Zhang},
+  publisher     = {Curran Associates, Inc.},
+  year          = {2024},
+  pages         = {44177--44215},
+  url           = {https://proceedings.neurips.cc/paper_files/paper/2024/file/4e2acb1e1c8e297d394ae29ed9535172-Paper-Conference.pdf},
+  volume        = {37},
+}
+
+@inproceedings{overgeneralization,
+  author        = {Li, Cheuk Ting and Farnia, Farzan},
+  title         = {Mode-seeking divergences: theory and applications to gans},
+  booktitle     = {International Conference on Artificial Intelligence and Statistics},
+  organization  = {PMLR},
+  year          = {2023},
+  pages         = {8321--8350},
+}
+
+@inproceedings{forgetting,
+  author        = {Thanh-Tung, Hoang and Tran, Truyen},
+  title         = {Catastrophic forgetting and mode collapse in GANs},
+  booktitle     = {2020 international joint conference on neural networks (ijcnn)},
+  organization  = {IEEE},
+  year          = {2020},
+  pages         = {1--10},
+}
+
+
+% [Journal / Preprint Articles]
+@article{mode-interpol,
+  author        = {Aithal, Sumukh K and Maini, Pratyush and Lipton, Zachary C and Kolter, J Zico},
+  title         = {Understanding hallucinations in diffusion models through mode interpolation},
+  journal       = {URL https://arxiv. org/abs/2406.09358},
+  year          = {2024},
+  volume        = {2406},
+}
+
+@article{collapse-mitigate,
+  author        = {Cobbinah, Matthew and Nunoo-Mensah, Henry and Ebenezer Adjei, Prince and Adoma Acheampong, Francisca and Acquah, Isaac and Tutu Tchao, Eric and Selasi Agbemenu, Andrew and John Kponyo, Jerry and Abaidoo, Emmanuel},
+  title         = {Diversity in Stable GANs: A Systematic Review of Mode Collapse Mitigation Strategies},
+  journal       = {Engineering Reports},
+  year          = {2025},
+  volume        = {7},
+  number        = {6},
+  pages         = {e70209},
+  doi           = {https://doi.org/10.1002/eng2.70209},
+  url           = {https://onlinelibrary.wiley.com/doi/abs/10.1002/eng2.70209},
+  eprint        = {https://onlinelibrary.wiley.com/doi/pdf/10.1002/eng2.70209},
+  keywords      = {CT-MRI translation, CycleGAN, generative adversarial networks, medical imaging, mode collapse},
+}
+
+@article{gen-bias,
+  author        = {Huang, Linus Ta-Lun and Huang, Tsung-Ren},
+  title         = {Generative bias: widespread, unexpected, and uninterpretable biases in generative models and their implications},
+  journal       = {AI \& SOCIETY},
+  year          = {2025},
+  pages         = {1--13},
+  publisher     = {Springer},
+}
+@misc{hivemind,
+      title={Artificial Hivemind: The Open-Ended Homogeneity of Language Models (and Beyond)}, 
+      author={Liwei Jiang and Yuanjun Chai and Margaret Li and Mickel Liu and Raymond Fok and Nouha Dziri and Yulia Tsvetkov and Maarten Sap and Alon Albalak and Yejin Choi},
+      year={2025},
+      eprint={2510.22954},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2510.22954}, 
+}
+
+% [Misc]
+@misc{nucleus-sampling,
+  author        = {Matthew Finlayson and John Hewitt and Alexander Koller and Swabha Swayamdipta and Ashish Sabharwal},
+  title         = {Closing the Curious Case of Neural Text Degeneration},
+  year          = {2023},
+  url           = {https://arxiv.org/abs/2310.01693},
+  eprint        = {2310.01693},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{bias-llm,
+  author        = {Yufei Guo and Muzhe Guo and Juntao Su and Zhou Yang and Mengqiu Zhu and Hongfei Li and Mengyang Qiu and Shuo Shuo Liu},
+  title         = {Bias in Large Language Models: Origin, Evaluation, and Mitigation},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2411.10915},
+  eprint        = {2411.10915},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{trade-off,
+  author        = {Alkis Kalavasis and Anay Mehrotra and Grigoris Velegkas},
+  title         = {On the Limits of Language Generation: Trade-Offs Between Hallucination and Mode Collapse},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2411.09642},
+  eprint        = {2411.09642},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{position-collapse,
+  author        = {Rylan Schaeffer and Joshua Kazdan and Alvan Caleb Arulandu and Sanmi Koyejo},
+  title         = {Position: Model Collapse Does Not Mean What You Think},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2503.03150},
+  eprint        = {2503.03150},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{dropping,
+  author        = {Yasin Yazici and Chuan-Sheng Foo and Stefan Winkler and Kim-Hui Yap and Vijay Chandrasekhar},
+  title         = {Empirical Analysis of Overfitting and Mode Drop in GAN Training},
+  year          = {2020},
+  url           = {https://arxiv.org/abs/2006.14265},
+  eprint        = {2006.14265},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+% ------------------------------------------------------------------------------
+% Background — Why is diversity important?
+% ------------------------------------------------------------------------------
+% [Books]
+@book{classification,
+  author        = {Geoffrey C. Bowker and Susan Leigh Star},
+  title         = {Sorting Things Out: Classification and Its Consequences},
+  series        = {Inside Technology},
+  publisher     = {MIT Press},
+  year          = {1999},
+  isbn          = {978-0-262-02461-7},
+  note          = {First edition. Also available as MIT Press paperback, 2000, ISBN 978-0-262-52295-3; eISBN 978-0-262-26907-0},
+  address       = {Cambridge, MA; London, England},
+}
+
+@book{impossible-desires,
+  author        = {Gayatri Gopinath},
+  title         = {Impossible Desires: Queer Diasporas and South Asian Public Cultures},
+  publisher     = {Duke University Press},
+  year          = {2005},
+  address       = {Durham, NC},
+}
+
+@book{resist,
+  author        = {McQuillan, D.},
+  title         = {Resisting AI: An Anti-fascist Approach to Artificial Intelligence},
+  publisher     = {Bristol University Press},
+  year          = {2022},
+  isbn          = {9781529213508},
+  url           = {https://books.google.com/books?id=R6x6EAAAQBAJ},
+  lccn          = {2022367994},
+}
+
+@book{bias-stand,
+  author        = {Schwartz, Reva and Schwartz, Reva and Vassilev, Apostol and Greene, Kristen and Perine, Lori and Burt, Andrew and Hall, Patrick},
+  title         = {Towards a standard for identifying and managing bias in artificial intelligence},
+  publisher     = {US Department of Commerce, National Institute of Standards and Technology~…},
+  year          = {2022},
+  volume        = {3},
+}
+
+@book{greatness,
+  author        = {Stanley, Kenneth O. and Lehman, Joel},
+  title         = {Why Greatness Cannot Be Planned: The Myth of the Objective},
+  publisher     = {Springer Cham},
+  year          = {2015},
+  isbn          = {978-3-319-15523-4},
+  doi           = {10.1007/978-3-319-15524-1},
+}
+
+@book{causal-explanation,
+  author        = {Woodward, James},
+  title         = {Making things happen: A theory of causal explanation},
+  publisher     = {Oxford university press},
+  year          = {2005},
+}
+
+
+% [Journal / Preprint Articles]
+@article{rare-importance,
+  author        = {Beamish, Paul and Hasse, Vanessa},
+  title         = {The importance of rare events and other outliers in global strategy research},
+  journal       = {Global Strategy Journal},
+  year          = {2022},
+  volume        = {12},
+  pages         = {697--713},
+  doi           = {10.1002/gsj.1437},
+  month         = {03},
+}
+
+@article{outliers,
+  author        = {Bhandari, Dila Ram and Shah, Kapil and Bhandari, Aayan},
+  title         = {The Power of Outliers in Research: What actually Works, and Does it Matter?},
+  journal       = {Pravaha},
+  year          = {2024},
+  volume        = {30},
+  number        = {1},
+  pages         = {84--91},
+}
+
+@article{phil-outlier,
+  author        = {Cook, Chelsea N and Freeman, Angela R and Liao, James C and Mangiamele, Lisa A},
+  title         = {The philosophy of outliers: reintegrating rare events into biological science},
+  journal       = {Integrative and Comparative Biology},
+  year          = {2021},
+  volume        = {61},
+  number        = {6},
+  pages         = {2191--2198},
+  publisher     = {Oxford University Press},
+}
+
+@article{tailscale,
+  author        = {Dean, Jeffrey and Barroso, Luiz Andr{\'e}},
+  title         = {The tail at scale},
+  journal       = {Communications of the ACM},
+  year          = {2013},
+  volume        = {56},
+  number        = {2},
+  pages         = {74--80},
+  publisher     = {ACM New York, NY, USA},
+}
+
+@article{cybsec,
+  author        = {Edwards, Benjamin and Hofmeyr, Steven and Forrest, Stephanie},
+  title         = {Hype and heavy tails: A closer look at data breaches},
+  journal       = {Journal of Cybersecurity},
+  year          = {2016},
+  volume        = {2},
+  number        = {1},
+  pages         = {3--14},
+  doi           = {10.1093/cybsec/tyw003},
+  url           = {https://doi.org/10.1093/cybsec/tyw003},
+  eprint        = {https://academic.oup.com/cybersecurity/article-pdf/2/1/3/26672851/tyw003.pdf},
+  issn          = {2057-2085},
+  month         = {12},
+}
+
+@article{gpu-nondet,
+  author        = {Horace He and Thinking Machines Lab},
+  title         = {Defeating Nondeterminism in LLM Inference},
+  journal       = {Thinking Machines Lab: Connectionism},
+  year          = {2025},
+  doi           = {10.64434/tml.20250910},
+  url           = {https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/},
+}
+
+@article{research-paradox,
+  author        = {Hofstra, Bas and Kulkarni, Vivek V and Munoz-Najar Galvez, Sebastian and He, Bryan and Jurafsky, Dan and McFarland, Daniel A},
+  title         = {The diversity--innovation paradox in science},
+  journal       = {Proceedings of the National Academy of Sciences},
+  year          = {2020},
+  volume        = {117},
+  number        = {17},
+  pages         = {9284--9291},
+  publisher     = {National Academy of Sciences},
+}
+
+@article{humility,
+  author        = {Jasanoff, Sheila},
+  title         = {Technologies of humility},
+  journal       = {Nature},
+  year          = {2007},
+  volume        = {450},
+  number        = {7166},
+  pages         = {33--33},
+  publisher     = {Nature Publishing Group UK London},
+}
+
+@article{bioecology,
+  author        = {Leit{\~a}o, Rafael P and Zuanon, Jansen and Vill{\'e}ger, S{\'e}bastien and Williams, Stephen E and Baraloto, Christopher and Fortunel, Claire and Mendon{\c{c}}a, Fernando P and Mouillot, David},
+  title         = {Rare species contribute disproportionately to the functional structure of species assemblages},
+  journal       = {Proceedings of the Royal Society B: Biological Sciences},
+  year          = {2016},
+  volume        = {283},
+  number        = {1828},
+  pages         = {20160084},
+  publisher     = {The Royal Society},
+}
+
+@article{bias-typo,
+  author        = {Lopez, Paola},
+  title         = {Bias does not equal bias: A socio-technical typology of bias in data-based algorithmic systems},
+  journal       = {Internet Policy Review},
+  year          = {2021},
+  volume        = {10},
+  number        = {4},
+  pages         = {1--29},
+  publisher     = {Berlin: Alexander von Humboldt Institute for Internet and Society},
+}
+
+@article{decolonial,
+  author        = {Mohamed, Shakir and Png, Marie-Therese and Isaac, William},
+  title         = {Decolonial AI: Decolonial Theory as Sociotechnical Foresight in Artificial Intelligence},
+  journal       = {Philosophy \& Technology},
+  year          = {2020},
+  volume        = {33},
+  number        = {4},
+  pages         = {659–684},
+  doi           = {10.1007/s13347-020-00405-8},
+  url           = {http://dx.doi.org/10.1007/s13347-020-00405-8},
+  issn          = {2210-5441},
+  month         = jul,
+  publisher     = {Springer Science and Business Media LLC},
+}
+
+@article{selfdrive,
+  author        = {Putra, Rizky and Kartika, Ayu and Santoso, Budi},
+  title         = {Solving Long-tail Detection for Autonomous Vehicles},
+  journal       = {Authorea Preprints},
+  year          = {2024},
+  publisher     = {Authorea},
+}
+
+@article{out-dim,
+  author        = {Rudman, William and Chen, Catherine and Eickhoff, Carsten},
+  title         = {Outlier Dimensions Encode Task-Specific Knowledge},
+  journal       = {arXiv preprint arXiv:2310.17715},
+  year          = {2023},
+}
+
+@article{anomalies,
+  author        = {Ruef, Martin and Birkhead, Colin},
+  title         = {Learning from outliers and anomalies},
+  journal       = {Academy of Management Perspectives},
+  year          = {2024},
+  number        = {ja},
+  pages         = {amp--2023},
+  publisher     = {Academy of Management Valhalla, NY},
+}
+
+@article{atypical,
+  author        = {Uzzi, Brian and Mukherjee, Satyam and Stringer, Michael and Jones, Ben},
+  title         = {Atypical combinations and scientific impact},
+  journal       = {Science},
+  year          = {2013},
+  volume        = {342},
+  number        = {6157},
+  pages         = {468--472},
+  publisher     = {American Association for the Advancement of Science},
+}
+
+@article{leaduser,
+  author        = {Von Hippel, Eric},
+  title         = {New product ideas from ‘lead users’},
+  journal       = {Research-Technology Management},
+  year          = {1989},
+  volume        = {32},
+  number        = {3},
+  pages         = {24--27},
+  publisher     = {Taylor \& Francis},
+}
+
+@article{teams,
+  author        = {Wu, Lingfei and Wang, Dashun and Evans, James A},
+  title         = {Large teams develop and small teams disrupt science and technology},
+  journal       = {Nature},
+  year          = {2019},
+  volume        = {566},
+  number        = {7744},
+  pages         = {378--382},
+  publisher     = {Nature Publishing Group UK London},
+}
+
+
+% [Misc]
+@misc{rare-events,
+  author        = {Jingyi Gu and Xuan Zhang and Guiling Wang},
+  title         = {Beyond the Norm: A Survey of Synthetic Data Generation for Rare Events},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2506.06380},
+  eprint        = {2506.06380},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{uncertainty-est,
+  author        = {Kacper Sokol and Eyke Hüllermeier},
+  title         = {All You Need for Counterfactual Explainability Is Principled and Reliable Estimate of Aleatoric and Epistemic Uncertainty},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2502.17007},
+  eprint        = {2502.17007},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{off-pol,
+  author        = {Yao, Feng and Liu, Liyuan and Zhang, Dinghuai and Dong, Chengyu and Shang, Jingbo and Gao, Jianfeng},
+  title         = {Your Efficient RL Framework Secretly Brings You Off-Policy RL Training},
+  year          = {2025},
+  url           = {https://fengyao.notion.site/off-policy-rl},
+  journal       = {Feng Yao's Notion},
+  month         = aug,
+}
+
+% ------------------------------------------------------------------------------
+% Background — What is the risk?
+% ------------------------------------------------------------------------------
+% [Books]
+@book{crisis-of-narration,
+  author        = {Han, Byung-Chul},
+  title         = {The Crisis of Narration},
+  publisher     = {Polity Press},
+  year          = {2024},
+  isbn          = {9781509560431},
+  langid        = {english},
+  location      = {Cambridge},
+  month         = {04},
+  pagetotal     = {100},
+  translator    = {Steuer, Daniel},
+}
+
+@book{testo,
+  author        = {Preciado, P},
+  title         = {Testo Junkie: Sex, Drugs, and Biopolitics in the Pharmacopornographic Era},
+  series        = {G - Reference,Information and Interdisciplinary Subjects Series},
+  publisher     = {Feminist Press at the City University of New York},
+  year          = {2013},
+  isbn          = {9781558618374},
+  url           = {https://books.google.com/books?id=8mtgAwAAQBAJ},
+  lccn          = {2013017587},
+}
+
+@book{trans-phil,
+  author        = {Zurn, P. and Pitts, A.J. and Bettcher, T.M. and DiPietro, PJ},
+  title         = {Trans Philosophy},
+  publisher     = {University of Minnesota Press},
+  year          = {2024},
+  isbn          = {9781452972183},
+  url           = {https://books.google.com/books?id=XWr8EAAAQBAJ},
+  lccn          = {2024023911},
+}
+
+
+% [Conference Papers]
+@inproceedings{picking,
+  author        = {Bommasani, Rishi and Creel, Kathleen A. and Kumar, Ananya and Jurafsky, Dan and Liang, Percy S},
+  title         = {Picking on the Same Person: Does Algorithmic Monoculture lead to Outcome Homogenization?},
+  booktitle     = {Advances in Neural Information Processing Systems},
+  editor        = {S. Koyejo and S. Mohamed and A. Agarwal and D. Belgrave and K. Cho and A. Oh},
+  publisher     = {Curran Associates, Inc.},
+  year          = {2022},
+  pages         = {3663--3678},
+  url           = {https://proceedings.neurips.cc/paper_files/paper/2022/file/17a234c91f746d9625a75cf8a8731ee2-Paper-Conference.pdf},
+  volume        = {35},
+}
+
+@inproceedings{social-media-homo,
+  author        = {Putri, Salsa Della Guitara and Purnomo, Eko Priyo and Khairunissa, Tiara},
+  title         = {Echo chambers and algorithmic bias: The homogenization of online culture in a smart society},
+  booktitle     = {SHS Web of Conferences},
+  organization  = {EDP Sciences},
+  year          = {2024},
+  pages         = {05001},
+  volume        = {202},
+}
+
+
+% [Journal / Preprint Articles]
+@article{welfare,
+  author        = {Allcott, Hunt and Braghieri, Luca and Eichmeyer, Sarah and Gentzkow, Matthew},
+  title         = {The Welfare Effects of Social Media},
+  journaltitle  = {American Economic Review},
+  year          = {2020},
+  date          = {2020-03},
+  volume        = {110},
+  number        = {3},
+  pages         = {629--676},
+  doi           = {10.1257/aer.20190658},
+  url           = {https://pubs.aeaweb.org/doi/10.1257/aer.20190658},
+  urldate       = {2025-11-30},
+}
+
+@article{two-types,
+  author        = {Kasirzadeh, Atoosa},
+  title         = {Two Types of AI Existential Risk: Decisive and Accumulative},
+  journaltitle  = {Synthese},
+  year          = {2025},
+  doi           = {10.1007/s11098-025-02301-3},
+  url           = {https://link.springer.com/article/10.1007/s11098-025-02301-3},
+  urldate       = {2025-11-30},
+}
+
+@article{black-swan,
+  author        = {Kolt, Noam},
+  title         = {Algorithmic Black Swans},
+  journaltitle  = {Washington University Law Review},
+  year          = {2024},
+  volume        = {101},
+  pages         = {1177--1240},
+  url           = {https://wustllawreview.org/wp-content/uploads/2024/04/Kolt-Algorithmic-Black-Swans.pdf},
+  urldate       = {2025-11-30},
+}
+
+@article{myanmar,
+  author        = {Modok, Anamika},
+  title         = {Role of Social Media in Inciting the Genocidal Acts: A Case Study on Myanmar’s Rohingya},
+  journal       = {Contemporary Challenges: The Global Crime, Justice and Security Journal},
+  year          = {2023},
+  volume        = {4},
+}
+
+@article{know-collapse,
+  author        = {Peterson, Andrew J.},
+  title         = {AI and the problem of knowledge collapse},
+  journal       = {AI \& SOCIETY},
+  year          = {2025},
+  volume        = {40},
+  number        = {5},
+  pages         = {3249–3269},
+  doi           = {10.1007/s00146-024-02173-x},
+  url           = {http://dx.doi.org/10.1007/s00146-024-02173-x},
+  issn          = {1435-5655},
+  month         = jan,
+  publisher     = {Springer Science and Business Media LLC},
+}
+
+@article{filter-bubbles,
+  author        = {Rodilosso, Ermelinda},
+  title         = {Filter bubbles and the unfeeling: How AI for social media can foster extremism and polarization},
+  journal       = {Philosophy \& Technology},
+  year          = {2024},
+  volume        = {37},
+  number        = {2},
+  pages         = {71},
+  publisher     = {Springer},
+}
+
+
+% [Misc]
+@misc{near-term,
+  author        = {Bucknall, Benjamin S.},
+  title         = {Current and Near-Term AI as a Potential Existential Risk Factor},
+  year          = {2022},
+  doi           = {10.48550/arXiv.2209.10604},
+  url           = {https://arxiv.org/abs/2209.10604},
+  urldate       = {2025-11-30},
+  eprint        = {2209.10604},
+  eprinttype    = {arxiv},
+}
+
+@misc{ai-psychosis,
+  author        = {Preda, Adrian},
+  title         = {Special report: AI-induced psychosis: a new frontier in mental health},
+  year          = {2025},
+  publisher     = {American Psychiatric Publishing, Inc.},
+}
+
+@misc{srilanka,
+  author        = {{Facebook}},
+  title         = {Facebook Response: Sri Lanka Human Rights Impact Assessment},
+  year          = {2021},
+  date          = {2021-03},
+  url           = {https://about.fb.com/wp-content/uploads/2021/03/FB-Response-Sri-Lanka-HRIA.pdf},
+  urldate       = {2025-11-30},
+  institution   = {Facebook},
+}
+
+% ------------------------------------------------------------------------------
+% Background — Why is diversity complex?
+% ------------------------------------------------------------------------------
+% [Conference Papers]
+@inproceedings{inductive-reason,
+  author        = "Lee, Kang-il  and
+      Koh, Hyukhun  and
+      Lee, Dongryeol  and
+      Yoon, Seunghyun  and
+      Kim, Minsung  and
+      Jung, Kyomin",
+  title         = "Generating Diverse Hypotheses for Inductive Reasoning",
+  booktitle     = "Proceedings of the 2025 Conference of the Nations of the Americas Chapter of the Association for Computational Linguistics: Human Language Technologies (Volume 1: Long Papers)",
+  editor        = "Chiruzzo, Luis  and
+      Ritter, Alan  and
+      Wang, Lu",
+  publisher     = "Association for Computational Linguistics",
+  year          = {2025},
+  pages         = "8461--8474",
+  doi           = "10.18653/v1/2025.naacl-long.429",
+  url           = "https://aclanthology.org/2025.naacl-long.429/",
+  address       = "Albuquerque, New Mexico",
+  isbn          = "979-8-89176-189-6",
+  month         = apr,
+}
+
+@inproceedings{prompt-knob,
+  author        = {Morain, Robert and Ventura, Dan},
+  title         = {Is Prompt Engineering the Creativity Knob for Large Language Models?},
+  booktitle     = {Proceedings of the 16th International Conference for Computational Creativity},
+  year          = {2025},
+}
+
+@inproceedings{bad-align-1,
+  author        = {Murthy, Sonia Krishna and Ullman, Tomer and Hu, Jennifer},
+  title         = {One fish, two fish, but not the whole sea: Alignment reduces language models’ conceptual diversity},
+  booktitle     = {Proceedings of the 2025 Conference of the Nations of the Americas Chapter of the Association for Computational Linguistics: Human Language Technologies (Volume 1: Long Papers)},
+  publisher     = {Association for Computational Linguistics},
+  year          = {2025},
+  pages         = {11241–11258},
+  doi           = {10.18653/v1/2025.naacl-long.561},
+  url           = {http://dx.doi.org/10.18653/v1/2025.naacl-long.561},
+}
+
+
+% [Journal / Preprint Articles]
+@article{diversity-nodef,
+  author        = {Peeperkorn, Max and Kouwenhoven, Tom and Brown, Dan and Jordanous, Anna},
+  title         = {Mind the Gap: Conformative Decoding to Improve Output Diversity of Instruction-Tuned Large Language Models},
+  journal       = {arXiv preprint arXiv:2507.20956},
+  year          = {2025},
+}
+
+@article{bad-align-2,
+  author        = {West, Peter and Potts, Christopher},
+  title         = {Base models beat aligned models at randomness and creativity},
+  journal       = {arXiv preprint arXiv:2505.00047},
+  year          = {2025},
+}
+
+
+% [Misc]
+@misc{throw-away-pretrained,
+  author        = {Shangbin Feng and Wenhao Yu and Yike Wang and Hongming Zhang and Yulia Tsvetkov and Dong Yu},
+  title         = {Don't Throw Away Your Pretrained Model},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2510.09913},
+  eprint        = {2510.09913},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{hyperparams,
+  author        = {Messi H. J. Lee},
+  title         = {Examining the Robustness of Homogeneity Bias to Hyperparameter Adjustments in GPT-4},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2501.02211},
+  eprint        = {2501.02211},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CV},
+}
+
+% Leinster: Foundational work on diversity measurement
+% - Proves diversity cannot be captured by single number; requires a profile
+% - Hill numbers parameterized by q: emphasis on rare (q→0) vs common (q→∞) species
+% - When diversity profiles cross, ordering is ambiguous
+% - Generalizes Shannon entropy to similarity-sensitive diversity measures
+% - Key insight: different q values answer different questions about diversity
+@book{entropy-diversity,
+  author        = {Leinster, Tom},
+  title         = {Entropy and Diversity: The Axiomatic Approach},
+  publisher     = {Cambridge University Press},
+  year          = {2021},
+  isbn          = {9781108965576},
+  doi           = {10.1017/9781108963558},
+  url           = {https://arxiv.org/abs/2012.02113},
+  note          = {Open access arXiv version: 2012.02113},
+}
+
+@misc{bad-align-3,
+  author        = {Tao Meng and Ninareh Mehrabi and Palash Goyal and Anil Ramakrishna and Aram Galstyan and Richard Zemel and Kai-Wei Chang and Rahul Gupta and Charith Peris},
+  title         = {Attribute Controlled Fine-tuning for Large Language Models: A Case Study on Detoxification},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2410.05559},
+  eprint        = {2410.05559},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{temperature,
+  author        = {Max Peeperkorn and Tom Kouwenhoven and Dan Brown and Anna Jordanous},
+  title         = {Is Temperature the Creativity Parameter of Large Language Models?},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2405.00492},
+  eprint        = {2405.00492},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+% ------------------------------------------------------------------------------
+% Background — Diverse how, anyway?
+% ------------------------------------------------------------------------------
+% [Books]
+@book{joy,
+  author        = {Cheng, Eugenia},
+  title         = {The Joy of Abstraction: An Exploration of Math, Category Theory, and Life},
+  publisher     = {Cambridge University Press},
+  year          = {2022},
+  isbn          = {9781108861014},
+  url           = {https://books.google.com/books?id=N_GCEAAAQBAJ},
+}
+
+
+% [Journal / Preprint Articles]
+@article{survey-hal,
+  author        = {Huang, Lei and Yu, Weijiang and Ma, Weitao and Zhong, Weihong and Feng, Zhangyin and Wang, Haotian and Chen, Qianglong and Peng, Weihua and Feng, Xiaocheng and Qin, Bing and Liu, Ting},
+  title         = {A Survey on Hallucination in Large Language Models: Principles, Taxonomy, Challenges, and Open Questions},
+  journal       = {ACM Transactions on Information Systems},
+  year          = {2025},
+  volume        = {43},
+  number        = {2},
+  pages         = {1–55},
+  doi           = {10.1145/3703155},
+  url           = {http://dx.doi.org/10.1145/3703155},
+  issn          = {1558-2868},
+  month         = jan,
+  publisher     = {Association for Computing Machinery (ACM)},
+}
+
+
+% [Misc]
+@misc{taxonomy-hal,
+  author        = {Manuel Cossio},
+  title         = {A comprehensive taxonomy of hallucinations in Large Language Models},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2508.01781},
+  eprint        = {2508.01781},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{task-dependent,
+  author        = {Shomik Jain and Jack Lanchantin and Maximilian Nickel and Karen Ullrich and Ashia Wilson and Jamelle Watson-Daniels},
+  title         = {LLM Output Homogenization is Task Dependent},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2509.21267},
+  eprint        = {2509.21267},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{hallucinate,
+  author        = {Adam Tauman Kalai and Ofir Nachum and Santosh S. Vempala and Edwin Zhang},
+  title         = {Why Language Models Hallucinate},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2509.04664},
+  eprint        = {2509.04664},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{illusions,
+  author        = {Chaozhuo Li and Pengbo Wang and Chenxu Wang and Litian Zhang and Zheng Liu and Qiwei Ye and Yuanbo Xu and Feiran Huang and Xi Zhang and Philip S. Yu},
+  title         = {Loki's Dance of Illusions: A Comprehensive Survey of Hallucination in Large Language Models},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2507.02870},
+  eprint        = {2507.02870},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{confabulation,
+  author        = {Peiqi Sui and Eamon Duede and Sophie Wu and Richard Jean So},
+  title         = {Confabulation: The Surprising Value of Large Language Model Hallucinations},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2406.04175},
+  eprint        = {2406.04175},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{could-be,
+  author        = {Sun, Guangyan and Jin, Mingyu and Wang, Zhenting and Liang, James Chenhao and Geng, Tong and Guan, Qiang and Wang, Qifan and Du, Mengnan and Zhang, Yongfeng and Liu, Dongfang and others},
+  title         = {Hallucinating LLM Could Be Creative},
+  year          = {2025},
+}
+
+@misc{drug-discovery,
+  author        = {Shuzhou Yuan and Zhan Qu and Ashish Yashwanth Kangen and Michael Färber},
+  title         = {Can Hallucinations Help? Boosting LLMs for Drug Discovery},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2501.13824},
+  eprint        = {2501.13824},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+% ------------------------------------------------------------------------------
+% Background — What do we want of the future?
+% ------------------------------------------------------------------------------
+% [Books]
+@book{personhood,
+  author        = {Bettcher, T.M.},
+  title         = {Beyond Personhood: An Essay in Trans Philosophy},
+  publisher     = {University of Minnesota Press},
+  year          = {2025},
+  isbn          = {9781452972671},
+  url           = {https://books.google.com/books?id=PRoSEQAAQBAJ},
+  lccn          = {2024062228},
+}
+
+@book{consent,
+  author        = {Saketopoulou, Avgi},
+  title         = {Sexuality Beyond Consent: Risk, Race, Traumatophilia},
+  publisher     = {NYU Press},
+  year          = {2023},
+  isbn          = {9781479820252},
+  url           = {https://books.google.com/books?id=Xb6ZEAAAQBAJ},
+}
+
+
+% [Misc]
+@misc{concept-engr,
+  author        = {Jeremy Hadfield},
+  title         = {Why AI ethics needs conceptual engineers},
+  year          = {2023},
+  note          = {Imaginaries (Substack)},
+  url           = {https://imaginaries.substack.com/p/why-ai-ethics-needs-conceptual-engineers},
+  urldate       = {2025-09-17},
+  day           = {14},
+  month         = sep,
+}
+
+% ------------------------------------------------------------------------------
+% Theoretical Framework — LLMs as Trees of Strings
+% ------------------------------------------------------------------------------
+% [Misc]
+@misc{llm-cat,
+  author        = {Bradley, Tai-Danae and Vigneaux, Juan Pablo},
+  title         = {The Magnitude of Categories of Texts Enriched by Language Models},
+  year          = {2025},
+  url           = {http://arxiv.org/abs/2501.06662},
+  eprint        = {2501.06662},
+  eprinttype    = {arXiv},
+  month         = {1},
+}
+
+@misc{transparent,
+  author        = {Ares Fabregat-Hernández and Javier Palanca and Vicent Botti},
+  title         = {Transparent Semantic Spaces: A Categorical Approach to Explainable Word Embeddings},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2508.20701},
+  eprint        = {2508.20701},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.AI},
+}
+
+@misc{trajectories,
+  author        = {Liu, Tian Yu and Trager, Matthew and Achille, Alessandro and Perera, Pramuditha and Zancato, Luca and Soatto, Stefano},
+  title         = {Meaning Representations from Trajectories in Autoregressive Models},
+  year          = {2023},
+  url           = {https://arxiv.org/abs/2310.18348},
+  eprint        = {2310.18348},
+  eprinttype    = {arXiv},
+  eprintclass   = {cs.CL},
+}
+
+% ------------------------------------------------------------------------------
+% Theoretical Framework — Incorporating string statistics
+% ------------------------------------------------------------------------------
+% [Books]
+@book{orientations,
+  author        = {Ahmed, Sara},
+  title         = {Queer Phenomenology: Orientations, Objects, Others},
+  publisher     = {Duke University Press},
+  year          = {2006},
+  isbn          = {9780822339144},
+  url           = {https://books.google.com/books?id=sQY1RWdUW0AC},
+}
+
+
+% [Conference Papers]
+@inproceedings{queer-def,
+  author        = {Jedrusiak, Danuta},
+  title         = {Queering AI as a Speculative Practice: An Analysis of the Artistic Explorations of New Paradigms for Developing Inclusive AI},
+  booktitle     = {Proceedings of the 35th ACM Conference on Hypertext and Social Media},
+  year          = {2024},
+  pages         = {17--22},
+}
+
+% ------------------------------------------------------------------------------
+% Theoretical Framework — What about prompting?
+% ------------------------------------------------------------------------------
+% [Misc]
+@misc{verbalized,
+  author        = {Jiayi Zhang and Simon Yu and Derek Chong and Anthony Sicilia and Michael R. Tomz and Christopher D. Manning and Weiyan Shi},
+  title         = {Verbalized Sampling: How to Mitigate Mode Collapse and Unlock LLM Diversity},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2510.01171},
+  eprint        = {2510.01171},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+% ------------------------------------------------------------------------------
+% Related Work and Discussion
+% ------------------------------------------------------------------------------
+% [Theses]
+@phdthesis{actdiv-0,
+  author        = {Berns, S},
+  title         = {Diversity in Generative Machine Learning to Enhance Creative Applications},
+  school        = {Queen Mary University of London},
+  year          = {2025},
+}
+
+
+% [Conference Papers]
+@inproceedings{actdiv-1,
+  author        = {Berns, Sebastian and Colton, Simon},
+  title         = {Bridging Generative Deep Learning and Computational Creativity},
+  booktitle     = {Proceedings of the 11th International Conference on Computational Creativity (ICCC'20)},
+  year          = {2020},
+  pages         = {406--409},
+  url           = {http://computationalcreativity.net/iccc20/papers/164-iccc20.pdf},
+}
+
+@inproceedings{actdiv-4,
+  author        = {Cole, Adam and Petrikovi{\v{c}}, Gregor and Grierson, Mick},
+  title         = {Me vs. You: Wrestling with AI’s Limits Through Queer Experimental Filmmaking},
+  booktitle     = {Proceedings of the 2025 Conference on Creativity and Cognition},
+  year          = {2025},
+  pages         = {836--841},
+}
+
+@inproceedings{actdiv-2,
+  author        = {Tahiroglu, Koray and Wyse, Lonce},
+  title         = {Latent Spaces as Platforms for Sonic Creativity},
+  booktitle     = {Proceedings of the 16th International Conference on Computational Creativity, ICCC},
+  year          = {2024},
+  volume        = {24},
+}
+
+
+% [Journal / Preprint Articles]
+@article{actdiv,
+  author        = {Broad, Terence and Berns, Sebastian and Colton, Simon and Grierson, Mick},
+  title         = {Active Divergence with Generative Deep Learning--A Survey and Taxonomy},
+  journal       = {arXiv preprint arXiv:2107.05599},
+  year          = {2021},
+}
+
+@article{actdiv-3,
+  author        = {Esling, Philippe and others},
+  title         = {Challenges in creative generative models for music: a divergence maximization perspective},
+  journal       = {arXiv preprint arXiv:2211.08856},
+  year          = {2022},
+}
+
+@article{rep-bias,
+  author        = {Lampinen, Andrew Kyle and Chan, Stephanie CY and Li, Yuxuan and Hermann, Katherine},
+  title         = {Representation biases: will we achieve complete understanding by analyzing representations?},
+  journal       = {arXiv preprint arXiv:2507.22216},
+  year          = {2025},
+}
+
+@article{quality-diversity,
+  author        = {Pugh, Justin K and Soros, Lisa B and Stanley, Kenneth O},
+  title         = {Quality diversity: A new frontier for evolutionary computation},
+  journal       = {Frontiers in Robotics and AI},
+  year          = {2016},
+  volume        = {3},
+  pages         = {40},
+  publisher     = {Frontiers Media SA},
+}
+
+
+% [Misc]
+@misc{mode-balancing,
+  author        = {Sebastian Berns and Simon Colton and Christian Guckelsberger},
+  title         = {Towards Mode Balancing of Generative Models via Diversity Weights},
+  year          = {2023},
+  url           = {https://arxiv.org/abs/2304.11961},
+  eprint        = {2304.11961},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{alpha-sage,
+  author        = {Binqi Chen and Hongjun Ding and Ning Shen and Jinsheng Huang and Taian Guo and Luchen Liu and Ming Zhang},
+  title         = {AlphaSAGE: Structure-Aware Alpha Mining via GFlowNets for Robust Exploration},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2509.25055},
+  eprint        = {2509.25055},
+  archiveprefix = {arXiv},
+  primaryclass  = {q-fin.CP},
+}
+
+@misc{model-bias,
+  author        = {Andrew Kyle Lampinen and Stephanie C. Y. Chan and Katherine Hermann},
+  title         = {Learned feature representations are biased by complexity, learning order, position, and more},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2405.05847},
+  eprint        = {2405.05847},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{outcome-exp,
+  author        = {Yuda Song and Julia Kempe and Remi Munos},
+  title         = {Outcome-based Exploration for LLM Reasoning},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2509.06941},
+  eprint        = {2509.06941},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{tot,
+  author        = {Shunyu Yao and Dian Yu and Jeffrey Zhao and Izhak Shafran and Thomas L. Griffiths and Yuan Cao and Karthik Narasimhan},
+  title         = {Tree of Thoughts: Deliberate Problem Solving with Large Language Models},
+  year          = {2023},
+  url           = {https://arxiv.org/abs/2305.10601},
+  eprint        = {2305.10601},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+% ==============================================================================
+% REFERENCES NOT (YET) CITED IN paper.tex
+% ==============================================================================
+
+% ------------------------------------------------------------------------------
+% Diversity, Creativity & Representation
+% ------------------------------------------------------------------------------
+% [Books]
+@book{view-bottom,
+  author        = {Nguyen, T.H.},
+  title         = {A View from the Bottom: Asian American Masculinity and Sexual Representation},
+  series        = {Perverse modernities},
+  publisher     = {Duke University Press},
+  year          = {2014},
+  isbn          = {9780822376606},
+  url           = {https://books.google.com/books?id=oGmABAAAQBAJ},
+}
+
+
+% [Conference Papers]
+@inproceedings{enhancing-gen,
+  author        = {Ren, Tianyu and Wang, Hui and Rafferty, Karen},
+  title         = {Enhancing question generation through diversity-seeking reinforcement learning with bilevel policy decomposition},
+  booktitle     = {Proceedings of the AAAI Conference on Artificial Intelligence},
+  year          = {2025},
+  pages         = {25083--25091},
+  number        = {23},
+  volume        = {39},
+}
+
+@inproceedings{g2,
+  author        = {Ruan, Zhiwen and Li, Yixia and Liu, Yefeng and Chen, Yun and Luo, Weihua and Li, Peng and Liu, Yang and Chen, Guanhua},
+  title         = {G2: Guided Generation for Enhanced Output Diversity in LLMs},
+  booktitle     = {Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing},
+  year          = {2025},
+  pages         = {14127--14145},
+}
+
+
+% [Journal / Preprint Articles]
+@article{creativity-under-constraints-meta,
+  author        = {Acar, Oguz A. and Tarakci, Murat and van Knippenberg, Daan},
+  title         = {Creativity Under Constraints: A Meta-Analysis},
+  journal       = {Journal of Management},
+  year          = {2019},
+  volume        = {45},
+  number        = {4},
+  pages         = {1461--1487},
+}
+
+@article{indigenous-burning-pnas,
+  author        = {Bird, Rebecca Bliege and Bird, Douglas W. and Codding, Brian F. and Parker, Cynthia H. and Jones, Nicholas F.},
+  title         = {Aboriginal Hunting and Burning Increase Mammal Diversity in Australia's Western Desert},
+  journal       = {Proceedings of the National Academy of Sciences},
+  year          = {2012},
+  volume        = {109},
+  number        = {39},
+  pages         = {E2873--E2880},
+}
+
+@article{adversitycreativity,
+  author        = {Forgeard, Marie J. C.},
+  title         = {Perceiving Benefits After Adversity: The Relationship Between Self-Reported Posttraumatic Growth and Creativity},
+  journal       = {Psychology of Aesthetics, Creativity, and the Arts},
+  year          = {2013},
+  volume        = {7},
+  number        = {3},
+  pages         = {245--264},
+  doi           = {10.1037/a0031223},
+}
+
+@article{diversity-innovation-paradox,
+  author        = {Hofstra, Bas and Kulkarni, Vivek S. and Galenson, Sharla and He, Brian and Jurafsky, Dan and McFarland, Daniel A.},
+  title         = {The Diversity--Innovation Paradox in Science},
+  journal       = {Proceedings of the National Academy of Sciences},
+  year          = {2020},
+  volume        = {117},
+  number        = {17},
+  pages         = {9284--9291},
+}
+
+@article{diversity-beats-ability,
+  author        = {Hong, Lu and Page, Scott E.},
+  title         = {Groups of Diverse Problem Solvers Can Outperform Groups of High-Ability Problem Solvers},
+  journal       = {Proceedings of the National Academy of Sciences},
+  year          = {2004},
+  volume        = {101},
+  number        = {46},
+  pages         = {16385--16389},
+}
+
+@article{clt-9,
+  author        = {Alkis Kalavasis and Anay Mehrotra and Grigoris Velegkas},
+  title         = {On the Limits of Language Generation: Trade-Offs Between Hallucination and Mode Collapse},
+  journal       = {arXiv preprint},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2411.09642},
+  archiveprefix = {arXiv},
+  eprint        = {2411.09642},
+  primaryclass  = {cs.LG},
+}
+
+@article{clt-5,
+  author        = {Charlotte Peale and Vinod Raman and Omer Reingold},
+  title         = {Representative Language Generation},
+  journal       = {arXiv preprint},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2505.21819},
+  archiveprefix = {arXiv},
+  eprint        = {2505.21819},
+  primaryclass  = {cs.CL},
+}
+
+
+% [Misc]
+@misc{diverse-not-short,
+  author        = {Vijeta Deshpande and Debasmita Ghose and John D. Patterson and Roger Beaty and Anna Rumshisky},
+  title         = {Diverse, not Short: A Length-Controlled Data Selection Strategy for Improving Response Diversity of Language Models},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2505.16245},
+  eprint        = {2505.16245},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{mode-collapse,
+  author        = {Sil Hamilton},
+  title         = {Detecting Mode Collapse in Language Models via Narration},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2402.04477},
+  eprint        = {2402.04477},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{creativity,
+  author        = {Mete Ismayilzada and Debjit Paul and Antoine Bosselut and Lonneke van der Plas},
+  title         = {Creativity in AI: Progresses and Challenges},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2410.17218},
+  eprint        = {2410.17218},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.AI},
+}
+
+@misc{bias-linear,
+  author        = {Junsol Kim and James Evans and Aaron Schein},
+  title         = {Linear Representations of Political Perspective Emerge in Large Language Models},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2503.02080},
+  eprint        = {2503.02080},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{basic-bitch,
+  author        = {Sandra C. Matz and C. Blaine Horton and Sofie Goethals},
+  title         = {The Basic B*** Effect: The Use of LLM-based Agents Reduces the Distinctiveness and Diversity of People's Choices},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2509.02910},
+  eprint        = {2509.02910},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.HC},
+}
+
+@misc{representative,
+  author        = {Charlotte Peale and Vinod Raman and Omer Reingold},
+  title         = {Representative Language Generation},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2505.21819},
+  eprint        = {2505.21819},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{growing-tail,
+  author        = {Michal Shur-Ofry and Bar Horowitz-Amsalem and Adir Rahamim and Yonatan Belinkov},
+  title         = {Growing a Tail: Increasing Output Diversity in Large Language Models},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2411.02989},
+  eprint        = {2411.02989},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{shrinking,
+  author        = {Zhivar Sourati and Farzan Karimi-Malekabadi and Meltem Ozcan and Colin McDaniel and Alireza Ziabari and Jackson Trager and Ala Tak and Meng Chen and Fred Morstatter and Morteza Dehghani},
+  title         = {The Shrinking Landscape of Linguistic Diversity in the Age of Large Language Models},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2502.11266},
+  eprint        = {2502.11266},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{trading-off,
+  author        = {Hugh Zhang and Daniel Duckworth and Daphne Ippolito and Arvind Neelakantan},
+  title         = {Trading Off Diversity and Quality in Natural Language Generation},
+  year          = {2020},
+  url           = {https://arxiv.org/abs/2004.10450},
+  eprint        = {2004.10450},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{novelty-bench,
+  author        = {Yiming Zhang and Harshita Diddee and Susan Holm and Hanchen Liu and Xinyue Liu and Vinay Samuel and Barry Wang and Daphne Ippolito},
+  title         = {NoveltyBench: Evaluating Language Models for Humanlike Diversity},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2504.05228},
+  eprint        = {2504.05228},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+
+
+% ------------------------------------------------------------------------------
+% Ethics, Safety, Harms & Governance
+% ------------------------------------------------------------------------------
+% [Books]
+@book{warner-troublenorm,
+  author        = {Michael Warner},
+  title         = {The Trouble with Normal: Sex, Politics, and the Ethics of Queer Life},
+  publisher     = {Harvard University Press},
+  year          = {1999},
+}
+
+
+% [Conference Papers]
+@inproceedings{attitudes,
+  author        = {Haimson, Oliver L and Mayworm, Samuel Reiji and Ingber, Alexis Shore and Andalibi, Nazanin},
+  title         = {AI Attitudes Among Marginalized Populations in the US: Nonbinary, Transgender, and Disabled Individuals Report More Negative AI Attitudes},
+  booktitle     = {Proceedings of the 2025 ACM Conference on Fairness, Accountability, and Transparency},
+  year          = {2025},
+  pages         = {1224--1237},
+}
+
+@inproceedings{queer-in-ai,
+  author        = {Queerinai, Organizers Of and Ovalle, Anaelia and Subramonian, Arjun and Singh, Ashwin and Voelcker, Claas and Sutherland, Danica J. and Locatelli, Davide and Breznik, Eva and Klubicka, Filip and Yuan, Hang and J, Hetvi and Zhang, Huan and Shriram, Jaidev and Lehman, Kruno and Soldaini, Luca and Sap, Maarten and Deisenroth, Marc Peter and Pacheco, Maria Leonor and Ryskina, Maria and Mundt, Martin and Agarwal, Milind and Mclean, Nyx and Xu, Pan and Pranav, A and Korpan, Raj and Ray, Ruchira and Mathew, Sarah and Arora, Sarthak and John, St and Anand, Tanvi and Agrawal, Vishakha and Agnew, William and Long, Yanan and Wang, Zijie J. and Talat, Zeerak and Ghosh, Avijit and Dennler, Nathaniel and Noseworthy, Michael and Jha, Sharvani and Baylor, Emi and Joshi, Aditya and Bilenko, Natalia Y. and Mcnamara, Andrew and Gontijo-Lopes, Raphael and Markham, Alex and Dong, Evyn and Kay, Jackie and Saraswat, Manu and Vytla, Nikhil and Stark, Luke},
+  title         = {Queer In AI: A Case Study in Community-Led Participatory AI},
+  booktitle     = {2023 ACM Conference on Fairness, Accountability, and Transparency},
+  publisher     = {ACM},
+  year          = {2023},
+  pages         = {1882–1895},
+  doi           = {10.1145/3593013.3594134},
+  url           = {http://dx.doi.org/10.1145/3593013.3594134},
+  collection    = {FAccT ’23},
+  month         = jun,
+  series        = {FAccT ’23},
+}
+
+
+% [Journal / Preprint Articles]
+@article{rejection-id,
+  author        = {Branscombe, Nyla R. and Schmitt, Michael T. and Harvey, Richard D.},
+  title         = {Perceiving Pervasive Discrimination among African Americans: Implications for Group Identification and Well-Being},
+  journal       = {Journal of Personality and Social Psychology},
+  year          = {1999},
+  volume        = {77},
+  number        = {1},
+  pages         = {135--149},
+}
+
+@article{should-bias,
+  author        = {Ferrara, Emilio},
+  title         = {Should ChatGPT be biased? Challenges and risks of bias in large language models},
+  journal       = {First Monday},
+  year          = {2023},
+  doi           = {10.5210/fm.v28i11.13346},
+  url           = {http://dx.doi.org/10.5210/fm.v28i11.13346},
+  issn          = {1396-0466},
+  month         = nov,
+  publisher     = {University of Illinois Libraries},
+}
+
+@article{values-align,
+  author        = {Gabriel, Iason},
+  title         = {Artificial Intelligence, Values, and Alignment},
+  journal       = {Minds and Machines},
+  year          = {2020},
+  volume        = {30},
+  number        = {3},
+  pages         = {411–437},
+  doi           = {10.1007/s11023-020-09539-2},
+  url           = {http://dx.doi.org/10.1007/s11023-020-09539-2},
+  issn          = {1572-8641},
+  month         = sep,
+  publisher     = {Springer Science and Business Media LLC},
+}
+
+@article{whose-ai-safe,
+  author        = {Seth Lazar  and Alondra Nelson},
+  title         = {AI safety on whose terms?},
+  journal       = {Science},
+  year          = {2023},
+  volume        = {381},
+  number        = {6654},
+  pages         = {138--138},
+  doi           = {10.1126/science.adi8982},
+  url           = {https://www.science.org/doi/abs/10.1126/science.adi8982},
+  eprint        = {https://www.science.org/doi/pdf/10.1126/science.adi8982},
+}
+
+@article{pluralistic,
+  author        = {Sorensen, Taylor and Moore, Jared and Fisher, Jillian and Gordon, Mitchell and Mireshghallah, Niloofar and Rytting, Christopher Michael and Ye, Andre and Jiang, Liwei and Lu, Ximing and Dziri, Nouha and others},
+  title         = {A roadmap to pluralistic alignment},
+  journal       = {arXiv preprint arXiv:2402.05070},
+  year          = {2024},
+}
+
+@article{bias-alignment,
+  author        = {Tao, Yan and Viberg, Olga and Baker, Ryan S and Kizilcec, René F},
+  title         = {Cultural bias and cultural alignment of large language models},
+  journal       = {PNAS Nexus},
+  year          = {2024},
+  volume        = {3},
+  number        = {9},
+  pages         = {pgae346},
+  doi           = {10.1093/pnasnexus/pgae346},
+  url           = {https://doi.org/10.1093/pnasnexus/pgae346},
+  eprint        = {https://academic.oup.com/pnasnexus/article-pdf/3/9/pgae346/59151559/pgae346.pdf},
+  month         = {09},
+}
+
+@article{assembled,
+  author        = {Waller, Robyn and Waller, Russell},
+  title         = {Assembled Bias: Beyond Transparent Algorithmic Bias},
+  journal       = {Minds and Machines},
+  year          = {2022},
+  volume        = {32},
+  pages         = {},
+  doi           = {10.1007/s11023-022-09605-x},
+  month         = {06},
+}
+
+@article{competing,
+  author        = {Watson, David S and M{\"o}kander, Jakob and Floridi, Luciano},
+  title         = {Competing narratives in AI ethics: a defense of sociotechnical pragmatism},
+  journal       = {ai \& Society},
+  year          = {2025},
+  volume        = {40},
+  number        = {5},
+  pages         = {3163--3185},
+  publisher     = {Springer},
+}
+
+
+% [Online Resources]
+@online{bias-steer,
+  author        = {Esin Durmus and Alex Tamkin and Jack Clark and Jerry Wei and Jonathan Marcus and Joshua Batson and Kunal Handa and Liane Lovitt and Meg Tong and Miles McCain and Oliver Rausch and Saffron Huang and Sam Bowman and Stuart Ritchie and Tom Henighan and Deep Ganguli},
+  title         = {Evaluating Feature Steering: A Case Study in Mitigating Social Biases},
+  year          = {2024},
+  url           = {https://anthropic.com/research/evaluating-feature-steering},
+  day           = {25},
+  month         = {10},
+}
+
+@online{ai-align,
+  author        = {Ji, Jiaming and Qiu, Tianyi and Chen, Boyuan and Zhang, Borong and Lou, Hantao and Wang, Kaile and Duan, Yawen and He, Zhonghao and Vierling, Lukas and Hong, Donghai and Zhou, Jiayi and Zhang, Zhaowei and Zeng, Fanzhi and Dai, Juntao and Pan, Xuehai and Ng, Kwan Yee and O'Gara, Aidan and Xu, Hua and Tse, Brian and Fu, Jie and McAleer, Stephen and Yang, Yaodong and Wang, Yizhou and Zhu, Song-Chun and Guo, Yike and Gao, Wen},
+  title         = {AI Alignment: A Comprehensive Survey},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2310.19852},
+  eprint        = {2310.19852},
+  eprintclass   = {cs.AI},
+  eprinttype    = {arXiv},
+}
+
+
+% [Misc]
+@misc{ai-safe,
+  author        = {Dario Amodei and Chris Olah and Jacob Steinhardt and Paul Christiano and John Schulman and Dan Mané},
+  title         = {Concrete Problems in AI Safety},
+  year          = {2016},
+  url           = {https://arxiv.org/abs/1606.06565},
+  eprint        = {1606.06565},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.AI},
+}
+
+@misc{bias-mech,
+  author        = {Bhavik Chandna and Zubair Bashir and Procheta Sen},
+  title         = {Dissecting Bias in LLMs: A Mechanistic Interpretability Perspective},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2506.05166},
+  eprint        = {2506.05166},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{generative-horizon,
+  author        = {Chenghao Yang and Ari Holtzman},
+  title         = {LLM Probability Concentration: How Alignment Shrinks the Generative Horizon},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2506.17871},
+  eprint        = {2506.17871},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{multilingual,
+  author        = {Zheng-Xin Yong and Beyza Ermis and Marzieh Fadaee and Stephen H. Bach and Julia Kreutzer},
+  title         = {The State of Multilingual LLM Safety Research: From Measuring the Language Gap to Mitigating It},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2505.24119},
+  eprint        = {2505.24119},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+
+
+% ------------------------------------------------------------------------------
+% Formal Language, Grammar & Structure
+% ------------------------------------------------------------------------------
+% [Book Chapters]
+@incollection{conj-meaning,
+  author        = {Pietroski, Paul M.},
+  title         = {Conjoining Meanings: Semantics Without Truth Values},
+  booktitle     = {Conjoining Meanings: Semantics Without Truth Values},
+  publisher     = {Oxford University Press},
+  year          = {2018},
+  doi           = {10.1093/oso/9780198812722.001.0001},
+  url           = {https://doi.org/10.1093/oso/9780198812722.001.0001},
+}
+
+
+% [Journal / Preprint Articles]
+@article{clt-2,
+  author        = {Dana Angluin},
+  title         = {Inductive inference of formal languages from positive data},
+  journal       = {Information and Control},
+  year          = {1980},
+  volume        = {45},
+  number        = {2},
+  pages         = {117--135},
+}
+
+@article{enriched,
+  author        = {Bradley, Tai-Danae and Terilla, John and Vlassopoulos, Yiannis},
+  title         = {An enriched category theory of language: From syntax to semantics},
+  journal       = {La Matematica},
+  year          = {2022},
+  volume        = {1},
+  number        = {2},
+  pages         = {551--580},
+  publisher     = {Springer},
+}
+
+@article{gay-altright,
+  author        = {Cotton, Andrew},
+  title         = {In Love with Masculinity: Understanding Gay Men in the Alt-Right},
+  journal       = {The Macalester Street Journal},
+  year          = {2025},
+  volume        = {2},
+  number        = {2},
+}
+
+
+% [Reports / Whitepapers]
+@techreport{streetlight,
+  author        = {Hoelzemann, Johannes and Manso, Gustavo and Nagaraj, Abhishek and Tranchero, Matteo},
+  title         = {The streetlight effect in data-driven exploration},
+  institution   = {National Bureau of Economic Research},
+  year          = {2024},
+}
+
+
+
+% ------------------------------------------------------------------------------
+% Prompting, Decoding & Inference
+% ------------------------------------------------------------------------------
+% [Conference Papers]
+@inproceedings{counterfactual-prompts,
+  author        = {Goethals, Sofie and Sedoc, Joao and Provost, Foster},
+  title         = {What If the Prompt Were Different? Counterfactual Explanations for the Characteristics of Generative Outputs},
+  booktitle     = {Adjunct Proceedings of the 33rd ACM Conference on User Modeling, Adaptation and Personalization},
+  publisher     = {Association for Computing Machinery},
+  year          = {2025},
+  pages         = {237–242},
+  doi           = {10.1145/3708319.3733656},
+  url           = {https://doi.org/10.1145/3708319.3733656},
+  address       = {New York, NY, USA},
+  isbn          = {9798400713996},
+  keywords      = {Large Language Models, Explainable AI, Generative AI, Counterfactual Explanations},
+  location      = {},
+  numpages      = {6},
+  series        = {UMAP Adjunct '25},
+}
+
+
+% [Journal / Preprint Articles]
+@article{counterfactual-reasoning,
+  author        = {Miller, Moritz and Sch{\"o}lkopf, Bernhard and Guo, Siyuan},
+  title         = {Counterfactual reasoning: an analysis of in-context emergence},
+  journal       = {arXiv preprint arXiv:2506.05188},
+  year          = {2025},
+}
+
+
+% [Misc]
+@misc{ood-subspace,
+  author        = {Soo Min Kwon and Alec S. Xu and Can Yaras and Laura Balzano and Qing Qu},
+  title         = {Out-of-Distribution Generalization of In-Context Learning: A Low-Dimensional Subspace Perspective},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2505.14808},
+  eprint        = {2505.14808},
+  archiveprefix = {arXiv},
+  primaryclass  = {stat.ML},
+}
+
+@misc{contrast-decode,
+  author        = {Xiang Lisa Li and Ari Holtzman and Daniel Fried and Percy Liang and Jason Eisner and Tatsunori Hashimoto and Luke Zettlemoyer and Mike Lewis},
+  title         = {Contrastive Decoding: Open-ended Text Generation as Optimization},
+  year          = {2023},
+  url           = {https://arxiv.org/abs/2210.15097},
+  eprint        = {2210.15097},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{thought-branches,
+  author        = {Uzay Macar and Paul C. Bogdan and Senthooran Rajamanoharan and Neel Nanda},
+  title         = {Thought Branches: Interpreting LLM Reasoning Requires Resampling},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2510.27484},
+  eprint        = {2510.27484},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{learn-to-explore,
+  author        = {Alessio Russo and Ryan Welch and Aldo Pacchiano},
+  title         = {Learning to Explore: An In-Context Learning Approach for Pure Exploration},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2506.01876},
+  eprint        = {2506.01876},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{advancing-decoding,
+  author        = {Jaydip Sen and Saptarshi Sengupta and Subhasis Dasgupta},
+  title         = {Advancing Decoding Strategies: Enhancements in Locally Typical Sampling for LLMs},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2506.05387},
+  eprint        = {2506.05387},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+
+
+% ------------------------------------------------------------------------------
+% Datasets, Benchmarks & Evaluation
+% ------------------------------------------------------------------------------
+% [Conference Papers]
+@inproceedings{mode-diverse,
+  author        = {Duym, Jens and Mogrovejo, Jos{\'e} Antonio Oramas and Anwar, Ali},
+  title         = {Quantifying Generative Stability: Mode Collapse Entropy Score for Mode Diversity Evaluation},
+  booktitle     = {Proceedings of the Winter Conference on Applications of Computer Vision},
+  year          = {2025},
+  pages         = {187--196},
+}
+
+
+% [Misc]
+@misc{mib,
+  author        = {Aaron Mueller and Atticus Geiger and Sarah Wiegreffe and Dana Arad and Iván Arcuschin and Adam Belfki and Yik Siu Chan and Jaden Fiotto-Kaufman and Tal Haklay and Michael Hanna and Jing Huang and Rohan Gupta and Yaniv Nikankin and Hadas Orgad and Nikhil Prakash and Anja Reusch and Aruna Sankaranarayanan and Shun Shao and Alessandro Stolfo and Martin Tutek and Amir Zur and David Bau and Yonatan Belinkov},
+  title         = {MIB: A Mechanistic Interpretability Benchmark},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2504.13151},
+  eprint        = {2504.13151},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+
+
+% ------------------------------------------------------------------------------
+% Critical Theory & Philosophy
+% ------------------------------------------------------------------------------
+% [Books]
+@book{disturbing,
+  author        = {Amin, K.},
+  title         = {Disturbing Attachments: Genet, Modern Pederasty, and Queer History},
+  series        = {Theory Q},
+  publisher     = {Duke University Press},
+  year          = {2017},
+  isbn          = {9780822372592},
+  url           = {https://books.google.com/books?id=B74zDwAAQBAJ},
+  lccn          = {2017015463},
+}
+
+@book{visions,
+  author        = {Gopinath, G.},
+  title         = {Unruly Visions: The Aesthetic Practices of Queer Diaspora},
+  publisher     = {Duke University Press},
+  year          = {2018},
+  isbn          = {9781478002161},
+  url           = {https://books.google.com/books?id=qw5zDwAAQBAJ},
+  lccn          = {2018008226},
+}
+
+@book{utopia,
+  author        = {Mu{\~n}oz, Jos{\'e} Esteban},
+  title         = {Cruising Utopia: The Then and There of Queer Futurity},
+  publisher     = {New York University Press},
+  year          = {2019},
+  note          = {10th anniversary edition},
+  address       = {New York},
+}
+
+@book{puar-homonat,
+  author        = {Jasbir K. Puar},
+  title         = {Terrorist Assemblages: Homonationalism in Queer Times},
+  publisher     = {Duke University Press},
+  year          = {2007},
+}
+
+@book{rao-outoftime,
+  author        = {Rahul Rao},
+  title         = {Out of Time: The Queer Politics of Postcoloniality},
+  publisher     = {Oxford University Press},
+  year          = {2020},
+}
+
+@book{without-id,
+  author        = {Saketopoulou, Avgi and Pellegrini, Ann},
+  title         = {Gender Without Identity},
+  publisher     = {NYU Press},
+  year          = {2024},
+  isbn          = {978-1479836123},
+}
+
+
+% [Book Chapters]
+@incollection{radopen,
+  author        = {hooks, bell},
+  title         = {Choosing the Margin as a Space of Radical Openness},
+  booktitle     = {Yearning: Race, Gender, and Cultural Politics},
+  publisher     = {South End Press},
+  year          = {1990},
+  pages         = {145--153},
+  address       = {Boston},
+}
+
+@incollection{improv,
+  author        = {Pressing, Jeff},
+  title         = {Improvisation: methods and models},
+  booktitle     = {Physical Theatres: A Critical Reader},
+  publisher     = {Routledge},
+  year          = {2007},
+  pages         = {66--78},
+}
+
+
+% [Journal / Preprint Articles]
+@article{queer-algo,
+  author        = {Chevillon, Guillaume},
+  title         = {The Queer Algorithm},
+  journal       = {Available at SSRN 4742138},
+  year          = {2024},
+}
+
+@article{cohen-punks,
+  author        = {Cathy J. Cohen},
+  title         = {Punks, Bulldaggers, and Welfare Queens: The Radical Potential of Queer Politics?},
+  journal       = {GLQ},
+  year          = {1997},
+  volume        = {3},
+  number        = {4},
+  pages         = {437--465},
+}
+
+@article{surround-tech,
+  author        = {Coleman, Beth},
+  title         = {Technology of the Surround},
+  journal       = {Catalyst: Feminism, Theory, Technoscience},
+  year          = {2021},
+  volume        = {7},
+  number        = {2},
+  pages         = {1--21},
+  doi           = {10.28968/cftt.v7i2.35973},
+  url           = {https://doi.org/10.28968/cftt.v7i2.35973},
+  issn          = {2380-3312},
+  month         = oct,
+}
+
+@article{incels-2,
+  author        = {Allysa Czerwinsky},
+  title         = {Misogynist incels gone mainstream: A critical review of the current directions in incel-focused research},
+  journal       = {Crime, Media, Culture},
+  year          = {2024},
+  volume        = {20},
+  number        = {2},
+  pages         = {196--217},
+  doi           = {10.1177/17416590231196125},
+  url           = {https://doi.org/10.1177/17416590231196125},
+  eprint        = {https://doi.org/10.1177/17416590231196125},
+}
+
+@article{crip,
+  author        = {Hamraie, Aimi and Fritsch, Kelly},
+  title         = {Crip Technoscience Manifesto},
+  journal       = {Catalyst: Feminism, Theory, Technoscience},
+  year          = {2019},
+  volume        = {5},
+  number        = {1},
+  pages         = {1--33},
+  doi           = {10.28968/cftt.v5i1.29607},
+}
+
+@article{incels,
+  author        = {Kelly, Casey Ryan and Aunspach, Chase},
+  title         = {Incels, compulsory sexuality, and fascist masculinity},
+  journal       = {Feminist formations},
+  year          = {2020},
+  volume        = {32},
+  number        = {3},
+  pages         = {145--172},
+  publisher     = {Johns Hopkins University Press},
+}
+
+@article{imperial,
+  author        = {Kemper, Jakko},
+  title         = {Generative AI, Everyday Aesthetic Production, and the Imperial Mode of Living},
+  journal       = {Critical AI},
+  year          = {2025},
+  volume        = {3},
+  number        = {1},
+  publisher     = {Duke University Press},
+}
+
+@article{ont-syn,
+  author        = {Lee, Francis and Hajisharif, Saghi and Johnson, Ericka},
+  title         = {The ontological politics of synthetic data: Normalities, outliers, and intersectional hallucinations},
+  journal       = {Big Data \& Society},
+  year          = {2025},
+  volume        = {12},
+  number        = {2},
+  pages         = {20539517251318289},
+  publisher     = {SAGE Publications Sage UK: London, England},
+}
+
+@article{ephemera,
+  author        = {José Esteban Muñoz},
+  title         = {Ephemera as Evidence: Introductory Notes to Queer Acts},
+  journal       = {Women \& Performance: a journal of feminist theory},
+  year          = {1996},
+  volume        = {8},
+  number        = {2},
+  pages         = {5--16},
+  doi           = {10.1080/07407709608571228},
+  url           = {https://doi.org/10.1080/07407709608571228},
+  eprint        = {https://doi.org/10.1080/07407709608571228},
+  publisher     = {Routledge},
+}
+
+
+
+% ------------------------------------------------------------------------------
+% NLP / LLMs (General)
+% ------------------------------------------------------------------------------
+% [Misc]
+@misc{counterfactual-token,
+  author        = {Ivi Chatzi and Nina Corvelo Benz and Eleni Straitouri and Stratis Tsirtsis and Manuel Gomez-Rodriguez},
+  title         = {Counterfactual Token Generation in Large Language Models},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2409.17027},
+  eprint        = {2409.17027},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{subliminal-learn,
+  author        = {Alex Cloud and Minh Le and James Chua and Jan Betley and Anna Sztyber-Betley and Jacob Hilton and Samuel Marks and Owain Evans},
+  title         = {Subliminal Learning: Language models transmit behavioral traits via hidden signals in data},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2507.14805},
+  eprint        = {2507.14805},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{should-exp,
+  author        = {Keegan Harris and Aleksandrs Slivkins},
+  title         = {Should You Use Your Large Language Model to Explore or Exploit?},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2502.00225},
+  eprint        = {2502.00225},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{bias-int,
+  author        = {Jingyu Hu and Mengyue Yang and Mengnan Du and Weiru Liu},
+  title         = {Fine-Grained Interpretation of Political Opinions in Large Language Models},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2506.04774},
+  eprint        = {2506.04774},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{clt-11,
+  author        = {Amin Karbasi and Omar Montasser and John Sous and Grigoris Velegkas},
+  title         = {(Im)possibility of Automated Hallucination Detection in Large Language Models},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2504.17004},
+  eprint        = {2504.17004},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{toofast,
+  author        = {Lan Pan and Hanbo Xie and Robert C. Wilson},
+  title         = {Large Language Models Think Too Fast To Explore Effectively},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2501.18009},
+  eprint        = {2501.18009},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.AI},
+}
+
+@misc{dso,
+  author        = {Rafael Rafailov and Archit Sharma and Eric Mitchell and Stefano Ermon and Christopher D. Manning and Chelsea Finn},
+  title         = {Direct Preference Optimization: Your Language Model is Secretly a Reward Model},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2305.18290},
+  eprint        = {2305.18290},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{gumble,
+  author        = {Shauli Ravfogel and Anej Svete and Vésteinn Snæbjarnarson and Ryan Cotterell},
+  title         = {Gumbel Counterfactual Generation From Language Models},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2411.07180},
+  eprint        = {2411.07180},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{open-world,
+  author        = {Bowen Xu},
+  title         = {Hallucination is Inevitable for LLMs with the Open World Assumption},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2510.05116},
+  eprint        = {2510.05116},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{force-diffuse,
+  author        = {Yiming Zhang and Avi Schwarzschild and Nicholas Carlini and Zico Kolter and Daphne Ippolito},
+  title         = {Forcing Diffuse Distributions out of Language Models},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2404.10859},
+  eprint        = {2404.10859},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+@misc{road-not-taken,
+  author        = {Amir Zur and Atticus Geiger and Ekdeep Singh Lubana and Eric Bigelow},
+  title         = {Are language models aware of the road not taken? Token-level uncertainty and hidden state dynamics},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2511.04527},
+  eprint        = {2511.04527},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CL},
+}
+
+
+% ------------------------------------------------------------------------------
+% Other (Unsorted)
+% ------------------------------------------------------------------------------
+% [Books]
+@book{displacement,
+  author        = {Betts, Alexander and Bloom, Louise and Kaplan, Josiah and Omata, Naohiko},
+  title         = {Refugee Economies: Forced Displacement and Development},
+  publisher     = {Oxford University Press},
+  year          = {2017},
+  address       = {Oxford},
+}
+
+@book{fever,
+  author        = {Derrida, Jacques},
+  title         = {Archive Fever: A Freudian Impression},
+  publisher     = {University of Chicago Press},
+  year          = {1996},
+  isbn          = {9780226143072},
+  note          = {Translated from the French \emph{Mal d'archive}},
+  address       = {Chicago},
+  translator    = {Prenowitz, Eric},
+}
+
+@book{duggan-homonorm,
+  author        = {Lisa Duggan},
+  title         = {The Twilight of Equality?: Neoliberalism, Cultural Politics, and the Attack on Democracy},
+  publisher     = {Beacon Press},
+  year          = {2003},
+}
+
+@book{glissant,
+  author        = {Glissant, {\'E}douard},
+  title         = {Poetics of Relation},
+  publisher     = {University of Michigan Press},
+  year          = {2010},
+  address       = {Ann Arbor},
+  translator    = {Wing, Betsy},
+}
+
+@book{act-up,
+  author        = {Gould, Deborah B.},
+  title         = {Moving Politics: Emotion and {ACT} {UP}'s Fight against {AIDS}},
+  publisher     = {University of Chicago Press},
+  year          = {2009},
+  isbn          = {9780226305301},
+  doi           = {10.7208/chicago/9780226305318.001.0001},
+  address       = {Chicago},
+}
+
+@book{trans,
+  author        = {Haimson, Oliver L.},
+  title         = {Trans Technologies},
+  publisher     = {MIT Press},
+  year          = {2025},
+  isbn          = {9780262551861},
+  url           = {https://books.google.com/books?id=MQ0NEQAAQBAJ},
+}
+
+@book{moten,
+  author        = {Harney, Stefano and Moten, Fred},
+  title         = {The Undercommons: Fugitive Planning \& Black Study},
+  publisher     = {Minor Compositions},
+  year          = {2013},
+  url           = {https://books.google.com/books?id=M9VuAQAACAAJ},
+}
+
+@book{subculture,
+  author        = {Hebdige, Dick},
+  title         = {Subculture: The Meaning of Style},
+  publisher     = {Routledge},
+  year          = {1979},
+  address       = {London},
+}
+
+@book{china,
+  author        = {Hui, Yuk},
+  title         = {The Question Concerning Technology in China: An Essay in Cosmotechnics},
+  publisher     = {MIT Press},
+  year          = {2016},
+  isbn          = {9780995455009},
+  url           = {https://books.google.com/books?id=cFuPEAAAQBAJ},
+}
+
+@book{emerging-markets-voids,
+  author        = {Khanna, Tarun and Palepu, Krishna G.},
+  title         = {Winning in Emerging Markets: A Road Map for Strategy and Execution},
+  publisher     = {Harvard Business Press},
+  year          = {2010},
+}
+
+@book{four,
+  author        = {Lowe, Lisa},
+  title         = {The Intimacies of Four Continents},
+  publisher     = {Duke University Press},
+  year          = {2015},
+  isbn          = {978-0-8223-5863-3, 978-0-8223-5875-6, 978-0-8223-7564-7},
+  doi           = {10.1215/9780822375647},
+  url           = {https://www.dukeupress.edu/the-intimacies-of-four-continents},
+  address       = {Durham},
+}
+
+@book{on-food-and-cooking,
+  author        = {McGee, Harold},
+  title         = {On Food and Cooking: The Science and Lore of the Kitchen},
+  edition       = {Revised},
+  publisher     = {Scribner},
+  year          = {2004},
+}
+
+@book{raving,
+  author        = {Wark, McKenzie},
+  title         = {Raving},
+  series        = {Practices},
+  publisher     = {Duke University Press},
+  year          = {2023},
+  isbn          = {978-1-4780-1938-1},
+  doi           = {10.1215/9781478024040},
+  address       = {Durham, NC},
+}
+
+
+% [Book Chapters]
+@incollection{borges,
+  author        = {Jorge Luis Borges},
+  title         = {The Garden of Forking Paths},
+  booktitle     = {Fictions},
+  publisher     = {Grove Press},
+  year          = {1962},
+  address       = {New York},
+}
+
+@incollection{post-sex,
+  author        = {Markiewicz, Maria},
+  title         = {Sexuality Is Over. Long Live Asexuality: Post-Sexuality in the Post-Post Era},
+  booktitle     = {Asexualities},
+  publisher     = {Routledge},
+  year          = {2024},
+  pages         = {11--22},
+}
+
+
+% [Theses]
+@phdthesis{datafree-div,
+  author        = {Broad, Terence},
+  title         = {Expanding the Generative Space: Data-Free Techniques for Active Divergence with Generative Neural Networks},
+  school        = {Goldsmiths, University of London},
+  year          = {2025},
+}
+
+
+% [Conference Papers]
+@inproceedings{clt-1,
+  author        = {Dana Angluin},
+  title         = {Finding patterns common to a set of strings},
+  booktitle     = {Proceedings of the 11th Annual ACM Symposium on Theory of Computing (STOC)},
+  year          = {1979},
+  pages         = {130--141},
+}
+
+@inproceedings{clt-4,
+  author        = {Raman, Vinod and Li, Jiaxun and Tewari, Ambuj},
+  title         = {Generation through the lens of learning theory},
+  booktitle     = {Proceedings of Thirty Eighth Conference on Learning Theory},
+  editor        = {Haghtalab, Nika and Moitra, Ankur},
+  publisher     = {PMLR},
+  year          = {2025},
+  pages         = {4740--4776},
+  url           = {https://proceedings.mlr.press/v291/raman25a.html},
+  month         = {30 Jun--04 Jul},
+  pdf           = {https://raw.githubusercontent.com/mlresearch/v291/main/assets/raman25a/raman25a.pdf},
+  series        = {Proceedings of Machine Learning Research},
+  volume        = {291},
+}
+
+
+% [Journal / Preprint Articles]
+@article{bricolage-asq-2005,
+  author        = {Baker, Ted and Nelson, Reed E.},
+  title         = {Creating Something from Nothing: Resource Construction Through Entrepreneurial Bricolage},
+  journal       = {Administrative Science Quarterly},
+  year          = {2005},
+  volume        = {50},
+  number        = {3},
+  pages         = {329--366},
+}
+
+@article{exposure-to-innovation,
+  author        = {Bell, Alex and Chetty, Raj and Jaravel, Xavier and Petkova, Neviana and Van Reenen, John},
+  title         = {Who Becomes an Inventor in America? The Importance of Exposure to Innovation},
+  journal       = {Quarterly Journal of Economics},
+  year          = {2019},
+  volume        = {134},
+  number        = {2},
+  pages         = {647--713},
+}
+
+@article{clt-7,
+  author        = {Moses Charikar and Chirag Pabbaraju},
+  title         = {Exploring Facets of Language Generation in the Limit},
+  journal       = {arXiv preprint},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2411.15364},
+  archiveprefix = {arXiv},
+  eprint        = {2411.15364},
+  primaryclass  = {cs.DS},
+}
+
+@article{struct-violence-farmer,
+  author        = {Farmer, Paul},
+  title         = {An Anthropology of Structural Violence},
+  journal       = {Current Anthropology},
+  year          = {2004},
+  volume        = {45},
+  number        = {3},
+  pages         = {305--325},
+}
+
+@article{struct-violence-galtung,
+  author        = {Galtung, Johan},
+  title         = {Violence, Peace, and Peace Research},
+  journal       = {Journal of Peace Research},
+  year          = {1969},
+  volume        = {6},
+  number        = {3},
+  pages         = {167--191},
+}
+
+@article{arbitrariness,
+  author        = {Ganesh, Prakhar and Taik, Afaf and Farnadi, Golnoosh},
+  title         = {The Curious Case of Arbitrariness in Machine Learning},
+  journal       = {arXiv preprint arXiv:2501.14959},
+  year          = {2025},
+}
+
+@article{ging-manosphere,
+  author        = {Debbie Ging},
+  title         = {Alphas, Betas, and Incels: Theorizing the Manosphere},
+  journal       = {Men and Masculinities},
+  year          = {2017},
+  volume        = {22},
+  number        = {4},
+  pages         = {638--657},
+}
+
+@article{clt-3,
+  author        = {E. Mark Gold},
+  title         = {Language identification in the limit},
+  journal       = {Information and Control},
+  year          = {1967},
+  volume        = {10},
+  number        = {5},
+  pages         = {447--474},
+}
+
+@article{hoffman-incel,
+  author        = {Bruce Hoffman and Jacob Ware and Ezra Shapiro},
+  title         = {Assessing the Threat of Incel Violence},
+  journal       = {CTC Sentinel},
+  year          = {2020},
+  volume        = {13},
+  number        = {3},
+  pages         = {14--24},
+}
+
+@article{importance-exp,
+  author        = {Jiang, Yiding and Kolter, J Zico and Raileanu, Roberta},
+  title         = {On the importance of exploration for generalization in reinforcement learning},
+  journal       = {Advances in Neural Information Processing Systems},
+  year          = {2023},
+  volume        = {36},
+  pages         = {12951--12986},
+}
+
+@article{clt-8,
+  author        = {Alkis Kalavasis and Anay Mehrotra and Grigoris Velegkas},
+  title         = {Characterizations of Language Generation With Breadth},
+  journal       = {arXiv preprint},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2412.18530},
+  archiveprefix = {arXiv},
+  eprint        = {2412.18530},
+  primaryclass  = {cs.LG},
+}
+
+@article{entrepreneurship-in-voids,
+  author        = {Mair, Johanna and Marti, Ignasi},
+  title         = {Entrepreneurship in and around Institutional Voids: A Case Study from Bangladesh},
+  journal       = {Journal of Business Venturing},
+  year          = {2009},
+  volume        = {24},
+  number        = {5},
+  pages         = {419--435},
+}
+
+@article{gen-review,
+  author        = {Manduchi, Laura and Meister, Clara and Pandey, Kushagra and Bamler, Robert and Cotterell, Ryan and D{\"a}ubener, Sina and Fellenz, Sophie and Fischer, Asja and G{\"a}rtner, Thomas and Kirchler, Matthias and others},
+  title         = {On the challenges and opportunities in generative ai},
+  journal       = {arXiv preprint arXiv:2403.00025},
+  year          = {2024},
+}
+
+@article{gen-music,
+  author        = {Morreale, Fabio and Martinez Ramirez, Marco and Masu, Raul and Liao, WeiHsiang and Mitsufuji, Yuki},
+  title         = {Reductive, Exclusionary, Normalising: The Limits of Generative AI Music},
+  journal       = {Transactions of the International Society for Music Information Retrieval},
+  year          = {2025},
+  volume        = {8},
+  pages         = {300--312},
+  doi           = {10.5334/tismir.256},
+  month         = {09},
+}
+
+@article{missed,
+  author        = {Mueller, Aaron},
+  title         = {Missed causes and ambiguous effects: Counterfactuals pose challenges for interpreting neural networks},
+  journal       = {arXiv preprint arXiv:2407.04690},
+  year          = {2024},
+}
+
+@article{pater2009weighted,
+  author        = {Pater, Joe},
+  title         = {Weighted constraints in generative linguistics},
+  journal       = {Cognitive science},
+  year          = {2009},
+  volume        = {33},
+  number        = {6},
+  pages         = {999--1035},
+  publisher     = {Wiley Online Library},
+}
+
+@article{bounded-solidarity-enforceable-trust,
+  author        = {Portes, Alejandro and Sensenbrenner, Julia},
+  title         = {Embeddedness and Immigration: Notes on the Social Determinants of Economic Action},
+  journal       = {American Journal of Sociology},
+  year          = {1993},
+  volume        = {98},
+  number        = {6},
+  pages         = {1320--1350},
+}
+
+@article{puar-mikdashi-pinkwash,
+  author        = {Jasbir K. Puar and Maya Mikdashi},
+  title         = {Pinkwatching and Pinkwashing: Interpenetration and Its Discontents},
+  journal       = {Jadaliyya},
+  year          = {2012},
+  note          = {Online essay},
+}
+
+@article{clt-6,
+  author        = {Ananth Raman and Vinod Raman},
+  title         = {Generation from Noisy Examples},
+  journal       = {arXiv preprint},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2501.04179},
+  archiveprefix = {arXiv},
+  eprint        = {2501.04179},
+  primaryclass  = {stat.ML},
+}
+
+@article{ass-gen,
+  author        = {Sajjadi, Mehdi SM and Bachem, Olivier and Lucic, Mario and Bousquet, Olivier and Gelly, Sylvain},
+  title         = {Assessing generative models via precision and recall},
+  journal       = {Advances in neural information processing systems},
+  year          = {2018},
+  volume        = {31},
+}
+
+@article{nature-collapse,
+  author        = {Shumailov, Ilia and Shumaylov, Zakhar and Zhao, Yiren and Papernot, Nicolas and Anderson, Ross and Gal, Yarin},
+  title         = {AI models collapse when trained on recursively generated data},
+  journal       = {Nature},
+  year          = {2024},
+  volume        = {631},
+  number        = {8022},
+  pages         = {755--759},
+  publisher     = {Nature Publishing Group UK London},
+}
+
+@article{voting-rad-right,
+  author        = {Niels Spierings},
+  title         = {Homonationalism and Voting for the Populist Radical Right},
+  journal       = {Sexualities},
+  year          = {2021},
+  volume        = {24},
+  number        = {3},
+  pages         = {343--362},
+}
+
+@article{glitches,
+  author        = {Srdarov, Suzanne and Leaver, Tama},
+  title         = {Generative AI Glitches: The Artificial Everything},
+  journal       = {M/C Journal},
+  year          = {2024},
+  volume        = {27},
+  number        = {6},
+  doi           = {10.5204/mcj.3123},
+  url           = {https://www.journal.media-culture.org.au/index.php/mcjournal/article/view/3123},
+  month         = {Nov.},
+}
+
+@article{eolithism,
+  author        = {Storm, Hans Otto},
+  title         = {Eolithism and Design},
+  journal       = {Colorado Quarterly},
+  year          = {1953},
+  volume        = {1},
+  number        = {3},
+  pages         = {281--291},
+  note          = {Reprinted in Outlook, no.~4 (Winter 1971)},
+}
+
+@article{antifragility,
+  author        = {Taleb, Nassim N},
+  title         = {'Antifragility' as a mathematical idea},
+  journal       = {Nature},
+  year          = {2013},
+  volume        = {494},
+  number        = {7438},
+  pages         = {430--430},
+  publisher     = {Nature Publishing Group UK London},
+}
+
+@article{ptgi,
+  author        = {Tedeschi, Richard G. and Calhoun, Lawrence G.},
+  title         = {The Posttraumatic Growth Inventory: Measuring the Positive Legacy of Trauma},
+  journal       = {Journal of Traumatic Stress},
+  year          = {1996},
+  volume        = {9},
+  number        = {3},
+  pages         = {455--471},
+  doi           = {10.1002/jts.2490090305},
+}
+
+@article{atypical-combos-impact,
+  author        = {Uzzi, Brian and Mukherjee, Satyam and Stringer, Michael and Jones, Ben},
+  title         = {Atypical Combinations and Scientific Impact},
+  journal       = {Science},
+  year          = {2013},
+  volume        = {342},
+  number        = {6157},
+  pages         = {468--472},
+}
+
+@article{towards-int-action,
+  author        = {van Zomeren, Martijn and Postmes, Tom and Spears, Russell},
+  title         = {Toward an Integrative Social Identity Model of Collective Action},
+  journal       = {Psychological Bulletin},
+  year          = {2008},
+  volume        = {134},
+  number        = {4},
+  pages         = {504--535},
+}
+
+@article{enclaves-cubans-miami,
+  author        = {Wilson, Kenneth L. and Portes, Alejandro},
+  title         = {Immigrant Enclaves: An Analysis of the Labor Market Experiences of Cubans in Miami},
+  journal       = {American Journal of Sociology},
+  year          = {1980},
+  volume        = {86},
+  number        = {2},
+  pages         = {295--319},
+}
+
+
+% [Reports / Whitepapers]
+@techreport{leverage,
+  author        = {Meadows, Donella H.},
+  title         = {Leverage Points: Places to Intervene in a System},
+  institution   = {The Sustainability Institute},
+  year          = {1999},
+  url           = {https://donellameadows.org/archives/leverage-points-places-to-intervene-in-a-system/},
+  urldate       = {2025-08-24},
+  note          = {A shorter version appeared in \emph{Whole Earth}, Winter 1997},
+  address       = {Hartland, VT},
+  month         = dec,
+}
+
+
+% [Online Resources]
+@online{hbs,
+  author        = {Zao-Sanders, Marc},
+  title         = {How People Are Really Using Gen {AI} in 2025},
+  year          = {2025},
+  url           = {https://hbr.org/2025/04/how-people-are-really-using-gen-ai-in-2025},
+  day           = {9},
+  month         = {4},
+}
+
+
+% [Misc]
+@misc{provocation,
+  author        = {Samantha Dalal and Siobhan Mackenzie Hall and Nari Johnson},
+  title         = {Provocation: Who benefits from "inclusion" in Generative AI?},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2411.09102},
+  eprint        = {2411.09102},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.CY},
+}
+
+@misc{strong-collapse,
+  author        = {Elvis Dohmatob and Yunzhen Feng and Arjun Subramonian and Julia Kempe},
+  title         = {Strong Model Collapse},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2410.04840},
+  eprint        = {2410.04840},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{trans-semantic-spaces,
+  author        = {Ares Fabregat-Hernández and Javier Palanca and Vicent Botti},
+  title         = {Transparent Semantic Spaces: A Categorical Approach to Explainable Word Embeddings},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2508.20701},
+  eprint        = {2508.20701},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.AI},
+}
+
+@misc{variation,
+  author        = {Bijean Ghafouri},
+  title         = {A Theory of Information, Variation, and Artificial Intelligence},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2508.19264},
+  eprint        = {2508.19264},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.HC},
+}
+
+@misc{finetti,
+  author        = {Siyuan Guo and Viktor Tóth and Bernhard Schölkopf and Ferenc Huszár},
+  title         = {Causal de Finetti: On the Identification of Invariant Causal Structure in Exchangeable Data},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2203.15756},
+  eprint        = {2203.15756},
+  archiveprefix = {arXiv},
+  primaryclass  = {stat.ML},
+}
+
+@misc{ood,
+  author        = {Jiashuo Liu and Zheyan Shen and Yue He and Xingxuan Zhang and Renzhe Xu and Han Yu and Peng Cui},
+  title         = {Towards Out-Of-Distribution Generalization: A Survey},
+  year          = {2023},
+  url           = {https://arxiv.org/abs/2108.13624},
+  eprint        = {2108.13624},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{bad-estimations,
+  author        = {Hude Liu and Jerry Yao-Chieh Hu and Jennifer Yuntong Zhang and Zhao Song and Han Liu},
+  title         = {Are Hallucinations Bad Estimations?},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2509.21473},
+  eprint        = {2509.21473},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{many-good,
+  author        = {Cynthia Rudin and Chudi Zhong and Lesia Semenova and Margo Seltzer and Ronald Parr and Jiachang Liu and Srikar Katta and Jon Donnelly and Harry Chen and Zachery Boner},
+  title         = {Amazing Things Come From Having Many Good Models},
+  year          = {2024},
+  url           = {https://arxiv.org/abs/2407.04846},
+  eprint        = {2407.04846},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+
+@misc{politic-neutr,
+  author        = {Jonathan Stray},
+  title         = {A Practical Definition of Political Neutrality for AI},
+  year          = {2025},
+  howpublished  = {Center for Human-Compatible AI (blog)},
+  url           = {https://humancompatible.ai/news/2025/02/04/a-practical-definition-of-political-neutrality-for-ai/},
+  month         = {Feb 04},
+}
+
+@misc{clt-12,
+  author        = {Ambuj Tewari},
+  title         = {If generative AI is the answer, what is the question?},
+  year          = {2025},
+  url           = {https://arxiv.org/abs/2509.06120},
+  eprint        = {2509.06120},
+  archiveprefix = {arXiv},
+  primaryclass  = {cs.LG},
+}
+@misc{cot-monitorability,
+      title={Chain of Thought Monitorability: A New and Fragile Opportunity for AI Safety}, 
+      author={Tomek Korbak and Mikita Balesni and Elizabeth Barnes and Yoshua Bengio and Joe Benton and Joseph Bloom and Mark Chen and Alan Cooney and Allan Dafoe and Anca Dragan and Scott Emmons and Owain Evans and David Farhi and Ryan Greenblatt and Dan Hendrycks and Marius Hobbhahn and Evan Hubinger and Geoffrey Irving and Erik Jenner and Daniel Kokotajlo and Victoria Krakovna and Shane Legg and David Lindner and David Luan and Aleksander Mądry and Julian Michael and Neel Nanda and Dave Orr and Jakub Pachocki and Ethan Perez and Mary Phuong and Fabien Roger and Joshua Saxe and Buck Shlegeris and Martín Soto and Eric Steinberger and Jasmine Wang and Wojciech Zaremba and Bowen Baker and Rohin Shah and Vlad Mikulik},
+      year={2025},
+      eprint={2507.11473},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2507.11473}, 
+}
+
+@incollection{novelty-search,
+    title={Novelty search and the problem with objectives},
+    author={Lehman, Joel and Stanley, Kenneth O},
+    booktitle={Genetic programming theory and practice IX},
+    pages={37--56},
+    year={2011},
+    publisher={Springer}
+}
+
+@misc{diversity-driven,
+      title={Diversity-Driven Exploration Strategy for Deep Reinforcement Learning}, 
+      author={Zhang-Wei Hong and Tzu-Yun Shann and Shih-Yang Su and Yi-Hsiang Chang and Chun-Yi Lee},
+      year={2018},
+      eprint={1802.04564},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/1802.04564}, 
+}
+@misc{entropic-exploration,
+      title={Safe Multiagent Coordination via Entropic Exploration}, 
+      author={Ayhan Alp Aydeniz and Enrico Marchesini and Robert Loftin and Christopher Amato and Kagan Tumer},
+      year={2025},
+      eprint={2412.20361},
+      archivePrefix={arXiv},
+      primaryClass={cs.MA},
+      url={https://arxiv.org/abs/2412.20361}, 
+}
+@misc{responsible-oe,
+      title={Safety is Essential for Responsible Open-Ended Systems}, 
+      author={Ivaxi Sheth and Jan Wehner and Sahar Abdelnabi and Ruta Binkyte and Mario Fritz},
+      year={2025},
+      eprint={2502.04512},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2502.04512}, 
+}
+@misc{open-endedness,
+      title={Open-Endedness is Essential for Artificial Superhuman Intelligence}, 
+      author={Edward Hughes and Michael Dennis and Jack Parker-Holder and Feryal Behbahani and Aditi Mavalankar and Yuge Shi and Tom Schaul and Tim Rocktaschel},
+      year={2024},
+      eprint={2406.04268},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2406.04268}, 
+}
+@article{knightian,
+  title={Evolution and the knightian blindspot of machine learning},
+  author={Lehman, Joel and Meyerson, Elliot and El-Gaaly, Tarek and Stanley, Kenneth O and Ziyaee, Tarin},
+  journal={arXiv preprint arXiv:2501.13075},
+  year={2025}
+}
+@inproceedings{fairness-abstraction,
+  title={Fairness and abstraction in sociotechnical systems},
+  author={Selbst, Andrew D and Boyd, Danah and Friedler, Sorelle A and Venkatasubramanian, Suresh and Vertesi, Janet},
+  booktitle={Proceedings of the conference on fairness, accountability, and transparency},
+  pages={59--68},
+  year={2019}
+}
+@article{skept-0,
+    title = {Why fairness cannot be automated: Bridging the gap between EU non-discrimination law and AI},
+    journal = {Computer Law \& Security Review},
+    volume = {41},
+    pages = {105567},
+    year = {2021},
+    issn = {2212-473X},
+    doi = {https://doi.org/10.1016/j.clsr.2021.105567},
+    url = {https://www.sciencedirect.com/science/article/pii/S0267364921000406},
+    author = {Sandra Wachter and Brent Mittelstadt and Chris Russell}
+}
+@inproceedings{skept-2,
+  title={Algorithmic realism: expanding the boundaries of algorithmic thought},
+  author={Green, Ben and Viljoen, Salom{\'e}},
+  booktitle={Proceedings of the 2020 conference on fairness, accountability, and transparency},
+  pages={19--31},
+  year={2020}
+}
+@misc{skept-1,
+  title={Repair and redress: A research program for algorithmic futures},
+  author={Davis, Jenny L and Williams, Apryl},
+  journal={Big Data \& Society},
+  volume={12},
+  number={3},
+  pages={20539517251361119},
+  year={2025},
+  publisher={SAGE Publications Sage UK: London, England}
+}
+@article{legibility-0,
+    title = {Ways of seeing the world: Legibility in alternative institutional settings},
+    journal = {European Economic Review},
+    volume = {178},
+    pages = {105116},
+    year = {2025},
+    issn = {0014-2921},
+    doi = {https://doi.org/10.1016/j.euroecorev.2025.105116},
+    url = {https://www.sciencedirect.com/science/article/pii/S0014292125001667},
+    author = {Christopher J. Coyne and Nathan Goodman and André Quintas}
+}
+@article{pause-ai,
+  title={Pause artificial intelligence research? Understanding AI policy challenges},
+  author={Goldfarb, Avi},
+  journal={Canadian Journal of Economics/Revue canadienne d'{\'e}conomique},
+  volume={57},
+  number={2},
+  pages={363--377},
+  year={2024},
+  publisher={Wiley Online Library}
+}
+@misc{interplay,
+      title={On Characterizations for Language Generation: Interplay of Hallucinations, Breadth, and Stability}, 
+      author={Alkis Kalavasis and Anay Mehrotra and Grigoris Velegkas},
+      year={2025},
+      eprint={2412.18530},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2412.18530}, 
+}
+@inproceedings{gen-in-limit,
+  author        = {Jon Kleinberg and Sendhil Mullainathan},
+  title         = {Language Generation in the Limit},
+  booktitle     = {Advances in Neural Information Processing Systems 37 (NeurIPS 2024)},
+  year          = {2024},
+  url           = {https://proceedings.neurips.cc/paper_files/paper/2024/file/7988e9b3876ad689e921ce05d711442f-Paper-Conference.pdf},
+  archiveprefix = {arXiv},
+  eprint        = {2404.06757},
+}
+@misc{density-measures,
+      title={Density Measures for Language Generation}, 
+      author={Jon Kleinberg and Fan Wei},
+      year={2025},
+      eprint={2504.14370},
+      archivePrefix={arXiv},
+      primaryClass={math.CO},
+      url={https://arxiv.org/abs/2504.14370}, 
+}
+@article{escort,
+   title={Escort entropies and divergences and related canonical distribution},
+   volume={375},
+   ISSN={0375-9601},
+   url={http://dx.doi.org/10.1016/j.physleta.2011.06.057},
+   DOI={10.1016/j.physleta.2011.06.057},
+   number={33},
+   journal={Physics Letters A},
+   publisher={Elsevier BV},
+   author={Bercher, J.-F.},
+   year={2011},
+   month=aug, pages={2969–2973}
+}
+@misc{measuring-diversity,
+      title={Measuring Diversity: Axioms and Challenges}, 
+      author={Mikhail Mironov and Liudmila Prokhorenkova},
+      year={2025},
+      eprint={2410.14556},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2410.14556}, 
+}
+@misc{quality-weighted,
+      title={Quality-Weighted Vendi Scores And Their Application To Diverse Experimental Design}, 
+      author={Quan Nguyen and Adji Bousso Dieng},
+      year={2024},
+      eprint={2405.02449},
+      archivePrefix={arXiv},
+      primaryClass={stat.ML},
+      url={https://arxiv.org/abs/2405.02449}, 
+}
+@misc{info-geo,
+      title={Information Geometry for Maximum Diversity Distributions}, 
+      author={Shinto Eguchi},
+      year={2024},
+      eprint={2412.03835},
+      archivePrefix={arXiv},
+      primaryClass={q-bio.PE},
+      url={https://arxiv.org/abs/2412.03835}, 
+}
+@article{interdisciplinarity,
+  title={Diversity and interdisciplinarity: Should variety, balance and disparity be combined as a product or better as a sum? An information-theoretical and statistical estimation approach},
+  author={Mutz, R{\"u}diger},
+  journal={Scientometrics},
+  volume={127},
+  number={12},
+  pages={7397--7414},
+  year={2022},
+  publisher={Springer}
+}
+@inproceedings{of-what, series={FAccT ’24},
+   title={Diversity of What? On the Different Conceptualizations of Diversity in Recommender Systems},
+   url={http://dx.doi.org/10.1145/3630106.3658926},
+   DOI={10.1145/3630106.3658926},
+   booktitle={The 2024 ACM Conference on Fairness Accountability and Transparency},
+   publisher={ACM},
+   author={Vrijenhoek, Sanne and Daniil, Savvina and Sandel, Jorden and Hollink, Laura},
+   year={2024},
+   month=jun, pages={573–584},
+   collection={FAccT ’24}
+}
+@article{ambiguity,
+  title={Between identity and ambiguity: some conceptual considerations on diversity},
+  author={Reinhardt, Karoline},
+  journal={Symposion},
+  volume={7},
+  number={2},
+  pages={261--283},
+  year={2020}
+}
+@book{multicriteria,
+  author    = {Ehrgott, Matthias},
+  title     = {Multicriteria Optimization},
+  edition   = {2},
+  year      = {2005},
+  publisher = {Springer},
+  address   = {Berlin, Heidelberg},
+  doi       = {10.1007/3-540-27659-9},
+  isbn      = {978-3-540-21398-7}
+}
+@inproceedings{fairness,
+  title={Fairness definitions explained},
+  author={Verma, Sahil and Rubin, Julia},
+  booktitle={Proceedings of the 2018 IEEE/ACM International Workshop on Software Fairness (FairWare)},
+  pages={1--7},
+  year={2018},
+  organization={IEEE}
+}
+@book{justice,
+  title={A Theory of Justice},
+  author={Rawls, John},
+  year={1971},
+  publisher={Harvard University Press},
+  address={Cambridge, MA}
+}
+@article{level-up,
+  title={The Unfairness of Fair Machine Learning: Levelling down and strict egalitarianism by default},
+  author={Mittelstadt, Brent and Wachter, Sandra and Russell, Chris},
+  journal={Michigan Technology Law Review},
+  volume={30},
+  number={1},
+  pages={1--76},
+  year={2023}
+}
+
+% [measuring diversity]
+@misc{benchmarking-linguistic,
+      title={Benchmarking Linguistic Diversity of Large Language Models}, 
+      author={Yanzhu Guo and Guokan Shang and Chloé Clavel},
+      year={2025},
+      eprint={2412.10271},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2412.10271}, 
+}
+@misc{eval-divqual,
+      title={Evaluating the Diversity and Quality of LLM Generated Content}, 
+      author={Alexander Shypula and Shuo Li and Botong Zhang and Vishakh Padmakumar and Kayo Yin and Osbert Bastani},
+      year={2025},
+      eprint={2504.12522},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2504.12522}, 
+}
+@inproceedings{eval-the-eval,
+  title={Evaluating the evaluation of diversity in natural language generation},
+  author={Tevet, Guy and Berant, Jonathan},
+  booktitle={Proceedings of the 16th Conference of the European Chapter of the Association for Computational Linguistics: Main Volume},
+  pages={326--346},
+  year={2021}
+}
+@misc{pos,
+      title={Detection and Measurement of Syntactic Templates in Generated Text}, 
+      author={Chantal Shaib and Yanai Elazar and Junyi Jessy Li and Byron C. Wallace},
+      year={2024},
+      eprint={2407.00211},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2407.00211}, 
+}
+@misc{div-quant,
+      title={A survey of diversity quantification in natural language processing: The why, what, where and how}, 
+      author={Louis Estève and Marie-Catherine de Marneffe and Nurit Melnik and Agata Savary and Olha Kanishcheva},
+      year={2025},
+      eprint={2507.20858},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2507.20858}, 
+}
+@misc{grammatical-div,
+      title={Measuring Grammatical Diversity from Small Corpora: Derivational Entropy Rates, Mean Length of Utterances, and Annotation Invariance}, 
+      author={Fermin Moscoso del Prado Martin},
+      year={2024},
+      eprint={2412.06095},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2412.06095}, 
+}
+@misc{curious-decline,
+      title={The Curious Decline of Linguistic Diversity: Training Language Models on Synthetic Text}, 
+      author={Yanzhu Guo and Guokan Shang and Michalis Vazirgiannis and Chloé Clavel},
+      year={2024},
+      eprint={2311.09807},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2311.09807}, 
+}
+@article{beware-words,
+  title        = {Beware of Words: Evaluating the Lexical Diversity of Conversational LLMs},
+  author       = {Gonzalo Mart{\'\i}nez and others},
+  journal      = {ACM Transactions on Intelligent Systems and Technology},
+  year         = {2024},
+  doi          = {10.1145/3696459},
+  note         = {arXiv:2402.15518},
+}
+@article{lex-div,
+  title        = {Do LLMs Produce Texts with “Human-Like” Lexical Diversity?},
+  author       = {Kelly Kendro and Jeffrey Maloney and Scott Jarvis},
+  journal      = {Unpublished manuscript / ResearchGate},
+  year         = {2025},
+}
+@inproceedings{mtdl,
+  title        = {MTLD as a measure of lexical diversity},
+  author       = {McCarthy, Paul M. and Jarvis, Scott},
+  booktitle    = {Proceedings of the 7th International Conference on Language Resources and Evaluation},
+  year         = {2010},
+}
+@article{standardizing,
+  title={Standardizing the measurement of text diversity: A tool and a comparative analysis of scores},
+  author={Shaib, Chantal and Barrow, Joe and Sun, Jiuding and Siu, Alexa F and Wallace, Byron C and Nenkova, Ani},
+  journal={arXiv preprint arXiv:2403.00553},
+  year={2024}
+}
+@inproceedings{distinct-n,
+    title = {A Diversity-Promoting Objective Function for Neural Conversation Models},
+    author = {Li, Jiwei and Galley, Michel and Brockett, Chris and Gao, Jianfeng and Dolan, Bill},
+    booktitle = {Proceedings of the 2016 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies},
+    pages = {110--119},
+    year = {2016},
+    publisher = {Association for Computational Linguistics},
+    doi = {10.18653/v1/N16-1014},
+}
+@misc{texygen,
+  title        = {Texygen: A Benchmarking Platform for Text Generation Models},
+  author       = {Zhu, Yaoming and Lu, Sidi and Zheng, Lei and Guo, Jiaxian and Zhang, Weinan and Wang, Jun and Yu, Yong},
+  year         = {2018},
+  eprint       = {1802.01886},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.CL}
+}
+@book{speech-process,
+  title     = {Speech and Language Processing},
+  author    = {Jurafsky, Daniel and Martin, James H.},
+  year      = {2009},
+  publisher = {Pearson Prentice Hall},
+  edition   = {2nd}
+}
+@misc{vendi,
+      title={The Vendi Score: A Diversity Evaluation Metric for Machine Learning}, 
+      author={Dan Friedman and Adji Bousso Dieng},
+      year={2023},
+      eprint={2210.02410},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2210.02410}, 
+}
+@misc{rpd,
+      title={Reasoning Path Divergence: A New Metric and Curation Strategy to Unlock LLM Diverse Thinking}, 
+      author={Feng Ju and Zeyu Qin and Rui Min and Zhitao He and Lingpeng Kong and Yi R. Fung},
+      year={2025},
+      eprint={2510.26122},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2510.26122}, 
+}
+@misc{mauve,
+      title={MAUVE Scores for Generative Models: Theory and Practice}, 
+      author={Krishna Pillutla and Lang Liu and John Thickstun and Sean Welleck and Swabha Swayamdipta and Rowan Zellers and Sewoong Oh and Yejin Choi and Zaid Harchaoui},
+      year={2023},
+      eprint={2212.14578},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2212.14578}, 
+}
+@inproceedings{judge,
+  title     = {JudgeLM: Fine-Tuned Large Language Models Are Scalable Judges},
+  author    = {Zhu, Lianghui and Wang, Xinggang and Wang, Xinlong},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2025},
+  url       = {https://proceedings.iclr.cc/paper_files/paper/2025/file/7f8f73134e253845a8f82983219a8452-Paper-Conference.pdf}
+}
