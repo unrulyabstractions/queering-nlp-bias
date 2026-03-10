@@ -189,6 +189,9 @@ class ArmEstimate(BaseSchema):
     # Deviance stats relative to TRUNK core: E[∂|trunk]
     deviance_avg_trunk: float = 0.0  # E[∂|T] prob-weighted
     deviance_avg_trunk_inv_ppl: float = 0.0  # E[∂|T] inv-ppl-weighted
+    # Expected deviance delta: E[Δ∂] = E[∂|branch - ∂|trunk]
+    deviance_delta: float = 0.0  # E[Δ∂] prob-weighted
+    deviance_delta_inv_ppl: float = 0.0  # E[Δ∂] inv-ppl-weighted
     # Expected orientation relative to TRUNK core: E[θ|trunk]
     orientation_avg: list[float] = field(default_factory=list)  # E[θ|T] prob-weighted
     orientation_avg_inv_ppl: list[float] = field(default_factory=list)  # E[θ|T] inv-ppl-weighted
@@ -373,6 +376,10 @@ class ArmEstimate(BaseSchema):
         dev_avg_trunk = expected_deviance(compliances, ref_core, weights=probs, norm="l2")
         dev_avg_trunk_inv_ppl = expected_deviance(compliances, ref_core_inv, weights=inv_ppl_weights, norm="l2")
 
+        # E[Δ∂] = E[∂|branch] - E[∂|trunk] (by linearity of expectation)
+        dev_delta = dev_avg - dev_avg_trunk
+        dev_delta_inv_ppl = dev_avg_inv_ppl - dev_avg_trunk_inv_ppl
+
         # Compute all named core variants with probability weights
         core_variants = cls._compute_core_variants(compliances, probs)
 
@@ -391,6 +398,8 @@ class ArmEstimate(BaseSchema):
             deviance_var_inv_ppl=dev_var_inv_ppl,
             deviance_avg_trunk=dev_avg_trunk,
             deviance_avg_trunk_inv_ppl=dev_avg_trunk_inv_ppl,
+            deviance_delta=dev_delta,
+            deviance_delta_inv_ppl=dev_delta_inv_ppl,
             orientation_avg=orient_avg,
             orientation_avg_inv_ppl=orient_avg_inv_ppl,
             orientation_norm=orient_norm,

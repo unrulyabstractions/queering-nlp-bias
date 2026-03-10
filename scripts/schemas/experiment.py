@@ -42,6 +42,9 @@ class ArmResult:
     # E[∂|T] - deviance relative to trunk core
     deviance_avg_trunk: float
     deviance_avg_trunk_inv_ppl: float
+    # E[Δ∂] = E[∂|B - ∂|T] - expected per-trajectory deviance difference
+    deviance_delta: float
+    deviance_delta_inv_ppl: float
     # E[θ|T] - orientation relative to trunk core
     orientation_avg: list[float]
     orientation_avg_inv_ppl: list[float]
@@ -64,6 +67,8 @@ class ArmResult:
             deviance_avg_inv_ppl=data.get("deviance_avg_inv_ppl", 0.0),
             deviance_avg_trunk=data.get("deviance_avg_trunk", 0.0),
             deviance_avg_trunk_inv_ppl=data.get("deviance_avg_trunk_inv_ppl", 0.0),
+            deviance_delta=data.get("deviance_delta", 0.0),
+            deviance_delta_inv_ppl=data.get("deviance_delta_inv_ppl", 0.0),
             orientation_avg=data.get("orientation_avg", []),
             orientation_avg_inv_ppl=data.get("orientation_avg_inv_ppl", []),
             orientation_norm=data.get("orientation_norm", 0.0),
@@ -233,11 +238,12 @@ def log_setup_summary(paths: OutputPaths) -> None:
 
         # Legend for expectations
         log("  Legend:")
-        log("    E[∂|branch]   = E[∂] = avg spread around this arm's core")
+        log("    E[∂]          = E[∂|branch] = avg spread around this arm's core")
         log("    core          = expected compliance per structure (the normative center)")
         log("    E[θ|trunk]    = how this arm's core differs from trunk (direction)")
         log("    ‖E[θ|trunk]‖  = distance between this arm's core and trunk core (scalar)")
         log("    E[∂|trunk]    = avg spread around trunk's core")
+        log("    E[Δ∂]         = E[∂|branch] - E[∂|trunk] = deviance difference")
         log("")
 
         # Print header row once
@@ -255,6 +261,7 @@ def log_setup_summary(paths: OutputPaths) -> None:
             core = arm.get("core", [])
             dev_branch = arm.get("deviance_avg", 0.0)
             dev_trunk = arm.get("deviance_avg_trunk", 0.0)
+            dev_delta = arm.get("deviance_delta", 0.0)
             orient_avg = arm.get("orientation_avg", [])
             orient_norm = arm.get("orientation_norm", 0.0)
 
@@ -262,25 +269,30 @@ def log_setup_summary(paths: OutputPaths) -> None:
             core_inv = arm.get("core_inv_ppl", [])
             dev_branch_inv = arm.get("deviance_avg_inv_ppl", 0.0)
             dev_trunk_inv = arm.get("deviance_avg_trunk_inv_ppl", 0.0)
+            dev_delta_inv = arm.get("deviance_delta_inv_ppl", 0.0)
             orient_avg_inv = arm.get("orientation_avg_inv_ppl", [])
             orient_norm_inv = arm.get("orientation_norm_inv_ppl", 0.0)
 
             log(f"  {display_name} ({n_traj} trajectories)")
             log(f"    [prob-weighted]")
-            log(f"      E[∂|branch]   = {dev_branch:.4f}")
+            log(f"      E[∂]          = {dev_branch:.4f}")
             log(f"      core            {fmt_values(core)}")
             if orient_avg:
                 log(f"      E[θ|trunk]      {fmt_values(orient_avg)}")
             log(f"      ‖E[θ|trunk]‖  = {orient_norm:.4f}")
             log(f"      E[∂|trunk]    = {dev_trunk:.4f}")
+            log(f"      E[∂|branch]   = {dev_branch:.4f}")
+            log(f"      E[Δ∂]         = {dev_delta:.4f}")
             if core_inv:
                 log(f"    [inv-ppl-weighted]")
-                log(f"      E[∂|branch]   = {dev_branch_inv:.4f}")
+                log(f"      E[∂]          = {dev_branch_inv:.4f}")
                 log(f"      core            {fmt_values(core_inv)}")
                 if orient_avg_inv:
                     log(f"      E[θ|trunk]      {fmt_values(orient_avg_inv)}")
                 log(f"      ‖E[θ|trunk]‖  = {orient_norm_inv:.4f}")
                 log(f"      E[∂|trunk]    = {dev_trunk_inv:.4f}")
+                log(f"      E[∂|branch]   = {dev_branch_inv:.4f}")
+                log(f"      E[Δ∂]         = {dev_delta_inv:.4f}")
             log("")
 
 
