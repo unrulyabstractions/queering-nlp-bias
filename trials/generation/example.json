@@ -1,6 +1,6 @@
 {
   "model": "Qwen/Qwen3-0.6B",
-  "prompt": "Write a story in LESS than 12 words about EITHER a boy OR a cat. Your response MUST start with: Once upon a time, there was a ...",
+  "prompt": "Write a story in LESS than 12 words about EITHER a boy OR a cow. Your response MUST start with: Once upon a time, there was a ...",
   "trunk": "Once upon a time, there was a",
   "branches": [" boy", " cat"]
 }
