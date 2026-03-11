@@ -31,7 +31,7 @@ class TokenTrajectory(BaseSchema):
 
     traj_idx: int | None = None  # Index in parent tree's trajs tuple
     nodes_idx: tuple[int, ...] | None = None
-    group_idx: tuple[int, ...] | None = None
+    arm_index: tuple[int, ...] | None = None
     analysis: Any | None = None
 
     def can_have_internals(self) -> bool:

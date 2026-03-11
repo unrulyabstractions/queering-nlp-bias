@@ -1,54 +1,67 @@
 # Entropy and Diversity Module
 
-Core entropy and diversity theory implementing the unified framework from Tom Leinster's work and the structure-aware diversity metrics.
+> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
 
-## Concepts
 
-- **Entropy**: Shannon entropy, Rényi entropy, and generalizations
-- **Diversity**: Hill numbers, effective number of types
-- **Escort distributions**: Probability reweighting for generalized means
-- **Power means**: Weighted power means with arbitrary exponents
-- **Structure-aware metrics**: Compliance, core, orientation, deviance
+Core entropy and diversity theory implementing the unified Renyi-Hill framework and structure-aware diversity metrics.
 
 ## Contents
 
-### Core Theory
-- `entropy.py` / `entropy_impl.py` - Entropy calculations
-- `diversity.py` / `diversity_impl.py` - Diversity measures (Hill numbers)
-- `divergence.py` / `divergence_impl.py` - Rényi divergence
-- `power_mean.py` / `power_mean_impl.py` - Weighted power means
-- `escort_distribution.py` / `escort_distribution_impl.py` - Escort probabilities
+### Public API
 
-### Structure-Aware Metrics
-- `structure_aware.py` - Core, orientation, deviance, expected_orientation
-- `core_impl.py` - System core implementations
+- `entropy.py` - Renyi entropy H_q, Shannon entropy (q=1)
+- `diversity.py` - Hill numbers D_q, concentration 1/D_q
+- `divergence.py` - KL divergence, Renyi divergence
+- `power_mean.py` - Power mean M_alpha, weighted power mean
+- `escort_distribution.py` - Escort distributions (q-tilted view)
+- `common_orders.py` - Named wrappers (richness, shannon_diversity, simpson_diversity, etc.)
+- `structure_aware.py` - Compliance, orientation, deviance, core statistics
 
-### Utilities
-- `entropy_primitives.py` - Low-level entropy operations
-- `common_orders.py` - Named parameter values (q=0, 1, 2, ∞)
+### Implementation Details
 
-## Key Functions
+- `*_impl.py` files - Backend implementations (native Python, NumPy, PyTorch)
+- `entropy_primitives.py` - Low-level operations (probs_to_logprobs, log_sum_exp, surprise, rarity)
+- `core_impl.py` - Shared implementation primitives
+
+## Quick Reference
 
 ```python
 from src.common.math.entropy_diversity import (
     # Entropy/Diversity
-    shannon_entropy,
-    renyi_entropy,
-    hill_number,
-
-    # Structure-aware
-    orientation,           # θ(x) = Λ(x) - ⟨Λ⟩
-    deviance,             # ∂(x) = ||θ(x)||
-    expected_deviance,    # E[∂]
-    expected_orientation, # E[θ]
-    generalized_system_core,  # ⟨Λ⟩_{q,r}
+    renyi_entropy, shannon_entropy,       # H_q
+    q_diversity, q_concentration,         # D_q, 1/D_q
+    kl_divergence, renyi_divergence,      # Divergence
 
     # Power means
-    weighted_power_mean,
-    escort_probs,
+    power_mean, weighted_power_mean,
+    power_mean_from_logprobs,
+
+    # Escort distribution
+    escort_logprobs, escort_probs,
+
+    # Named orders
+    richness, shannon_diversity, simpson_diversity,
+    shannon_concentration, simpson_concentration,
+    geometric_mean_prob, arithmetic_mean_prob,
+
+    # Structure-aware
+    orientation, deviance, normalized_deviance,
+    core_entropy, core_diversity,
+    generalized_structure_core, generalized_system_core,
+    expected_deviance, deviance_variance, expected_orientation,
+    excess_deviance, deficit_deviance,
 )
 ```
 
-## Reference
+## Key Relationships
 
-Based on: https://www.unrulyabstractions.com/pdfs/diversity.pdf
+```
+H_q = (1/(1-q)) log(sum(p_i^q))    Renyi entropy
+D_q = exp(H_q)                     Hill number (effective count)
+1/D_q = exp(-H_q)                  Concentration
+
+theta = Lambda - <Lambda>          Orientation (deviation from norm)
+d = ||theta||                      Deviance (scalar non-normativity)
+```
+
+See `../EXPLANATION.md` for detailed documentation.

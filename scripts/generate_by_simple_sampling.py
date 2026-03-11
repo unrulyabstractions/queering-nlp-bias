@@ -1,10 +1,9 @@
-#!/usr/bin/env python3
 """Generate trajectories using simple temperature sampling.
 
 Usage:
     python scripts/generate_by_simple_sampling.py trials/generation/<config>.json
     python scripts/generate_by_simple_sampling.py trials/generation/<config>.json \
-        --samples-per-branch 5
+        --samples-per-arm 5
 
 Outputs:
     out/gen_sampling_<config>.json
@@ -17,97 +16,21 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from schemas import BranchGenerationResult, GenerationConfig, SamplingParams
 from schemas.script_utils import (
     ArgSpec,
-    build_and_save_tree,
     load_model,
-    log_branch_header,
     log_prompt_header,
-    log_step,
     parse_generation_args,
 )
 
 from src.common.log import log, log_section
-from src.common.viz_utils import preview
-from src.inference import ModelRunner
-from src.inference.generated_trajectory import GeneratedTrajectory
-
-
-def sample_from_branch(
-    runner: ModelRunner,
-    config: GenerationConfig,
-    branch_name: str,
-    prefill: str,
-    branch_continuation: str,
-    samples_per_branch: int,
-) -> list[GeneratedTrajectory]:
-    """Sample N trajectories for a single branch."""
-    formatted_prompt = runner.apply_chat_template(config.prompt) + prefill
-    log_branch_header(branch_name, branch_continuation)
-
-    log_step(1, "Sample trajectories", f"{samples_per_branch} samples")
-
-    trajectories = []
-    for i in range(samples_per_branch):
-        traj = runner.generate_trajectory_from_prompt(
-            prompt=config.prompt,
-            max_new_tokens=config.max_new_tokens,
-            temperature=config.temperature,
-            prefilling=prefill,
-        )
-        trajectories.append(traj)
-
-        text = runner.decode_ids(traj.token_ids)
-        continuation = text[len(formatted_prompt) :]
-
-        log(f'    [{i + 1}/{samples_per_branch}] "{preview(continuation, 55)}"')
-
-    log(f"  Summary: {samples_per_branch} trajectories generated", gap=1)
-
-    return trajectories
-
-
-def generate_for_all_branches(
-    runner: ModelRunner,
-    config: GenerationConfig,
-    params: SamplingParams,
-) -> BranchGenerationResult:
-    """Generate trajectories for all branches."""
-    branches = config.get_branches(runner.skip_thinking_prefix)
-    prompt_length = config.compute_prompt_length(runner)
-    trunk_length = config.compute_trunk_length(runner)
-
-    # Show prompt structure once at the start
-    log_prompt_header(config.prompt, config.trunk, config.branches)
-
-    all_trajectories: list[GeneratedTrajectory] = []
-    all_group_indices: list[int] = []
-
-    for branch in branches:
-        # Determine the branch-specific continuation
-        if branch.name == "trunk":
-            branch_continuation = config.trunk
-        else:
-            branch_continuation = config.trunk + branch.name
-
-        trajectories = sample_from_branch(
-            runner, config, branch.name, branch.prefill, branch_continuation, params.samples_per_branch
-        )
-        all_trajectories.extend(trajectories)
-        all_group_indices.extend(branch.group_idx for _ in trajectories)
-
-    return BranchGenerationResult(
-        trajectories=all_trajectories,
-        group_indices=all_group_indices,
-        trunk_length=trunk_length,
-        prompt_length=prompt_length,
-    )
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Main Pipeline
-# ══════════════════════════════════════════════════════════════════════════════
+from src.generation import (
+    GenerationConfig,
+    GenerationOutput,
+    SamplingParams,
+    run_generation_pipeline,
+)
+from src.generation.methods.logging import log_tree_trajectories
 
 
 def generate_by_simple_sampling(
@@ -121,35 +44,42 @@ def generate_by_simple_sampling(
     log_section("Simple Sampling")
     params.print()
 
-    result = generate_for_all_branches(runner, config, params)
+    # Show prompt structure
+    log_prompt_header(config.prompt, config.trunk, config.branches)
 
-    build_and_save_tree(
-        result=result,
-        config=config,
-        config_path=config_path,
-        runner=runner,
-        method="sampling",
-    )
+    # Run generation pipeline with logging
+    result = run_generation_pipeline(runner, config, method="simple-sampling", log_fn=log)
 
+    # Log trajectory details
+    log_tree_trajectories(result.result, runner)
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Main
-# ══════════════════════════════════════════════════════════════════════════════
+    # Save outputs
+    n_trajs = len(result.result.trajectories)
+    output_path = GenerationOutput.compute_output_path(config_path, method="simple-sampling")
+    result.output.save(output_path)
+    log(f"\nSaved {n_trajs} trajectories to {output_path}")
+
+    summary_path = GenerationOutput.compute_summary_path(config_path, method="simple-sampling")
+    result.output.save_summary(summary_path)
+    log(f"Saved summary to {summary_path}")
+
+    # Show summary
+    result.output.summarize()
 
 
 def main() -> None:
     parsed = parse_generation_args(
         description="Generate trajectories using simple temperature sampling",
-        examples=["config.json", "config.json --samples-per-branch 10"],
+        examples=["config.json", "config.json --samples-per-arm 10"],
         extra_args=[
-            ArgSpec("samples-per-branch", int, "N", "Trajectories per branch"),
+            ArgSpec("samples-per-arm", int, "N", "Trajectories per arm"),
         ],
     )
 
     generate_by_simple_sampling(
         config=parsed.config,
         config_path=parsed.config_path,
-        params=parsed.config.sampling_params,
+        params=parsed.config.get_params("simple-sampling"),
     )
 
 

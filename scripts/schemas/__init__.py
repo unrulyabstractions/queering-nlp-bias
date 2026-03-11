@@ -1,4 +1,4 @@
-"""Schema definitions for trajectory generation and judgment."""
+"""Schema utilities for scripts (script_utils and experiment)."""
 
 from src.common.auto_export import auto_export
 

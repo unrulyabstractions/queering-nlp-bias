@@ -1,33 +1,28 @@
 # Model Backends
 
-Unified interface for different model inference backends.
+> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
 
-## Supported Backends
 
-| Backend | Module | Use Case |
-|---------|--------|----------|
-| MLX | `mlx.py` | Apple Silicon (fastest on M-series) |
-| HuggingFace | `huggingface.py` | General GPU/CPU inference |
-| OpenAI | `openai.py` | OpenAI API models |
-| Anthropic | `anthropic.py` | Claude API models |
+Unified interface for model inference across different platforms and APIs.
 
 ## Contents
 
-- `model_backend.py` - `ModelBackend` enum and base interfaces
-- `backend_selection.py` - Automatic backend selection logic
-- `mlx.py` - MLX backend implementation
-- `huggingface.py` - HuggingFace/Transformers backend
-- `openai.py` - OpenAI API backend
-- `anthropic.py` - Anthropic API backend
+| File | Purpose |
+|------|---------|
+| `model_backend.py` | `ModelBackend` enum and `Backend` ABC |
+| `backend_selection.py` | Auto-select backend based on hardware |
+| `huggingface.py` | HuggingFace Transformers backend |
+| `mlx.py` | MLX backend (Apple Silicon) |
+| `openai.py` | OpenAI API backend |
+| `anthropic.py` | Anthropic API backend |
 
 ## Usage
 
 ```python
 from src.inference.backends import ModelBackend, get_recommended_backend_inference
 
-# Auto-select best backend
-backend = get_recommended_backend_inference()
-
-# Or specify explicitly
-backend = ModelBackend.MLX
+backend = get_recommended_backend_inference()  # Auto-select
+backend = ModelBackend.MLX                      # Explicit
 ```
+
+See [../EXPLANATION.md](../EXPLANATION.md) for detailed backend architecture.

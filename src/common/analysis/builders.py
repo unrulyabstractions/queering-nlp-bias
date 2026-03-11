@@ -6,10 +6,11 @@ Provides functions to build analysis objects from tree components.
 from __future__ import annotations
 
 import math
-from typing import TYPE_CHECKING
 
 import torch
 
+from ..binary_fork import BinaryFork
+from ..branching_node import BranchingNode
 from ..math import (
     log_odds,
     logprob_to_prob,
@@ -19,17 +20,13 @@ from ..math import (
     q_fork_entropy,
     vocab_entropy_from_logits,
 )
+from ..token_tree import TokenTree
 from .metrics import (
     ForkAnalysis,
     ForkMetrics,
     NodeAnalysis,
     NodeMetrics,
 )
-
-if TYPE_CHECKING:
-    from ..binary_fork import BinaryFork
-    from ..branching_node import BranchingNode
-    from ..token_tree import TokenTree
 
 
 def build_fork_analysis(fork_idx: int, fork: BinaryFork) -> ForkAnalysis:

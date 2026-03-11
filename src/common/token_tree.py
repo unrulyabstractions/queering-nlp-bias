@@ -5,6 +5,7 @@ Provides TokenTree for representing branching token sequences.
 
 from __future__ import annotations
 
+import gc
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
@@ -70,18 +71,18 @@ class TokenTree(BaseSchema):
         return None
 
     def add_trajectory(
-        self, traj: TokenTrajectory, group_idx: Sequence[int]
+        self, traj: TokenTrajectory, arm_index: Sequence[int]
     ) -> TokenTree:
         """Add a trajectory and return a new tree.
 
         Args:
             traj: New trajectory to add
-            group_idx: Which groups this trajectory belongs to
+            arm_index: Which groups this trajectory belongs to
 
         Returns:
             New TokenTree with the trajectory added, nodes/forks recalculated
         """
-        return add_trajectory_to_tree(self, traj, group_idx)
+        return add_trajectory_to_tree(self, traj, arm_index)
 
     def add_fork_between_groups(self, fork_arm: tuple[int, int]) -> TokenTree:
         """Add a fork relationship between two groups and return a new tree.
@@ -99,8 +100,8 @@ class TokenTree(BaseSchema):
         """All unique group indices in this tree, sorted."""
         all_groups: set[int] = set()
         for traj in self.trajs:
-            if traj.group_idx:
-                all_groups.update(traj.group_idx)
+            if traj.arm_index:
+                all_groups.update(traj.arm_index)
         return tuple(sorted(all_groups))
 
     @property
@@ -113,8 +114,6 @@ class TokenTree(BaseSchema):
 
         Clears heavy data to reduce memory before serialization.
         """
-        import gc
-
         # Clear trajectory logits
         for traj in self.trajs:
             traj.pop_heavy()
@@ -273,9 +272,9 @@ def parse_tree_from_trajs(
         # Determine fork_arms (no forks if not specified)
         resolved_fork_arms = list(fork_arms) if fork_arms else []
 
-    # Set group_idx on each trajectory
+    # Set arm_index on each trajectory
     for traj, groups in zip(trajs_list, traj_to_groups):
-        traj.group_idx = groups
+        traj.arm_index = groups
 
     acc = _TreeAccumulator(
         trajs=trajs_list,
@@ -307,21 +306,21 @@ def parse_tree_from_trajs(
 def add_trajectory_to_tree(
     tree: TokenTree,
     traj: TokenTrajectory,
-    group_idx: Sequence[int],
+    arm_index: Sequence[int],
 ) -> TokenTree:
     """Add a trajectory to an existing tree.
 
     Args:
         tree: Existing TokenTree
         traj: New trajectory to add
-        group_idx: Which groups this trajectory belongs to
+        arm_index: Which groups this trajectory belongs to
 
     Returns:
         New TokenTree with the trajectory added, nodes/forks recalculated
     """
     # Collect existing trajectories and their groups
     existing_trajs = list(tree.trajs)
-    groups_per_traj: list[tuple[int, ...]] = [t.group_idx or () for t in existing_trajs]
+    groups_per_traj: list[tuple[int, ...]] = [t.arm_index or () for t in existing_trajs]
 
     # Find existing groups
     existing_groups: set[int] = set()
@@ -329,7 +328,7 @@ def add_trajectory_to_tree(
         existing_groups.update(groups)
 
     # Add new trajectory
-    new_groups = tuple(group_idx)
+    new_groups = tuple(arm_index)
     existing_trajs.append(traj)
     groups_per_traj.append(new_groups)
 
@@ -363,7 +362,7 @@ def add_fork_between_groups(
     """
     # Collect existing data
     trajs = list(tree.trajs)
-    groups_per_traj = [t.group_idx or () for t in trajs]
+    groups_per_traj = [t.arm_index or () for t in trajs]
 
     # Add new fork_arm
     existing_arms = list(tree.fork_arms) if tree.fork_arms else []
@@ -642,7 +641,7 @@ def _create_forks_for_node(
                     BinaryFork(
                         next_token_ids=(b_i.token_id, b_j.token_id),
                         next_token_logprobs=(b_i.token_logprob, b_j.token_logprob),
-                        group_idx=(g_i, g_j),
+                        arm_index=(g_i, g_j),
                     )
                 )
                 fork_indices.append(fork_idx)

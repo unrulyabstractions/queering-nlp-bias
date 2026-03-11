@@ -1,5 +1,7 @@
 # src/
 
+> **Note**: This documentation was LLM-generated. If something seems wrong or contradicts the code, please report bugs.
+
 Core library for trajectory generation, analysis, and visualization.
 
 ## Module Overview

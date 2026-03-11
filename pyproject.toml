@@ -11,7 +11,7 @@ license = {text = "MIT"}
 authors = [
     {name = "Ian Rios-Sialer", email = "ian@unrulyabstractions.com"}
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 keywords = ["nlp", "bias", "queer", "research"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -48,6 +48,8 @@ dependencies = [
     # OpenAI
     "openai>=1.0.0",
     "tiktoken>=0.5.0",
+    # Anthropic
+    "anthropic>=0.40.0",
     # Experiment tracking & utilities
     "wandb",
     "einops",
@@ -58,6 +60,8 @@ dependencies = [
     # Embeddings
     "sentence-transformers",
     "pypdf>=6.8.0",
+    # System utilities
+    "psutil>=5.9.0",
 ]
 
 [project.optional-dependencies]

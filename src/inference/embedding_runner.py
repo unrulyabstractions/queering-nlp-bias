@@ -8,6 +8,7 @@ import sys
 
 import numpy as np
 from numpy.typing import NDArray
+from sentence_transformers import SentenceTransformer
 
 from src.common.log import log
 
@@ -46,8 +47,6 @@ class EmbeddingRunner:
         Args:
             model_name: Name of sentence-transformers model to use.
         """
-        from sentence_transformers import SentenceTransformer
-
         log(f"Loading embedding model: {model_name}")
 
         # Suppress "LOAD REPORT" noise printed at file descriptor level

@@ -1,5 +1,7 @@
 # Trial Configurations
 
+> **Note**: This documentation was LLM-generated. If something seems wrong or contradicts the code, please report bugs.
+
 Config files for trajectory generation and scoring experiments.
 
 ## Directory Structure
@@ -220,9 +222,9 @@ out/est_sampling_example_example.json   # Estimation results
 out/summary_est_sampling_example_example.json # Human-readable summary
 ```
 
-With `--forking-paths`:
+With `--method forking-paths`:
 ```
-out/gen_forking_example.json
-out/score_forking_example_example.json
+out/gen_forking-paths_example.json
+out/score_forking-paths_example_example.json
 ...
 ```

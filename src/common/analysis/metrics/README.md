@@ -1,9 +1,12 @@
 # Analysis Metrics
 
-Metric implementations for analyzing token trees and trajectories.
+> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
+
+
+Metric dataclasses for analyzing token trees, forks, and trajectories.
 
 ## Contents
 
-- `node_metrics.py` - Metrics computed at individual tree nodes
-- `fork_metrics.py` - Metrics for branching/forking points
-- `trajectory_metrics.py` - Metrics computed over full trajectories
+- `trajectory_analysis_types.py` - `TrajectoryAnalysis` for trajectory-level metrics (perplexity, cross-entropy)
+- `fork_analysis_types.py` - `ForkAnalysis` for binary fork metrics (log odds, diversity)
+- `node_metrics.py` - `NodeAnalysis` for branching node metrics

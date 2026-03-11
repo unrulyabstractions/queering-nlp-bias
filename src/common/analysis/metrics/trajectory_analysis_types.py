@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from ...base_schema import BaseSchema
 from ...math import (
@@ -22,10 +21,8 @@ from ...math import (
     worst_token_position,
     worst_token_rank,
 )
+from ...token_trajectory import TokenTrajectory
 from ..base import DistributionalAnalysis
-
-if TYPE_CHECKING:
-    from ...token_trajectory import TokenTrajectory
 
 
 @dataclass

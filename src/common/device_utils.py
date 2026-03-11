@@ -5,6 +5,8 @@ from __future__ import annotations
 import gc
 import os
 import sys
+
+import psutil
 import torch
 
 from src.common.log import log
@@ -37,14 +39,9 @@ def get_memory_usage() -> dict:
             pass
 
     # System RAM (cross-platform)
-    try:
-        import psutil
-
-        proc = psutil.Process(os.getpid())
-        stats["ram_gb"] = proc.memory_info().rss / 1e9
-        stats["ram_percent"] = proc.memory_percent()
-    except ImportError:
-        pass
+    proc = psutil.Process(os.getpid())
+    stats["ram_gb"] = proc.memory_info().rss / 1e9
+    stats["ram_percent"] = proc.memory_percent()
 
     return stats
 

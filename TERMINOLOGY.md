@@ -1,8 +1,10 @@
 # Terminology
 
+> **Note**: This documentation was LLM-generated. If something seems wrong or contradicts the code, please report bugs.
+
 Core concepts from structure-aware diversity theory.
 
-## Structure & System
+## Structure (Scored) & System (Vector of Scores)
 
 A **structure** α scores how well a string exhibits a behavior of interest:
 ```
@@ -14,7 +16,7 @@ A **system** Λ is a vector of multiple structure compliances:
 Λ_n(x) = (α_1(x), α_2(x), ..., α_n(x))
 ```
 
-## Core
+## Core (Normativity)
 
 The **core** ⟨Λ_n⟩ is the expected system compliance over all possible continuations:
 ```
@@ -23,7 +25,7 @@ The **core** ⟨Λ_n⟩ is the expected system compliance over all possible cont
 
 **Interpretation**: The core describes what the model treats as *default* for each structure. It encodes normativity.
 
-## Orientation
+## Orientation (How Queer Vector)
 
 The **orientation** θ measures how a string deviates from the core:
 ```
@@ -32,7 +34,7 @@ The **orientation** θ measures how a string deviates from the core:
 
 **Interpretation**: Positive values = above-normal compliance. Negative = below-normal.
 
-## Deviance
+## Deviance (How Queer Scalar)
 
 The **deviance** ∂ collapses orientation to a single scalar (L2 norm):
 ```

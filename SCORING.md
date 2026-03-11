@@ -1,5 +1,7 @@
 # Scoring Methodology
 
+> **Note**: This documentation was LLM-generated. If something seems wrong or contradicts the code, please report bugs.
+
 How we evaluate trajectories against structures.
 
 ## Conceptual Framework
@@ -96,6 +98,27 @@ Embedding-based cosine similarity to reference words/phrases.
 4. For grouped references, average the similarities
 
 **Default model**: `all-MiniLM-L6-v2`
+
+### 4. Count Occurrences
+
+Lightweight word/phrase frequency scoring without LLM or embeddings.
+
+```json
+{
+  "count_occurrences": [
+    "boy",
+    ["cat", "kitten", "feline"]
+  ]
+}
+```
+
+**How it works**:
+1. Count occurrences of each word/phrase in the text
+2. Normalize by total word count: (# occurrences) / (# total words)
+3. For grouped terms, each term is counted separately
+
+**Pros**: Fast, no model required
+**Cons**: Only counts exact matches (case-insensitive by default)
 
 ## Grouped Structures
 

@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import math
 import os
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
+import tiktoken
 import torch
+from openai import OpenAI
 
 from .model_backend import Backend
 
@@ -19,8 +22,6 @@ class OpenAITokenizer:
     encoding_name: str = "o200k_base"  # GPT-4o encoding
 
     def __post_init__(self):
-        import tiktoken
-
         self._encoding = tiktoken.get_encoding(self.encoding_name)
 
     @property
@@ -74,8 +75,6 @@ class OpenAIBackend(Backend):
     def _get_client(self):
         """Lazy-load OpenAI client."""
         if self._client is None:
-            from openai import OpenAI
-
             api_key = os.environ.get("OPENAI_API_KEY")
             if not api_key:
                 raise ValueError(
@@ -142,8 +141,6 @@ class OpenAIBackend(Backend):
         Note: OpenAI API has limited logprobs support. This uses the
         logprobs parameter to get top-k token probabilities.
         """
-        import math
-
         client = self._get_client()
 
         response = client.chat.completions.create(

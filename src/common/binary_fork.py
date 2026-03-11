@@ -15,11 +15,11 @@ class BinaryFork(BaseSchema):
     Attributes:
         next_token_ids: The two token IDs being compared (branch_a, branch_b)
         next_token_logprobs: Log-probabilities for each token
-        group_idx: Which groups the two branches belong to (group_a, group_b)
+        arm_index: Which arms the two branches belong to (arm_a, arm_b)
     """
 
     next_token_ids: tuple[int, int]
     next_token_logprobs: tuple[float, float]
     fork_idx: int | None = None  # Index in parent tree's forks tuple
-    group_idx: tuple[int, int] | None = None
+    arm_index: tuple[int, int] | None = None
     analysis: Any | None = None

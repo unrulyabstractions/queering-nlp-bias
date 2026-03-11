@@ -1,5 +1,7 @@
 # Motivation: Why Diversity Matters
 
+> **Note**: This documentation was LLM-generated. If something seems wrong or contradicts the code, please report bugs.
+
 This document summarizes Section 2 (Background) from the theoretical paper underpinning this project.
 
 ## Why Is Diversity Lost?

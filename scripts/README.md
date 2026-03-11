@@ -1,111 +1,115 @@
 # Scripts
 
-Pipeline scripts for trajectory generation, scoring, and estimation.
+> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
 
-See the methodology docs for conceptual background:
-- [GENERATION.md](../GENERATION.md)
-- [SCORING.md](../SCORING.md)
-- [ESTIMATION.md](../ESTIMATION.md)
 
-## Full Pipeline
+Pipeline scripts for trajectory generation, scoring, and normativity estimation.
+
+For conceptual background, see the methodology docs:
+- [GENERATION.md](../GENERATION.md) - trajectory sampling methods
+- [SCORING.md](../SCORING.md) - structure compliance scoring
+- [ESTIMATION.md](../ESTIMATION.md) - normativity metrics
+
+For detailed script documentation, see [EXPLANATION.md](./EXPLANATION.md).
+
+## Quick Start
 
 ```bash
-# Run all three stages with simple sampling (default)
-uv run python scripts/run_full_experiment.py trials/generation/example.json trials/scoring/example.json
+# Run the full three-stage pipeline (generate -> score -> estimate)
+uv run python scripts/run_full_experiment.py \
+    trials/generation/example.json \
+    trials/scoring/example.json
 
-# With forking paths method
-uv run python scripts/run_full_experiment.py --forking-paths trials/generation/example.json trials/scoring/example.json
+# Use a specific generation method
+uv run python scripts/run_full_experiment.py --method forking-paths \
+    trials/generation/example.json \
+    trials/scoring/example.json
 
-# With entropy-seeking method
-uv run python scripts/run_full_experiment.py --seeking-entropy trials/generation/example.json trials/scoring/example.json
-
-# Run all methods and compare
-uv run python scripts/run_full_experiment.py --all trials/generation/example.json trials/scoring/example.json
+# Run all methods and compare results
+uv run python scripts/run_full_experiment.py --all \
+    trials/generation/example.json \
+    trials/scoring/example.json
 ```
 
-## Individual Scripts
+## Available Scripts
 
-### Generation
+| Script | Purpose |
+|--------|---------|
+| `run_full_experiment.py` | Full pipeline orchestrator (generate -> score -> estimate) |
+| `generate_by_simple_sampling.py` | Temperature sampling generation |
+| `generate_by_forking_paths.py` | Systematic one-step deviation exploration |
+| `generate_by_seeking_entropy.py` | Entropy-guided tree expansion |
+| `score_trajectories.py` | Score trajectories against structures |
+| `estimate_normativity.py` | Compute normativity metrics from scores |
 
-All generation scripts output to `out/gen_<method>_<config>.json`.
+## Generation Methods
 
-#### Simple Sampling
+### Simple Sampling (default)
 
 ```bash
 uv run python scripts/generate_by_simple_sampling.py trials/generation/example.json
-uv run python scripts/generate_by_simple_sampling.py trials/generation/example.json --samples-per-branch 10
+uv run python scripts/generate_by_simple_sampling.py trials/generation/example.json --samples-per-arm 20
 ```
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `--samples-per-branch` | 2 | Trajectories per branch |
+| `--samples-per-arm` | 10 | Trajectories per arm (trunk + each branch) |
 
-#### Forking Paths
+### Forking Paths
 
 ```bash
 uv run python scripts/generate_by_forking_paths.py trials/generation/example.json
 uv run python scripts/generate_by_forking_paths.py trials/generation/example.json \
     --max-alternates-per-position 5 \
-    --min-prob-for-alternate 0.01 \
-    --min-entropy-to-fork 1.0 \
+    --min-prob-for-alternate 0.1 \
+    --min-entropy-to-fork 1.5 \
     --samples-per-fork 2
 ```
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `--max-alternates-per-position` | 3 | Max alternate tokens per position |
-| `--min-prob-for-alternate` | 0.05 | Minimum probability for alternate |
-| `--min-entropy-to-fork` | 0.0 | Minimum entropy to consider forking |
-| `--samples-per-fork` | 1 | Continuations per fork point |
+| `--max-alternates-per-position` | 5 | Max alternate tokens per position |
+| `--min-prob-for-alternate` | 0.2 | Minimum probability for alternate token |
+| `--min-entropy-to-fork` | 1.75 | Minimum entropy (nats) to consider forking |
+| `--samples-per-fork` | 3 | Continuations per fork point |
 
-#### Seeking Entropy
+### Entropy Seeking
 
 ```bash
 uv run python scripts/generate_by_seeking_entropy.py trials/generation/example.json
 uv run python scripts/generate_by_seeking_entropy.py trials/generation/example.json \
     --samples-per-expansion 3 \
-    --num-expansion-rounds 4
+    --num-expansion-rounds 5
 ```
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `--samples-per-expansion` | 2 | Trajectories per expansion |
-| `--num-expansion-rounds` | 3 | Number of expansion rounds |
+| `--samples-per-expansion` | 2 | Trajectories per expansion round |
+| `--num-expansion-rounds` | 3 | Number of tree expansion rounds |
 
-### Scoring
-
-```bash
-uv run python scripts/score_trajectories.py trials/scoring/example.json out/gen_sampling_example.json
-```
-
-Output: `out/score_<method>_<gen>_<scoring>.json`
-
-### Estimation
+## Scoring and Estimation
 
 ```bash
-uv run python scripts/estimate_normativity.py out/score_sampling_example_example.json
+# Score trajectories
+uv run python scripts/score_trajectories.py \
+    trials/scoring/example.json \
+    out/gen_simple-sampling_example.json
+
+# Estimate normativity
+uv run python scripts/estimate_normativity.py \
+    out/score_simple-sampling_example_example.json
 ```
 
-Output: `out/est_<method>_<gen>_<scoring>.json` and `out/summary_est_<...>.json`
+## Output Files
 
-## run_full_experiment.py Parameters
+All outputs are saved to `out/`:
 
-All method-specific parameters can be passed to the full pipeline:
-
-```bash
-# Simple sampling with 10 samples
-uv run python scripts/run_full_experiment.py gen.json scoring.json --samples-per-branch 10
-
-# Forking paths with custom parameters
-uv run python scripts/run_full_experiment.py --forking-paths gen.json scoring.json \
-    --max-alternates-per-position 5 \
-    --min-prob-for-alternate 0.01
-
-# Entropy seeking with custom parameters
-uv run python scripts/run_full_experiment.py --seeking-entropy gen.json scoring.json \
-    --samples-per-expansion 3 \
-    --num-expansion-rounds 5
-```
+| Pattern | Contents |
+|---------|----------|
+| `gen_<method>_<config>.json` | Generated trajectories |
+| `score_<method>_<gen>_<scoring>.json` | Scoring results |
+| `est_<method>_<gen>_<scoring>.json` | Estimation results |
+| `summary_*` | Human-readable summaries |
 
 ## Directory Structure
 
@@ -117,43 +121,17 @@ scripts/
 ├── generate_by_seeking_entropy.py
 ├── score_trajectories.py
 ├── estimate_normativity.py
-└── schemas/                      # Config and output schemas
-    ├── generation.py             # GenerationConfig, GenerationOutput
-    ├── scoring.py                # ScoringConfig, JudgmentOutput
-    ├── estimation.py             # EstimationOutput, GroupEstimate
-    ├── default_config.py         # Default parameter values
-    ├── script_utils.py           # Logging utilities
-    └── log_utils.py              # Output formatting
+├── EXPLANATION.md                # Detailed script documentation
+└── schemas/                      # Script utilities
+    └── script_utils.py           # Argument parsing, logging
 ```
 
 ## Schema Classes
 
-### GenerationConfig
+Schema classes are located in `src/`:
 
 ```python
-from schemas import GenerationConfig
-
-config = GenerationConfig.load("trials/generation/example.json")
-print(config.model)      # "Qwen/Qwen3-0.6B"
-print(config.branches)   # [" boy", " cat"]
-```
-
-### ScoringConfig
-
-```python
-from schemas import ScoringConfig
-
-config = ScoringConfig.load("trials/scoring/example.json")
-print(config.categorical_judgements)  # [["Does this...", ...], ...]
-```
-
-### EstimationOutput
-
-```python
-from schemas import EstimationOutput
-
-# Access groups and their cores
-for group in output.groups:
-    print(f"{group.name}: {group.core}")
-    print(f"  E[deviance]: {group.deviance_avg}")
+from src.generation import GenerationConfig, GenerationOutput
+from src.scoring import ScoringConfig, ScoringOutput
+from src.estimation import ScoringData, EstimationOutput
 ```

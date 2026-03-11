@@ -1,5 +1,7 @@
 # Open Questions
 
+> **Note**: This documentation was LLM-generated. If something seems wrong or contradicts the code, please report bugs.
+
 Research questions organized by pipeline stage.
 
 ## Generation

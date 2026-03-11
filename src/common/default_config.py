@@ -1,7 +1,7 @@
 """Default configuration values for all experiments.
 
-Centralized location for all default parameter values.
-Modify these to change defaults across all scripts.
+This is the SINGLE SOURCE OF TRUTH for all default parameter values.
+Params classes import their defaults from here.
 """
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -14,8 +14,8 @@ TEMPERATURE = 1.0
 # Max tokens to generate per trajectory
 MAX_NEW_TOKENS = 128
 
-# Simple sampling: trajectories per branch (trunk + each branch)
-SAMPLING_SAMPLES_PER_BRANCH = 10
+# Simple sampling: trajectories per arm (trunk + each branch)
+SAMPLING_SAMPLES_PER_ARM = 10
 
 # Forking paths: max alternate tokens to consider at each position
 FORKING_MAX_ALTERNATES = 5
@@ -35,6 +35,7 @@ ENTROPY_SAMPLES_PER_EXPANSION = 2
 # Entropy seeking: number of rounds to expand high-entropy positions
 ENTROPY_NUM_EXPANSION_ROUNDS = 3
 
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Scoring/Judgment Defaults
 # ══════════════════════════════════════════════════════════════════════════════
@@ -42,12 +43,9 @@ ENTROPY_NUM_EXPANSION_ROUNDS = 3
 # Max tokens for judge model response (0/1 answer)
 JUDGE_MAX_TOKENS = 10
 
-# Which text to score. Options:
-#   "WholeTrajectory"   - Full text including prompt and response
-#   "WholeContinuation" - Just the generated continuation (includes trunk and branch tokens)
-#   "AfterTrunk"        - Continuation after trunk prefix (includes branch tokens)
-#   "AfterBranch"       - Continuation after branch point (excludes branch tokens)
+# Which text to score
 STRING_SELECTION = "WholeContinuation"
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Embedding Defaults
@@ -55,3 +53,14 @@ STRING_SELECTION = "WholeContinuation"
 
 # Sentence transformer model for similarity scoring
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Estimation Defaults
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Default statistic for core estimation
+DEFAULT_STATISTIC = "standard"
+
+# Default weighting method for estimation (prob = probability-weighted)
+DEFAULT_WEIGHTING_METHOD = "prob"

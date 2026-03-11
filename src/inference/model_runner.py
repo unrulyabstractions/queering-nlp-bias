@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Optional
 
 import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from src.common.device_utils import get_device
 from src.common.log import log
@@ -323,8 +324,6 @@ class ModelRunner:
         self._backend = AnthropicBackend(self, model=model)
 
     def _init_huggingface(self) -> None:
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-
         log(f"Loading {self.model_name} on {self.device} (HuggingFace)...")
         self._model = AutoModelForCausalLM.from_pretrained(
             self.model_name, torch_dtype=self.dtype
@@ -343,10 +342,10 @@ class ModelRunner:
         self._backend = HuggingFaceBackend(self, tokenizer)
 
     def _init_mlx(self) -> None:
-        from mlx_lm import load
+        from mlx_lm import load as mlx_load
 
         log(f"Loading {self.model_name} (MLX)...")
-        self._model, tokenizer = load(self.model_name)
+        self._model, tokenizer = mlx_load(self.model_name)
         self._backend = MLXBackend(self, tokenizer)
 
     def _detect_chat_model(self, model_name: str) -> bool:

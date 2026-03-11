@@ -1,148 +1,108 @@
-# src/viz/
+# Visualization Package
 
-Tree visualization and plotting tools.
+> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
 
-See the main [README.md](../../README.md) for an overview of the project.
+Visualization tools for experiment results. Generates plots showing:
+1. **Core bar plots** - Structure compliance cores across arms (trunk vs branches)
+2. **Tree plots** - Trajectory branching structure with probabilities and scores
 
 ## Directory Structure
 
 ```
 viz/
-├── plot.py    # Matplotlib-based tree visualization
-└── trees.py   # Tree data structures for rendering
+├── experiment_visualizer.py    # Main entry point: visualize_result()
+├── experiment_core_barplot.py  # Bar plots comparing cores across arms
+└── experiment_tree_plot.py     # Tree visualization for trajectories
 ```
 
-## Visualization
-
-### visualize_experiment
-
-Main entry point for rendering experiment results:
+## Quick Start
 
 ```python
-from src.viz import visualize_experiment
+from src.viz import visualize_result
+from src.estimation.estimation_experiment_types import EstimationResult
 
-# Render tree from experiment outputs
-visualize_experiment(
-    gen_output=generation_output,
-    judge_output=judgment_output,
-    est_output=estimation_output,
-    out_path="out/tree.png",
-)
+# After running an experiment, visualize the result
+result = EstimationResult.from_estimation_file(method_name, paths)
+visualize_result(result)  # Saves to out/viz/
 ```
 
-### plot_tree
+## Output Files
 
-Lower-level tree rendering:
+For each experiment, the following files are generated in `out/viz/`:
+
+### Core Plots
+| File Pattern | Description |
+|--------------|-------------|
+| `core_{method}_{weighting}.png` | Stacked bar plot (one row per arm) for each weighting method |
+| `core_{method}_comparison.png` | Comparison plot with arms side-by-side (one row per weighting method) |
+
+### Deviance & Orientation Plots
+| File Pattern | Description |
+|--------------|-------------|
+| `deviance_{method}_{weighting}.png` | Line plot showing E[∂\|trunk] → E[∂\|branch] for each branch |
+| `deviance_{method}_delta.png` | Bar plot showing Δ∂ (branch deviance - trunk deviance) |
+| `orientation_{method}_by_branch.png` | Bar plot showing E[θ\|T] per structure for each branch |
+
+### Tree Plots
+| File Pattern | Description |
+|--------------|-------------|
+| `tree_{method}_word.png` | Word-level trajectory tree with curved edges |
+| `tree_{method}_phrase.png` | Collapsed phrase-level trajectory tree |
+
+## Core Bar Plots
+
+Shows structure compliance cores as grouped bars:
+- X-axis: Structure labels (c1, c2, g1, s1, etc.)
+- Y-axis: Core value [0, 1]
+- One bar group per arm (trunk, branch_1, etc.)
+- One plot per weighting method (prob, inv-ppl, uniform)
 
 ```python
-from src.viz.plot import plot_tree
+from src.viz.experiment_core_barplot import create_core_barplots
 
-plot_tree(
-    tree=token_tree,
-    runner=model_runner,
-    mode="phrase",           # "token", "word", or "phrase"
-    show_probs=True,
-    structure_scores=scores,  # Optional: scores to display on leaves
-    out_path="tree.png",
-)
+files = create_core_barplots(result, structure_labels, output_dir)
 ```
 
-## Tree Modes
+## Tree Plots
 
-| Mode | Description | Use Case |
-|------|-------------|----------|
-| `token` | BPE token-level tree | Detailed token analysis |
-| `word` | Whitespace-split words | Readable text |
-| `phrase` | Collapsed single-child chains | Compact visualization |
+Visualizes trajectory branching structure:
+- Nodes represent words/phrases in continuations
+- Edge thickness proportional to probability
+- Node colors indicate dominant structure
+- Leaf nodes show structure scores
 
-### Token Mode
-
-Shows every BPE token as a separate node:
-
-```
-"The" → "▁boy" → "▁went" → "▁to" → "▁the" → "▁park"
-```
-
-### Word Mode
-
-Groups tokens into words:
-
-```
-"The" → "boy" → "went" → "to" → "the" → "park"
-```
-
-Word probabilities are computed as the product of constituent token probabilities.
-
-### Phrase Mode (Default)
-
-Collapses chains where there's only one continuation:
-
-```
-"The boy went" → "to the park"
-                → "home"
-```
-
-## Tree Nodes
-
-### TreeNode
-
-Data structure for visualization tree nodes:
+Two modes:
+- **Word tree**: Every word is a node
+- **Phrase tree**: Single-child chains collapsed into phrases
 
 ```python
-from src.viz.trees import TreeNode
+from src.viz.experiment_tree_plot import create_tree_plots
 
-node = TreeNode(
-    text="boy",
-    token_ids=[123],
-    logprob=-0.5,
-    prob=0.607,
-    children=[...],
-    scores={"animal": 0, "human": 1},
-)
+files = create_tree_plots(result, output_dir)
 ```
 
-### build_tree
+## Integration with Experiments
 
-Constructs visualization tree from trajectories:
+The `visualize_result()` function is automatically called in `run_single_experiment()`:
 
 ```python
-from src.viz.trees import build_tree
-
-tree_node = build_tree(
-    trajectories=trajectories,
-    mode="phrase",
-)
+# In scripts/run_full_experiment.py
+def run_single_experiment(...) -> EstimationResult:
+    # ... run pipeline ...
+    result = EstimationResult.from_estimation_file(...)
+    visualize_result(result)  # Auto-generates plots
+    return result
 ```
 
-## Styling
+## Customization
 
-The visualization includes:
-
-- **Prompt text**: Gray, italic
-- **Template parts**: Light gray
-- **Continuations**: Black, bold
-- **Probability annotations**: On edges, showing P(token)
-- **Structure scores**: On leaf nodes, showing judgment results
-
-## Example Output
+### Custom Output Directory
 
 ```python
-from src.inference import ModelRunner
-from src.common.token_tree import TokenTree
-from src.viz import visualize_experiment
-
-# Load data
-runner = ModelRunner("Qwen/Qwen3-0.6B")
-gen_output = GenerationOutput.load("out/gen_test.json")
-
-# Generate visualization
-visualize_experiment(
-    gen_output=gen_output,
-    out_path="out/tree_test.png",
-)
+visualize_result(result, output_dir="my_plots/")
 ```
 
-Output: A tree diagram showing:
-- Branching structure of generated trajectories
-- Probability of each branch
-- Optional structure scores on leaf nodes
+### Structure Labels
+
+Labels are automatically loaded from the scoring output. If not available,
+generic labels (s1, s2, ...) are generated based on core vector length.

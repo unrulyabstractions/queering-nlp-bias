@@ -1,5 +1,7 @@
 # Scoring Configs
 
+> **Note**: This documentation was LLM-generated. If something seems wrong or contradicts the code, please report bugs.
+
 Configuration files for trajectory scoring/judgment.
 
 ## Format

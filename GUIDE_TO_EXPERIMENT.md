@@ -1,5 +1,7 @@
 # Guide to Running Experiments
 
+> **Note**: This documentation was LLM-generated. If something seems wrong or contradicts the code, please report bugs.
+
 This guide walks you through designing and running experiments to measure normativity in language model outputs.
 
 ## What You're Doing
@@ -198,13 +200,13 @@ Create a JSON file in `trials/scoring/`:
 
 ## Configuration Defaults
 
-Defaults are defined in `scripts/schemas/default_config.py`:
+Defaults are defined in `src/common/default_config.py`:
 
 ```python
 # Generation
 TEMPERATURE = 1.0
 MAX_NEW_TOKENS = 128
-SAMPLING_SAMPLES_PER_BRANCH = 10
+SAMPLING_SAMPLES_PER_ARM = 10
 
 # Forking paths
 FORKING_MAX_ALTERNATES = 5
@@ -226,8 +228,8 @@ EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 **Method 1: Edit default_config.py** (affects all experiments)
 ```python
-# In scripts/schemas/default_config.py
-SAMPLING_SAMPLES_PER_BRANCH = 20  # Changed from 10
+# In src/common/default_config.py
+SAMPLING_SAMPLES_PER_ARM = 20  # Changed from 10
 ```
 
 **Method 2: Override in JSON config** (affects specific experiment)
@@ -258,7 +260,7 @@ CLI arguments > JSON config > default_config.py
 
 ```bash
 # Simple sampling
---samples-per-branch N
+--samples-per-arm N
 
 # Forking paths
 --max-alternates-per-position K
@@ -282,10 +284,10 @@ CLI arguments > JSON config > default_config.py
 uv run python scripts/run_full_experiment.py gen.json scoring.json
 
 # Forking paths method
-uv run python scripts/run_full_experiment.py --forking-paths gen.json scoring.json
+uv run python scripts/run_full_experiment.py --method forking-paths gen.json scoring.json
 
 # Entropy seeking method
-uv run python scripts/run_full_experiment.py --seeking-entropy gen.json scoring.json
+uv run python scripts/run_full_experiment.py --method seeking-entropy gen.json scoring.json
 
 # All methods (compare results)
 uv run python scripts/run_full_experiment.py --all gen.json scoring.json
@@ -295,13 +297,13 @@ uv run python scripts/run_full_experiment.py --all gen.json scoring.json
 
 ```bash
 # Step 1: Generate trajectories
-uv run python scripts/generate_by_simple_sampling.py gen.json --samples-per-branch 10
+uv run python scripts/generate_by_simple_sampling.py gen.json --samples-per-arm 10
 
 # Step 2: Score trajectories
-uv run python scripts/score_trajectories.py scoring.json out/gen_sampling_example.json
+uv run python scripts/score_trajectories.py scoring.json out/gen_simple-sampling_example.json
 
 # Step 3: Estimate normativity
-uv run python scripts/estimate_normativity.py out/score_sampling_example_example.json
+uv run python scripts/estimate_normativity.py out/score_simple-sampling_example_example.json
 ```
 
 ---
@@ -511,7 +513,7 @@ All outputs go to `out/`.
     "temperature": 1.0,
     "max_new_tokens": 128
   },
-  "method": "sampling",
+  "method": "simple-sampling",
   "num_trajectories": 30,
   "tree": {
     "trajs": [
@@ -539,7 +541,7 @@ All outputs go to `out/`.
 
 ```json
 {
-  "generation_file": "out/gen_sampling_example.json",
+  "generation_file": "out/gen_simple-sampling_example.json",
   "judge_model": "Qwen/Qwen3-4B-Instruct-2507",
   "categorical_judgements": ["Does this...?", ["Q1?", "Q2?"]],
   "branches": ["trunk", "branch_1", "branch_2"],
@@ -679,10 +681,10 @@ Then use:
 
 ```bash
 # Test with 2 samples first
-uv run python scripts/run_full_experiment.py gen.json scoring.json --samples-per-branch 2
+uv run python scripts/run_full_experiment.py gen.json scoring.json --samples-per-arm 2
 
 # Then scale up
-uv run python scripts/run_full_experiment.py gen.json scoring.json --samples-per-branch 50
+uv run python scripts/run_full_experiment.py gen.json scoring.json --samples-per-arm 50
 ```
 
 ### Verify Generations

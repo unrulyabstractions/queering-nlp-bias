@@ -160,3 +160,57 @@ def log_wrapped(text: str, indent: str = "  ", width: int = 78, gap: int = 0) ->
             line = line + " " + word if line != indent else indent + word
     if line.strip():
         log(line, gap=gap if first else 0)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Pipeline Header Utilities
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def log_kv(key: str, value: str, indent: str = "  ") -> None:
+    """Log a key-value pair."""
+    log(f"{indent}{key}: {value}")
+
+
+def log_pipeline_header(
+    title: str,
+    fields: dict[str, str | None],
+    indent: str = "  ",
+) -> None:
+    """Log a pipeline header with title and key-value fields.
+
+    Args:
+        title: Banner title
+        fields: Dict of label -> value (None values are skipped)
+        indent: Indentation for fields
+    """
+    log_banner(title)
+    log("")
+    for key, value in fields.items():
+        if value is not None:
+            log_kv(key, value, indent)
+
+
+def log_items(
+    header: str,
+    items: list[str | list[str]],
+    prefix: str = "",
+    indent: str = "    ",
+) -> None:
+    """Log a list of items with optional bundling.
+
+    Args:
+        header: Section header (e.g., "Categorical judgments (3):")
+        items: List of strings or bundled lists
+        prefix: Label prefix (e.g., "c" for c1, c2, ...)
+        indent: Indentation
+    """
+    log(f"  {header}")
+    for i, item in enumerate(items):
+        label = f"[{prefix}{i+1}]" if prefix else f"[{i+1}]"
+        if isinstance(item, list):
+            log(f"{indent}{label} BUNDLED ({len(item)} items):")
+            for sub in item:
+                log(f"{indent}  • {sub}")
+        else:
+            log(f"{indent}{label} {item}")

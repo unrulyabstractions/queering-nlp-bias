@@ -17,7 +17,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
+import tiktoken
 import torch
+from anthropic import Anthropic
 
 from .model_backend import Backend
 
@@ -34,8 +36,6 @@ class AnthropicTokenizer:
     encoding_name: str = "cl100k_base"  # Close approximation
 
     def __post_init__(self):
-        import tiktoken
-
         self._encoding = tiktoken.get_encoding(self.encoding_name)
 
     @property
@@ -101,8 +101,6 @@ class AnthropicBackend(Backend):
     def _get_client(self):
         """Lazy-load Anthropic client."""
         if self._client is None:
-            from anthropic import Anthropic
-
             api_key = os.environ.get("ANTHROPIC_API_KEY")
             if not api_key:
                 raise ValueError(

@@ -5,30 +5,34 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+import numpy as np
 import torch
 
 from .model_backend import Backend
 
 
 def _get_mx():
-    """Lazy import of mlx.core."""
+    """Lazy-load mlx.core (Apple Silicon only)."""
     import mlx.core as mx
-
     return mx
 
 
 def _get_generate():
-    """Lazy import of mlx_lm generate."""
-    from mlx_lm import generate
-
-    return generate
+    """Lazy-load mlx_lm generate function (Apple Silicon only)."""
+    from mlx_lm import generate as mlx_generate
+    return mlx_generate
 
 
 def _get_stream_generate():
-    """Lazy import of mlx_lm stream_generate."""
-    from mlx_lm import stream_generate
+    """Lazy-load mlx_lm stream_generate function (Apple Silicon only)."""
+    from mlx_lm import stream_generate as mlx_stream_generate
+    return mlx_stream_generate
 
-    return stream_generate
+
+def _get_make_sampler():
+    """Lazy-load mlx_lm make_sampler (Apple Silicon only)."""
+    from mlx_lm.sample_utils import make_sampler
+    return make_sampler
 
 
 class MLXBackend(Backend):
@@ -103,8 +107,7 @@ class MLXBackend(Backend):
         generate = _get_generate()
 
         if temperature > 0:
-            from mlx_lm.sample_utils import make_sampler
-
+            make_sampler = _get_make_sampler()
             sampler = make_sampler(temp=temperature)
         else:
             sampler = None
@@ -161,8 +164,6 @@ class MLXBackend(Backend):
         input_ids: torch.Tensor,
     ) -> torch.Tensor:
         """Run forward pass and return logits as PyTorch tensor."""
-        import numpy as np
-
         mx = _get_mx()
 
         if isinstance(input_ids, torch.Tensor):
@@ -203,7 +204,7 @@ class MLXBackend(Backend):
         # Build kwargs for stream_generate
         kwargs = {}
         if temperature > 0:
-            from mlx_lm.sample_utils import make_sampler
+            make_sampler = _get_make_sampler()
             kwargs["sampler"] = make_sampler(temp=temperature)
 
         all_token_ids = list(token_ids)

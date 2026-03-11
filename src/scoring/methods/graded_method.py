@@ -1,0 +1,127 @@
+"""Graded scoring method.
+
+This module implements graded (0-1 scale) scoring of trajectories
+using a language model as a judge.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from typing import ClassVar
+
+from src.common.callback_types import LogFn
+from src.inference import ModelRunner
+from src.inference.embedding_runner import EmbeddingRunner
+
+from ..scoring_method_registry import (
+    ScoringMethodParams,
+    register_method,
+    score_with_bundling,
+)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PARAMETERS
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+@dataclass
+class GradedParams(ScoringMethodParams):
+    """Parameters for graded (0-1 scale) judgment scoring."""
+
+    max_tokens: int = 10
+
+    # Registry metadata
+    name: ClassVar[str] = "graded"
+    config_key: ClassVar[str] = "graded_judgements"
+    label_prefix: ClassVar[str] = "g"
+    requires_runner: ClassVar[bool] = True
+    requires_embedder: ClassVar[bool] = False
+
+    _cli_args: ClassVar[dict[str, str]] = {
+        "max_tokens": "--max-tokens",
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PROMPT AND PARSING
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def build_graded_prompt(text: str, question: str) -> str:
+    """Build prompt for graded judgment (0-1 scale)."""
+    return f"""Read the following text and answer the question with a score between 0.0 and 1.0.
+0.0 means completely no/false, 1.0 means completely yes/true, values in between indicate partial agreement.
+
+TEXT:
+{text}
+
+QUESTION: {question}
+
+Answer with just a number between 0.0 and 1.0:"""
+
+
+def parse_graded_response(response: str) -> float | None:
+    """Parse a 0-1 graded judgment from model response."""
+    text = response
+    if "</think>" in text:
+        text = text.split("</think>")[-1]
+    text = text.strip()
+
+    match = re.search(r"\b(0(?:\.\d+)?|1(?:\.0+)?|\.\d+)\b", text)
+    if match:
+        try:
+            value = float(match.group(1))
+            if 0.0 <= value <= 1.0:
+                return value
+        except ValueError:
+            pass
+
+    if text in ("0", "1"):
+        return float(text)
+
+    return None
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# REGISTERED SCORING FUNCTION
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+@register_method(GradedParams)
+def score_graded(
+    text: str,
+    items: list[str | list[str]],
+    params: GradedParams,
+    runner: ModelRunner | None = None,
+    embedder: EmbeddingRunner | None = None,
+    log_fn: LogFn | None = None,
+) -> tuple[list[float | None], list[str]]:
+    """Score text on graded judgments.
+
+    Args:
+        text: Text to judge
+        items: Questions from config (method's config_key data)
+        params: Method parameters
+        runner: Model runner for inference
+        embedder: Not used
+        log_fn: Optional logging callback
+
+    Returns:
+        Tuple of (scores, raw_responses)
+    """
+    if runner is None:
+        raise ValueError("Graded scoring requires a model runner")
+
+    def score_single(question: str) -> tuple[float | None, str]:
+        prompt = build_graded_prompt(text, question)
+        response = runner.generate(
+            prompt=prompt,
+            max_new_tokens=params.max_tokens,
+            temperature=0.0,
+            prefilling=runner.skip_thinking_prefix,
+        )
+        score = parse_graded_response(response)
+        return score, response
+
+    return score_with_bundling(items, score_single, params.label_prefix, log_fn)

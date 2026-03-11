@@ -114,10 +114,10 @@ Multiple weighting schemes: probability-weighted and inverse-perplexity-weighted
 uv run python scripts/run_full_experiment.py trials/generation/example.json trials/scoring/example.json
 
 # Forking paths - explore deviations from greedy
-uv run python scripts/run_full_experiment.py --forking-paths trials/generation/example.json trials/scoring/example.json
+uv run python scripts/run_full_experiment.py --method forking-paths trials/generation/example.json trials/scoring/example.json
 
 # Seeking entropy - expand at uncertain positions
-uv run python scripts/run_full_experiment.py --seeking-entropy trials/generation/example.json trials/scoring/example.json
+uv run python scripts/run_full_experiment.py --method seeking-entropy trials/generation/example.json trials/scoring/example.json
 
 # Run all methods and compare
 uv run python scripts/run_full_experiment.py --all trials/generation/example.json trials/scoring/example.json

@@ -7,6 +7,8 @@ import json
 import math
 import types
 from dataclasses import dataclass, fields, is_dataclass
+
+import torch
 from decimal import ROUND_HALF_EVEN, Decimal
 from enum import Enum
 from pathlib import Path
@@ -49,13 +51,8 @@ def _canon(
         max_string_length: If set, truncate strings longer than this with "...[N chars]"
     """
     # Handle PyTorch tensors (skip them - they're not serializable)
-    try:
-        import torch
-
-        if isinstance(obj, torch.Tensor):
-            return None
-    except ImportError:
-        pass
+    if isinstance(obj, torch.Tensor):
+        return None
     if isinstance(obj, float):
         if math.isnan(obj):
             return "NaN"

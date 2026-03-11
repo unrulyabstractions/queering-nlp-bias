@@ -1,189 +1,43 @@
 # src/common/
 
-Core data structures, schemas, and utilities.
+> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
 
-See [ESTIMATION.md](../../ESTIMATION.md) for conceptual background on cores and deviances.
+
+Shared utilities, data structures, and mathematical primitives used across the codebase.
 
 ## Directory Structure
 
 ```
 common/
-├── analysis/           # Tree analysis and metrics
-├── math/               # Entropy, diversity, aggregation functions
+├── math/               # Mathematical utilities (entropy, diversity, probability)
+├── analysis/           # Tree analysis and metrics computation
+├── logging/            # Structured logging utilities
 ├── profiler/           # Performance timing utilities
-├── token_tree.py       # Main tree data structure
-├── token_trajectory.py # Individual trajectory representation
-├── branching_node.py   # Divergence point in tree
+├── text/               # Text processing (display, EOS handling)
+├── viz/                # Visualization utilities
+├── base_schema.py      # Serializable dataclass base with deterministic IDs
+├── params_schema.py    # Parameter schemas with CLI-style printing
+├── callback_types.py   # Type aliases for callbacks (LogFn, ProgressFn)
+├── auto_export.py      # Automatic __init__.py exports
+├── token_tree.py       # Tree data structure for token trajectories
+├── token_trajectory.py # Individual token sequence representation
+├── branching_node.py   # Divergence points in the tree
 ├── binary_fork.py      # Pairwise branch comparison
-├── base_schema.py      # Serializable dataclass base
-└── ...                 # Utilities (log, seed, file_io, etc.)
+└── ...                 # Other utilities (log, seed, file_io, device_utils)
 ```
 
-Note: Schemas are in `scripts/schemas/` (not in `common/`).
+## Key Modules
 
-## Core Data Structures
+### BaseSchema (`base_schema.py`)
 
-### TokenTree
-
-The central data structure representing multiple token trajectories organized into a tree.
-
-```python
-from src.common.token_tree import TokenTree
-
-# Build from trajectories
-tree = TokenTree.from_trajectories(
-    trajs=[traj1, traj2, traj3],
-    groups_per_traj=[(0,), (0,), (1,)],  # Group membership
-    fork_arms=["boy", "girl"],            # Branch labels
-    trunk=[0, 1, 2],                      # Shared prefix positions
-)
-
-# Decode token IDs to text
-tree.decode_texts(runner)
-
-# Clear heavy data for serialization
-tree.pop_heavy()
-```
-
-Key features:
-- Stores trajectories with group membership
-- Detects divergence points (branching nodes)
-- Creates binary forks for cross-group comparison
-- Supports text decoding and memory management
-
-### TokenTrajectory
-
-Individual token sequence with log-probabilities.
+Base class for all data schemas. Provides:
+- Deterministic ID generation via Blake2b hashing
+- `to_dict()` / `from_dict()` serialization
+- Canonical float rounding for reproducibility
+- Nested dataclass support
 
 ```python
-from src.common.token_trajectory import TokenTrajectory
-
-traj = TokenTrajectory(
-    token_ids=[1, 2, 3, 4],
-    logprobs=[0.0, -0.5, -1.2, -0.3],
-    logits=[-0.5, -1.2, -0.3],  # Next-token predictions
-)
-
-# Properties
-len(traj)           # 4
-traj.predictions    # [2, 3, 4] (next-token IDs)
-traj.prob(pos=2)    # exp(-1.2)
-```
-
-### BranchingNode
-
-Where trajectories diverge to different next tokens.
-
-```python
-from src.common.branching_node import BranchingNode
-
-node = BranchingNode(
-    next_token_ids=[100, 200],
-    next_token_logprobs=[-0.5, -1.2],
-    position=10,
-)
-```
-
-### BinaryFork
-
-Pairwise comparison between two branches.
-
-```python
-from src.common.binary_fork import BinaryFork
-
-fork = BinaryFork(
-    tokens=(100, 200),
-    logprobs=(-0.5, -1.2),
-    groups=(0, 1),
-)
-```
-
-## Schemas
-
-Schemas are located in `scripts/schemas/` for use by generation and analysis scripts.
-
-### Generation (`scripts/schemas/generation.py`)
-
-```python
-from schemas import GenerationConfig, GenerationOutput
-
-# Load config
-config = GenerationConfig.load("trials/generation/test.json")
-print(config.model)       # "Qwen/Qwen3-0.6B"
-print(config.prompt)      # "Once upon a time..."
-print(config.branches)    # ["boy", "girl"]
-
-# Save output
-output = GenerationOutput.from_tree(config, model_name, tree, method="sampling")
-output.save("out/gen_test.json")
-```
-
-### Scoring (`scripts/schemas/scoring.py`)
-
-```python
-from schemas import ScoringConfig, JudgmentOutput
-
-# Load scoring config
-config = ScoringConfig.load("trials/scoring/animal.json")
-print(config.categorical_judgements)  # ["Does this mention an animal?", ...]
-
-# Judgment results
-result = JudgmentResult(
-    trajectory_id="abc123",
-    scores=[1, 0, None],  # Yes, No, Unknown
-    raw_responses=["Yes", "No", "..."],
-)
-```
-
-### Estimation (`scripts/schemas/estimation.py`)
-
-```python
-from schemas import EstimationOutput, GroupEstimate
-
-# Group-level analysis
-group = GroupEstimate(
-    group_idx=0,
-    core=[1, 0, 1],           # Majority judgment vector
-    orientation=0.85,          # Core agreement strength
-    deviance_avg=0.12,         # Mean trajectory deviation
-    deviance_var=0.03,         # Deviation variance
-)
-```
-
-## Analysis
-
-### Tree Analysis (`analysis/`)
-
-Two-pass analysis enriches trees with computed metrics:
-
-```python
-from src.common.analysis import analyze_token_tree
-
-# Populates analysis on tree components
-analyze_token_tree(tree)
-
-# Access metrics on forks
-for fork in tree.forks:
-    print(fork.analysis.entropy)
-    print(fork.analysis.diversity)
-```
-
-### Metrics
-
-| Metric | Location | Description |
-|--------|----------|-------------|
-| Entropy | math/entropy_diversity/ | Shannon, Rényi entropy |
-| Diversity | math/entropy_diversity/ | Effective number of choices |
-| Perplexity | math/trajectory_metrics.py | Geometric mean of 1/p |
-| Cross-entropy | math/trajectory_metrics.py | Average negative log-prob |
-
-## Base Schema
-
-All schemas inherit from `BaseSchema` for consistent serialization:
-
-```python
-from src.common.base_schema import BaseSchema
-from dataclasses import dataclass
+from src.common import BaseSchema
 
 @dataclass
 class MyData(BaseSchema):
@@ -191,23 +45,48 @@ class MyData(BaseSchema):
     value: float
 
 data = MyData(name="test", value=1.5)
-data.save("output.json")
-
-loaded = MyData.load("output.json")
+data.get_id()  # Deterministic hash
+data.to_dict() # Serializable dict
 ```
 
-Features:
-- Deterministic ID generation via Blake2b hashing
-- JSON serialization/deserialization
-- Canonical float rounding for reproducibility
-- Nested dataclass support
+### ParamsSchema (`params_schema.py`)
 
-## Utilities
+Extension of BaseSchema for parameter objects with CLI-style printing:
 
-| File | Description |
-|------|-------------|
-| `log.py` | Logging with `log()`, `log_section()`, `log_params()` |
-| `seed.py` | `set_seed()` for reproducibility |
-| `device_utils.py` | GPU/CPU/MPS detection and memory clearing |
-| `file_io.py` | JSON loading with comment stripping |
-| `schema_utils.py` | Schema validation helpers |
+```python
+from src.common import ParamsSchema
+
+@dataclass
+class MyParams(ParamsSchema):
+    count: int
+    _cli_args = {"count": "--count"}
+
+params.print()  # Displays as CLI arguments
+```
+
+### Callback Types (`callback_types.py`)
+
+Standard callback signatures:
+- `LogFn = Callable[[str], None]` - logging callback
+- `ProgressFn = Callable[[str, int, int], None]` - progress callback (name, current, total)
+
+### Auto Export (`auto_export.py`)
+
+Automatic re-exporting of public names from submodules:
+
+```python
+# In any __init__.py
+from src.common.auto_export import auto_export
+__all__ = auto_export(__file__, __name__, globals())
+```
+
+## Usage
+
+All public symbols are re-exported at the package level:
+
+```python
+from src.common import BaseSchema, TokenTree, TokenTrajectory
+from src.common.math import q_diversity, shannon_entropy, perplexity
+```
+
+See `math/EXPLANATION.md` for mathematical utilities documentation.

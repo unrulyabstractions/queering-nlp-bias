@@ -1,0 +1,76 @@
+"""Data structures for forking paths generation method.
+
+This module contains data classes used by the forking paths method.
+Separated to avoid circular imports between method and logging modules.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from src.inference.generated_trajectory import GeneratedTrajectory
+
+
+@dataclass
+class TopKCandidate:
+    """A candidate token at a position with probability info."""
+
+    token_id: int
+    prob: float
+    logprob: float
+
+
+@dataclass
+class PositionAnalysis:
+    """Analysis of a single position in the greedy path.
+
+    Contains entropy at the position and top-K candidate tokens.
+    """
+
+    position: int
+    entropy: float
+    greedy_token_id: int
+    candidates: list[TopKCandidate]
+
+
+@dataclass
+class QualifyingFork:
+    """A position/candidate pair that qualifies for forking.
+
+    Represents a specific alternate token at a high-entropy position
+    that meets the probability threshold for exploration.
+    """
+
+    analysis: PositionAnalysis
+    candidate: TopKCandidate
+
+
+@dataclass
+class ForkPoint:
+    """A position where we fork from the greedy path.
+
+    Contains the fork position, the alternate token chosen,
+    and all continuations sampled from that fork point.
+    """
+
+    position: int
+    entropy: float
+    greedy_token_id: int
+    alternate: TopKCandidate
+    continuations: list[GeneratedTrajectory]
+
+
+@dataclass
+class PositionAnalysisResult:
+    """Result of analyzing all positions in the greedy path."""
+
+    analyses: list[PositionAnalysis]
+    qualifying_forks: list[QualifyingFork]
+
+
+@dataclass
+class ForkExpansionResult:
+    """Result of expanding fork points into trajectories."""
+
+    trajectories: list[GeneratedTrajectory]
+    fork_points: list[ForkPoint]

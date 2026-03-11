@@ -6,13 +6,9 @@ trajectories, forks, and nodes.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
+from ..token_tree import TokenTree
 from .builders import build_fork_analysis, build_node_analysis
 from .metrics import TrajectoryAnalysis
-
-if TYPE_CHECKING:
-    from ..token_tree import TokenTree
 
 
 def analyze_token_tree(tree: TokenTree) -> None:

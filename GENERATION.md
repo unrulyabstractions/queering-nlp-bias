@@ -1,5 +1,7 @@
 # Generation Methodology
 
+> **Note**: This documentation was LLM-generated. If something seems wrong or contradicts the code, please report bugs.
+
 How we sample trajectories from the LLM's distribution.
 
 ## Conceptual Framework
@@ -35,16 +37,16 @@ Sample trajectories using temperature-scaled multinomial sampling.
 
 ```bash
 python scripts/generate_by_simple_sampling.py trials/generation/example.json \
-    --samples-per-branch 10
+    --samples-per-arm 10
 ```
 
 **How it works**:
-1. For each branch, prefill with trunk + branch tokens
+1. For each arm (trunk + branches), prefill with the arm prefix
 2. Sample `n` complete trajectories using temperature sampling
 3. Record token IDs, log-probabilities, and decoded text
 
 **Parameters**:
-- `--samples-per-branch N`: Number of trajectories per branch (default: 2)
+- `--samples-per-arm N`: Number of trajectories per arm (default: 10)
 
 **Pros**: Simple, unbiased samples from the distribution
 **Cons**: May miss rare modes; many samples needed for coverage
@@ -68,15 +70,15 @@ python scripts/generate_by_forking_paths.py trials/generation/example.json \
 4. Record the resulting tree structure
 
 **Parameters**:
-- `--max-alternates-per-position K`: Max alternates to consider per position (default: 3)
-- `--min-prob-for-alternate P`: Minimum probability for an alternate (default: 0.05)
-- `--min-entropy-to-fork H`: Minimum entropy at position to consider forking (default: 0.0)
-- `--samples-per-fork N`: Continuations to sample per fork point (default: 1)
+- `--max-alternates-per-position K`: Max alternates to consider per position (default: 5)
+- `--min-prob-for-alternate P`: Minimum probability for an alternate (default: 0.2)
+- `--min-entropy-to-fork H`: Minimum entropy at position to consider forking (default: 1.75)
+- `--samples-per-fork N`: Continuations to sample per fork point (default: 3)
 
 **Pros**: Systematic coverage of near-alternatives; reveals what the model "almost" said
 **Cons**: May miss alternatives far from the greedy path
 
-### 3. Seeking Entropy
+### 3. Entropy Seeking
 
 Expand the tree at high-uncertainty positions.
 
@@ -113,7 +115,7 @@ Generation outputs are saved to `out/gen_<method>_<config>.json`:
     "temperature": 1.0,
     "max_new_tokens": 128
   },
-  "method": "sampling",
+  "method": "simple-sampling",
   "num_trajectories": 30,
   "tree": {
     "trajs": [
