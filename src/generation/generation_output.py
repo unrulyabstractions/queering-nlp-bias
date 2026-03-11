@@ -225,7 +225,7 @@ class GenerationOutput(BaseSchema):
             out(f"\n{prefix}{header}:")
             for i, traj in enumerate(trajs_in_branch[:max_trajs]):
                 text = traj.get("continuation_text", "")[:max_text_len]
-                out(f"{prefix}  [{traj.get('idx', i)}] {text}...")
+                out(f"{prefix}  [{traj.get('idx', i)}] {text}")
 
             if len(trajs_in_branch) > max_trajs:
                 out(f"{prefix}  ... and {len(trajs_in_branch) - max_trajs} more")
@@ -296,7 +296,7 @@ class GenerationOutput(BaseSchema):
             add_line("-" * 76)
             add_line("  TRAJECTORIES")
             add_line("-" * 76)
-            self._write_trajectories_by_branch(add_line, max_trajs=3, max_text_len=60)
+            self._write_trajectories_by_branch(add_line, max_trajs=999999, max_text_len=999999)
 
         add_line()
         add_line("=" * 76)
