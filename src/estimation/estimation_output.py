@@ -171,7 +171,7 @@ class EstimationOutput(BaseSchema):
             if s.is_bundled:
                 lines.append(f"  {s.label}: [BUNDLED]")
                 for q in s.questions:
-                    lines.append(f"      * {q}")
+                    lines.append(f"      • {q}")
             else:
                 lines.append(f"  {s.label}: {s.description}")
         lines.append("")
