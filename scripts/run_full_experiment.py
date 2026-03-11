@@ -167,6 +167,11 @@ def step_generate(
     result.output.save(output_path)
     log(f"\nSaved: {output_path}")
 
+    # Save human-readable summary
+    summary_path = GenerationOutput.compute_summary_path(config_path, method=method)
+    result.output.save_summary(summary_path)
+    log(f"Saved summary: {summary_path}")
+
     return result.output
 
 
