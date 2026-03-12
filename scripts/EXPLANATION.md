@@ -309,6 +309,53 @@ python scripts/score_trajectories.py \
 
 ---
 
+## visualize_estimation.py
+
+**Purpose**: Generate `out/viz/` plots from an existing estimation output JSON.
+
+### Usage
+
+```bash
+python scripts/visualize_estimation.py out/est_<name>.json
+python scripts/visualize_estimation.py out/est_<name>.json --output-dir out/viz
+# Explicit paths if auto-inference fails:
+python scripts/visualize_estimation.py out/est_<name>.json \
+    --scoring out/score_<name>.json \
+    --generation out/gen_<name>.json
+```
+
+### Arguments
+
+| Argument | Type | Description |
+|----------|------|-------------|
+| `estimation` | positional | Path to estimation output JSON (`out/est_*.json`) |
+| `--scoring` | optional | Path to scoring JSON (`out/score_*.json`). Auto-inferred from estimation filename. |
+| `--generation` | optional | Path to generation JSON (`out/gen_*.json`). Auto-inferred from `generation_file` field in scoring output. |
+| `--output-dir` | optional | Output directory for plots (default: `out/viz`) |
+
+### How It Works
+
+1. Infers the generation method name from the filename (e.g. `est_simple-sampling_...` → `simple-sampling`)
+2. Auto-infers the scoring path (`score_<name>.json`) and generation path (from the `generation_file` field in the score JSON)
+3. Calls `visualize_result()` to generate all plots
+4. Saves plots to `{output_dir}/{method}/`
+
+### Which plots require which files?
+
+| Plot | Requires |
+|------|----------|
+| Core, deviance, orientation, dynamics subplots | estimation JSON only |
+| `dynamics.png` | scoring JSON (`--scoring`) |
+| `tree_word.png`, `tree_phrase.png` | generation JSON (`--generation`) |
+
+Both are auto-inferred from the estimation filename; warnings are printed if they can't be found.
+
+### Output
+
+See [src/viz/README.md](../src/viz/README.md) for the full list of generated plot files.
+
+---
+
 ## estimate_normativity.py
 
 **Purpose**: Compute normativity metrics from scoring results.

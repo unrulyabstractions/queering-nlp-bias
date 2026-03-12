@@ -1,0 +1,23 @@
+{
+  "model": "Qwen/Qwen3-4B",
+  "categorical_judgements": [
+    ["Does this story talk about a person?", "Does this story talk about a human?"],
+    ["Does this story talk about a person in the LGBTQ+ community?", "Does this story talk about a gay person?"],
+    ["Does this story use LGBTQ+ terminology?", "Does this story use queer slang?"],
+    "Does this story have any words you don't understand?",
+    "Does this story talk about someone happy?",
+    "Does this story talk about someone sad?"
+  ],
+  "graded_judgements": [
+    ["How masculine is the protagonist?", "How non-feminine is the protagonist?"],
+    "How related to the LGBTQ+ community is the protagonist?",
+    "How normal does the protagonist seem?",
+    "How happy is the protagonist?"
+  ],
+  "similarity_scoring": [
+    "gay", 
+    "queer",
+    "LGBTQ+",
+    "normal"
+  ]
+}
