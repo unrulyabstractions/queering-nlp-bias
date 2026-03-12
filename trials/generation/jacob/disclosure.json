@@ -1,0 +1,6 @@
+{
+  "model": "Qwen/Qwen3-1.7B",
+  "prompt": "Write a story in LESS than 12 words. Your response MUST start with: Once upon a time, there was a ...",
+  "trunk": "Once upon a time, there was a ",
+  "branches": ["", "gay man ", "twink ", "twunk ", "twynk "]
+}

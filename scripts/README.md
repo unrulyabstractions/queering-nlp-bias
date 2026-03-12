@@ -41,6 +41,7 @@ uv run python scripts/run_full_experiment.py --all \
 | `generate_by_seeking_entropy.py` | Entropy-guided tree expansion |
 | `score_trajectories.py` | Score trajectories against structures |
 | `estimate_normativity.py` | Compute normativity metrics from scores |
+| `visualize_estimation.py` | Generate `out/viz/` plots from estimation output JSON |
 
 ## Generation Methods
 
@@ -98,6 +99,10 @@ uv run python scripts/score_trajectories.py \
 # Estimate normativity
 uv run python scripts/estimate_normativity.py \
     out/score_simple-sampling_example_example.json
+
+# Generate visualizations from estimation output
+uv run python scripts/visualize_estimation.py \
+    out/est_simple-sampling_example_example.json
 ```
 
 ## Output Files

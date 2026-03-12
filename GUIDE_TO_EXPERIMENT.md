@@ -75,8 +75,11 @@ uv run python scripts/run_full_experiment.py \
     trials/generation/my_experiment.json \
     trials/scoring/my_scoring.json
 
-# 4. Check outputs in out/
-ls out/
+# 4. Generate visualizations (auto-inferred from est filename)
+uv run python scripts/visualize_estimation.py out/est_simple-sampling_my_experiment.json
+
+# 5. Check outputs
+ls out/ out/viz/
 ```
 
 ---
@@ -304,6 +307,15 @@ uv run python scripts/score_trajectories.py scoring.json out/gen_simple-sampling
 
 # Step 3: Estimate normativity
 uv run python scripts/estimate_normativity.py out/score_simple-sampling_example_example.json
+
+# Step 4: Generate visualizations
+# gen and scoring paths are auto-inferred from the estimation filename
+uv run python scripts/visualize_estimation.py out/est_simple-sampling_example_example.json
+
+# Supply paths explicitly if auto-inference fails (e.g. files were moved)
+uv run python scripts/visualize_estimation.py out/est_simple-sampling_example_example.json \
+    --scoring out/score_simple-sampling_example_example.json \
+    --generation out/gen_simple-sampling_example.json
 ```
 
 ---
