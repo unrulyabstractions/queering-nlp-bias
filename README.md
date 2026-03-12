@@ -1,4 +1,4 @@
-# Queering NLP Bias
+# Queer(ing) NLP Bias
 
 **Bias is low deviance in a dimension where we would expect more diversity** - an overly high concentration around normativity. In this project, we aim to characterize normativity to measure bias. We propose methods that leverage LLM-induced statistics of scoring functions. This repo implements the methods and provides a playground for investigation.
 
