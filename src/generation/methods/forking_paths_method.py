@@ -22,7 +22,9 @@ from src.inference.generated_trajectory import GeneratedTrajectory
 
 from ..generation_config import GenerationConfig
 from ..generation_method_registry import register_method
-from ..generation_types import ArmGenerationResult
+from src.common.experiment_types import ArmGenerationResult
+
+from .generation_method_utils import compute_arm_token_lengths
 from .forking_paths_params import ForkingParams
 from .forking_paths_types import (
     ForkPoint,
@@ -168,6 +170,7 @@ def expand_fork_point(
     candidate: TopKCandidate,
     prompt_ids: list[int],
     formatted_prompt: str,
+    arm_prefill: str,
     max_new_tokens: int,
     temperature: float,
     samples_per_fork: int,
@@ -200,9 +203,10 @@ def expand_fork_point(
         traj = runner.generate_trajectory(prefix, remaining, temperature)
         traj.sanitize()
 
-        # Set continuation_text immediately - we know the exact prefix length here
+        # Set text fields (pipe, not parse)
         text = runner.decode_ids(traj.token_ids)
-        traj.continuation_text = text[len(formatted_prompt) :]
+        traj.prefill_text = arm_prefill
+        traj.generated_text = text[len(formatted_prompt):]
 
         # Free heavy data (full_logits) immediately to reduce peak memory
         traj.pop_heavy()
@@ -236,26 +240,28 @@ def generate_forking(
         ArmGenerationResult containing all trajectories and metadata
     """
     arms = config.get_arms(runner.skip_thinking_prefix)
-    prompt_length = config.compute_prompt_length(runner)
-    trunk_length = config.compute_trunk_length(runner)
+    arm_token_lengths = compute_arm_token_lengths(runner, config, arms)
+
+    base_formatted_prompt = runner.apply_chat_template(config.prompt)
 
     all_trajectories: list[GeneratedTrajectory] = []
     all_arm_indices: list[int] = []
 
-    for arm in arms:
-        formatted_prompt = runner.apply_chat_template(config.prompt) + arm.prefill
+    for arm_idx, arm in enumerate(arms):
+        formatted_prompt = base_formatted_prompt + arm.prefill
         prompt_ids = runner.encode_ids(formatted_prompt, add_special_tokens=True)
         prompt_len = len(prompt_ids)
 
-        # Determine arm name for logging
-        arm_name = "trunk" if arm.arm_index == 0 else f"branch_{arm.arm_index}"
+        # Use arm name directly
+        arm_name = arm.name
 
         # Step 1: Generate greedy path
         greedy_traj = generate_greedy_path(runner, prompt_ids, config.max_new_tokens)
 
-        # Set continuation_text immediately - we know the exact prefix length here
+        # Set text fields (pipe, not parse)
         greedy_text = runner.decode_ids(greedy_traj.token_ids)
-        greedy_traj.continuation_text = greedy_text[len(formatted_prompt) :]
+        greedy_traj.prefill_text = arm.prefill
+        greedy_traj.generated_text = greedy_text[len(formatted_prompt):]
 
         # Free heavy data (full_logits) immediately to reduce peak memory
         greedy_traj.pop_heavy()
@@ -296,6 +302,7 @@ def generate_forking(
                 candidate=qf.candidate,
                 prompt_ids=prompt_ids,
                 formatted_prompt=formatted_prompt,
+                arm_prefill=arm.prefill,
                 max_new_tokens=config.max_new_tokens,
                 temperature=config.temperature,
                 samples_per_fork=params.samples_per_fork,
@@ -316,11 +323,11 @@ def generate_forking(
             )
 
         all_trajectories.extend(arm_trajectories)
-        all_arm_indices.extend(arm.arm_index for _ in arm_trajectories)
+        all_arm_indices.extend(arm_idx for _ in arm_trajectories)
 
     return ArmGenerationResult(
         trajectories=all_trajectories,
         arm_indices=all_arm_indices,
-        trunk_length=trunk_length,
-        prompt_length=prompt_length,
+        arm_token_lengths=arm_token_lengths,
+        arms=arms,
     )

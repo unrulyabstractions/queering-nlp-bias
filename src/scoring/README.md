@@ -1,19 +1,16 @@
 # Scoring Package
 
-> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
-
-
 Score generated trajectories using configurable scoring methods.
 
 ## Quick Links
 
 | File | Purpose |
 |------|---------|
-| `scoring_config.py` | `ScoringConfig` - configuration for scoring runs |
-| `scoring_pipeline.py` | `run_scoring_pipeline()` - main entry point |
+| `scoring_config.py` | Configuration for scoring runs |
+| `scoring_pipeline.py` | Core pipeline logic and text processing |
 | `scoring_method_registry.py` | Method registration and discovery |
-| `scoring_data.py` | `TrajectoryData` - input data structures |
-| `scoring_output.py` | `ScoringResult`, `ScoringOutput` - output structures |
+| `scoring_data.py` | Input data structures (trajectories, generation output) |
+| `scoring_output.py` | Output structures and path computation |
 | `methods/` | Scoring method implementations |
 
 ## Available Methods
@@ -31,20 +28,21 @@ Score generated trajectories using configurable scoring methods.
 from src.scoring import ScoringConfig, run_scoring_pipeline, GenerationOutputData
 
 # Load data
-gen_data = GenerationOutputData.load("out/gen_example.json")
+gen_data = GenerationOutputData.load("out/simple-sampling/example/generation.json")
 config = ScoringConfig.load("trials/scoring/example.json")
 
 # Run scoring
 result = run_scoring_pipeline(
     config=config,
     trajectories=gen_data.trajectories,
-    branches=gen_data.branches,
+    arm_names=gen_data.arm_names,
     arm_texts=gen_data.arm_texts,
 )
 
-# Save and summarize
-result.output.save("out/score_example.json")
+# Save output to out/<method>/<gen_name>/<scoring_name>/scoring.json
+output_path = result.output.compute_output_path(gen_path, scoring_path)
+result.output.save(output_path)
 result.output.summarize()
 ```
 
-See [EXPLANATION.md](EXPLANATION.md) for detailed specification.
+See [EXPLANATION.md](EXPLANATION.md) for detailed specification and [ADDING_METHOD.md](ADDING_METHOD.md) for adding new scoring methods.

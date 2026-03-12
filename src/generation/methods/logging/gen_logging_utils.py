@@ -5,10 +5,52 @@ This module provides logging functions for trajectory generation output.
 
 from __future__ import annotations
 
+from src.common.callback_types import LogFn
 from src.common.logging import fmt_prob, log, log_section
-from src.common.viz_utils import preview
-from src.generation.generation_types import ArmGenerationResult
+from src.estimation.arm_types import ArmKind, classify_arm
+from src.common.experiment_types import ArmGenerationResult, GenerationArm
 from src.inference import ModelRunner
+
+
+def log_arm_header(arm: GenerationArm, log_fn: LogFn) -> None:
+    """Log the header for an arm with its name and prefill text."""
+    log_fn(f"\n{arm.name.replace('_', ' ').title()}")
+    if arm.prefill:
+        prefill_display = arm.prefill.replace("\n", "\\n")
+        log_fn(f'  Prefill: "{prefill_display}"')
+    else:
+        log_fn("  Prefill: N/A")
+
+
+def _get_arm_display_name(arm_index: int, arm_names: list[str] | None) -> str:
+    """Get display name for an arm by index."""
+    if arm_names and arm_index < len(arm_names):
+        return arm_names[arm_index]
+    # Fallback for old format without arm_names
+    return f"arm_{arm_index}"
+
+
+def _get_parent_branch_index(twig_name: str, arm_names: list[str]) -> int | None:
+    """Get the arm index of the parent branch for a twig.
+
+    Args:
+        twig_name: Name like "twig_1_b2" (twig 1 of branch 2)
+        arm_names: List of all arm names
+
+    Returns:
+        Index of parent branch in arm_names, or None if not found
+    """
+    if not twig_name.startswith("twig_"):
+        return None
+    # Extract parent branch number from twig name (e.g., "twig_1_b2" -> "branch_2")
+    parts = twig_name.split("_b")
+    if len(parts) < 2:
+        return None
+    parent_branch_name = f"branch_{parts[-1]}"
+    try:
+        return arm_names.index(parent_branch_name)
+    except ValueError:
+        return None
 
 
 def log_tree_trajectories(result: ArmGenerationResult, runner: ModelRunner) -> None:
@@ -20,60 +62,105 @@ def log_tree_trajectories(result: ArmGenerationResult, runner: ModelRunner) -> N
     """
     prompt_len = result.prompt_length
     trunk_len = result.trunk_length
+    arm_names = result.arm_names or []
+    arm_token_lengths = result.arm_token_lengths or []
 
     log_section("Building Tree")
 
-    # Table 1: Trajectory continuations (not full text including prompt)
+    # Table 1: Trajectory with prefill and generated columns
     log(f"  Trajectories ({len(result.trajectories)} total):")
-    log(f"  {'#':>3}  {'branch':<10} continuation")
-    log("  " + "─" * 70)
+    log(f"  {'#':>3}  {'arm':<12}  {'prefill':<47}  generated")
+    log("  " + "─" * 112)
 
     for i, traj in enumerate(result.trajectories):
         arm_index = result.arm_indices[i]
-        display = "trunk" if arm_index == 0 else f"branch_{arm_index}"
-        # Show only continuation (tokens after trunk), not full text
-        continuation_ids = traj.token_ids[trunk_len:]
-        continuation_text = runner.decode_ids(continuation_ids)
-        # Show more text before cutting off (80 chars instead of 50)
-        log(f"  {i:>3}  {display:<10} {preview(continuation_text, 80)}")
+        arm_name = _get_arm_display_name(arm_index, arm_names)
+
+        # Use stored fields directly - no recomputation
+        prefill = traj.prefill_text if traj.prefill_text else "N/A"
+        generated = traj.generated_text or ""
+
+        # Format for display (replace newlines, truncate if needed)
+        prefill_display = prefill.replace("\n", "\\n")
+        if len(prefill_display) > 45:
+            prefill_display = prefill_display[:42] + "..."
+        generated_display = generated.replace("\n", "\\n")
+        if len(generated_display) > 55:
+            generated_display = generated_display[:52] + "..."
+
+        log(f"  {i:>3}  {arm_name:<12}  {prefill_display:<47}  {generated_display}")
     log("")
 
-    # Table 2: Conditional probabilities
+    # Check what arm types we have
+    has_branch = any(classify_arm(n) == ArmKind.BRANCH for n in arm_names)
+    has_twig = any(classify_arm(n) == ArmKind.TWIG for n in arm_names)
+
+    # Table 2: Conditional probabilities with proper columns
     log(
         f"  Conditional probabilities (prompt_len={prompt_len}, trunk_len={trunk_len}):"
     )
-    log(
-        f"  {'#':>3}  {'branch':<10} {'p(t|prompt)':>11}  "
-        f"{'p(t|trunk)':>11}  {'p(t|branch)':>11}  {'Finished?':>9}"
-    )
-    log("  " + "─" * 67)
 
-    # Get EOS token from runner
+    # Build header based on what arm types exist
+    header_parts = [f"{'#':>3}", f"{'arm':<12}"]
+    header_parts.append(f"{'p(t|root)':>11}")
+    header_parts.append(f"{'p(t|trunk)':>11}")
+    if has_branch:
+        header_parts.append(f"{'p(t|branch)':>11}")
+    if has_twig:
+        header_parts.append(f"{'p(t|twig)':>11}")
+    header_parts.append(f"{'EOS?':>5}")
+    log("  " + "  ".join(header_parts))
+    log("  " + "─" * (35 + 13 * (2 + int(has_branch) + int(has_twig))))
+
     eos_token = runner.eos_token
-    eos_token_id = runner.eos_token_id
 
     for i, traj in enumerate(result.trajectories):
         arm_index = result.arm_indices[i]
-        p_prompt = traj.get_conditional_prob(prompt_len, traj.length) or 0.0
+        arm_name = _get_arm_display_name(arm_index, arm_names)
+        kind = classify_arm(arm_name)
 
-        if arm_index == 0:
-            p_trunk = traj.get_conditional_prob(trunk_len, traj.length) or 0.0
-            p_branch = p_trunk
+        # Compute conditional probabilities from each reference point
+        # p(t|root) = p(trajectory | prompt only)
+        p_root = traj.get_conditional_prob(prompt_len, traj.length) or 0.0
+
+        # p(t|trunk) = p(trajectory | prompt + trunk)
+        if kind == ArmKind.ROOT:
+            p_trunk = None  # N/A for root
         else:
-            p_trunk = traj.get_conditional_prob(trunk_len - 1, traj.length) or 0.0
-            p_branch = traj.get_conditional_prob(trunk_len, traj.length) or 0.0
+            p_trunk = traj.get_conditional_prob(trunk_len, traj.length) or 0.0
 
-        # Check if trajectory has EOS token (by token ID or text)
-        continuation_ids = traj.token_ids[trunk_len:]
-        is_finished = eos_token_id is not None and eos_token_id in continuation_ids
-        if not is_finished and eos_token:
-            continuation_text = runner.decode_ids(continuation_ids)
-            is_finished = eos_token in continuation_text
-        finished_str = "YES" if is_finished else "NO"
+        # p(t|branch) = p(trajectory | prompt + trunk + branch)
+        p_branch = None
+        if kind == ArmKind.BRANCH:
+            # For branch, use its own token length
+            branch_len = arm_token_lengths[arm_index] if arm_index < len(arm_token_lengths) else trunk_len
+            p_branch = traj.get_conditional_prob(branch_len, traj.length) or 0.0
+        elif kind == ArmKind.TWIG:
+            # For twig, use parent branch's token length
+            parent_idx = _get_parent_branch_index(arm_name, arm_names)
+            if parent_idx is not None and parent_idx < len(arm_token_lengths):
+                branch_len = arm_token_lengths[parent_idx]
+                p_branch = traj.get_conditional_prob(branch_len, traj.length) or 0.0
 
-        display = "trunk" if arm_index == 0 else f"branch_{arm_index}"
-        log(
-            f"  {i:>3}  {display:<10} {fmt_prob(p_prompt, 11)}  "
-            f"{fmt_prob(p_trunk, 11)}  {fmt_prob(p_branch, 11)}  {finished_str:>9}"
-        )
+        # p(t|twig) = p(trajectory | prompt + trunk + branch + twig)
+        p_twig = None
+        if kind == ArmKind.TWIG:
+            twig_len = arm_token_lengths[arm_index] if arm_index < len(arm_token_lengths) else trunk_len
+            p_twig = traj.get_conditional_prob(twig_len, traj.length) or 0.0
+
+        # Check if trajectory has EOS token using stored generated_text
+        is_finished = eos_token is not None and eos_token in (traj.generated_text or "")
+        finished_str = "Y" if is_finished else "N"
+
+        # Format row
+        row_parts = [f"{i:>3}", f"{arm_name:<12}"]
+        row_parts.append(fmt_prob(p_root, 11))
+        row_parts.append(fmt_prob(p_trunk, 11) if p_trunk is not None else f"{'N/A':>11}")
+        if has_branch:
+            row_parts.append(fmt_prob(p_branch, 11) if p_branch is not None else f"{'N/A':>11}")
+        if has_twig:
+            row_parts.append(fmt_prob(p_twig, 11) if p_twig is not None else f"{'N/A':>11}")
+        row_parts.append(f"{finished_str:>5}")
+
+        log("  " + "  ".join(row_parts))
     log("")

@@ -1,6 +1,7 @@
 {
-  "model": "Qwen/Qwen3-0.6B",
-  "prompt": "Write a story in LESS than 12 words about EITHER a boy OR a cow. Your response MUST start with: Once upon a time, there was a ...",
-  "trunk": "Once upon a time, there was a",
-  "branches": [" boy", " cat"]
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "prompt": "Write a queer love story. The story must open with: 'At the altar, the newlywed '. Just respond with complete story, which must be less than 15 words.",
+  "trunk": "At the altar, the newlywed ",
+  "branches": [" mechanic", " nurse"],
+  "twig_variations": [" and his", " and her"]
 }

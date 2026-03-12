@@ -10,6 +10,7 @@ import numpy as np
 from numpy.typing import NDArray
 from sentence_transformers import SentenceTransformer
 
+from src.common.default_config import EMBEDDING_MODEL
 from src.common.logging import log
 
 
@@ -41,7 +42,7 @@ def suppress_stdout_stderr():
 class EmbeddingRunner:
     """Runner for computing text embeddings using sentence-transformers."""
 
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
+    def __init__(self, model_name: str = EMBEDDING_MODEL):
         """Initialize embedding model.
 
         Args:

@@ -36,18 +36,33 @@ class StructureScoresResult(BaseSchema):
     bundled_scoring: dict[str, BundledScoreResult] = field(default_factory=dict)
 
     def get_score(self, label: str) -> float:
-        """Get aggregate score for a structure (simple or bundled)."""
+        """Get aggregate score for a structure (simple or bundled).
+
+        Raises:
+            KeyError: If the label is not found in either simple or bundled scoring.
+        """
         if label in self.simple_scoring:
             return self.simple_scoring[label]
         if label in self.bundled_scoring:
             return self.bundled_scoring[label].aggregate
-        return 0.0
+        raise KeyError(
+            f"Label '{label}' not found. "
+            f"Available: simple={list(self.simple_scoring.keys())}, "
+            f"bundled={list(self.bundled_scoring.keys())}"
+        )
 
     def get_item_scores(self, label: str) -> dict[str, float]:
-        """Get per-item scores for a bundled structure."""
-        if label in self.bundled_scoring:
-            return self.bundled_scoring[label].items
-        return {}
+        """Get per-item scores for a bundled structure.
+
+        Raises:
+            KeyError: If the label is not found in bundled scoring.
+        """
+        if label not in self.bundled_scoring:
+            raise KeyError(
+                f"Label '{label}' not found in bundled_scoring. "
+                f"Available: {list(self.bundled_scoring.keys())}"
+            )
+        return self.bundled_scoring[label].items
 
     def all_scores(self) -> dict[str, float]:
         """Get all aggregate scores (simple + bundled) as a flat dict."""
@@ -103,16 +118,3 @@ class ArmScoring(BaseSchema):
             simple_scoring=scores.simple_scoring,
             bundled_scoring=scores.bundled_scoring,
         )
-
-    @property
-    def structure_rates(self) -> dict[str, float]:
-        """Get all structure rates as flat dict (backward compat)."""
-        return {
-            **self.simple_scoring,
-            **{k: v.aggregate for k, v in self.bundled_scoring.items()},
-        }
-
-    @property
-    def question_rates(self) -> dict[str, dict[str, float]]:
-        """Get bundled item rates (backward compat)."""
-        return {k: v.items for k, v in self.bundled_scoring.items()}

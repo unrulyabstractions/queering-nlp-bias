@@ -1,13 +1,10 @@
 # Generation Package
 
-> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
-
-
 Trajectory generation using various sampling strategies.
 
 ## Quick Links
 
-- [EXPLANATION.md](EXPLANATION.md) - Detailed algorithm explanations, data flow, and architecture
+- [EXPLANATION.md](EXPLANATION.md) - Detailed algorithm explanations and data structures
 - [ADDING_METHOD.md](ADDING_METHOD.md) - Guide for adding new generation methods
 - [methods/](methods/) - Method implementations
 
@@ -17,17 +14,17 @@ Trajectory generation using various sampling strategies.
 generation/
 ├── generation_config.py           # GenerationConfig with prompt, arms, method params
 ├── generation_output.py           # GenerationOutput for saving results
+├── generation_helpers.py          # Helper functions for output formatting
 ├── generation_pipeline.py         # run_generation_pipeline() entry point
-├── generation_types.py            # Arm, ForkArm, ArmGenerationResult
 ├── generation_method_registry.py  # @register_method decorator and registry
 ├── methods/                       # Method implementations
-│   ├── simple_sampling_method.py  # Temperature sampling
-│   ├── forking_paths_method.py    # Greedy + fork exploration
-│   ├── entropy_seeking_method.py  # Entropy-guided expansion
-│   ├── just_greedy_method.py      # Single greedy path
-│   └── logging/                   # Method-specific logging
+│   ├── simple_sampling_method.py  # Simple temperature sampling
+│   ├── forking_paths_method.py    # Greedy path + entropy-based forking
+│   ├── entropy_seeking_method.py  # Iterative entropy-guided expansion
+│   ├── just_greedy_method.py      # Single greedy path per arm
+│   └── logging/                   # Method-specific logging utilities
 ├── ADDING_METHOD.md               # How to add new methods
-└── EXPLANATION.md                 # Detailed algorithm documentation
+└── EXPLANATION.md                 # Algorithm specifications
 ```
 
 ## Quick Start
@@ -45,12 +42,12 @@ print(f"Generated {len(result.output.tree.trajs)} trajectories")
 
 ## Available Methods
 
-| Method | Description |
-|--------|-------------|
-| `simple-sampling` | Sample N trajectories per arm using temperature |
-| `forking-paths` | Greedy path + fork at high-entropy positions |
-| `seeking-entropy` | Iteratively expand tree at highest-entropy points |
-| `just-greedy` | One greedy (temperature=0) trajectory per arm |
+| Method | Description | Output |
+|--------|-------------|--------|
+| `simple-sampling` | Sample N trajectories per arm | `out/simple-sampling/<trial>/generation.json` |
+| `forking-paths` | Greedy path + exploration at high-entropy points | `out/forking-paths/<trial>/generation.json` |
+| `seeking-entropy` | Iteratively expand tree at highest-entropy nodes | `out/seeking-entropy/<trial>/generation.json` |
+| `just-greedy` | One greedy trajectory per arm | `out/just-greedy/<trial>/generation.json` |
 
 ## Adding New Methods
 
@@ -64,7 +61,7 @@ class MyParams(GenerationMethodParams):
 
 @register_method(MyParams)
 def generate_my_method(runner, config, params, log_fn=None):
-    ...
+    # Return ArmGenerationResult
 ```
 
 See [ADDING_METHOD.md](ADDING_METHOD.md) for details.

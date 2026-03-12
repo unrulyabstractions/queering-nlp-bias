@@ -31,17 +31,22 @@ The experiment pipeline has three stages:
 
 ```bash
 # Default: simple-sampling method
-python scripts/run_full_experiment.py \
+uv run python scripts/run_full_experiment.py \
     trials/generation/<gen_config>.json \
     trials/scoring/<scoring_config>.json
 
 # Specific method
-python scripts/run_full_experiment.py --method forking-paths \
+uv run python scripts/run_full_experiment.py --method forking-paths \
     trials/generation/<gen_config>.json \
     trials/scoring/<scoring_config>.json
 
 # All methods with comparison
-python scripts/run_full_experiment.py --all \
+uv run python scripts/run_full_experiment.py --all \
+    trials/generation/<gen_config>.json \
+    trials/scoring/<scoring_config>.json
+
+# Compute drift and horizon dynamics
+uv run python scripts/run_full_experiment.py --dynamics \
     trials/generation/<gen_config>.json \
     trials/scoring/<scoring_config>.json
 ```
@@ -54,6 +59,7 @@ python scripts/run_full_experiment.py --all \
 | `scoring_config` | positional | Path to scoring config JSON |
 | `--method` | optional | Generation method: `simple-sampling`, `forking-paths`, or `seeking-entropy` (default: `simple-sampling`) |
 | `--all` | flag | Run all methods and compare results |
+| `--dynamics` | flag | Compute drift and horizon dynamics for trajectories (requires scoring model) |
 
 ### Method-Specific Parameters
 
@@ -61,18 +67,18 @@ All method parameters can be passed directly:
 
 ```bash
 # Simple sampling
-python scripts/run_full_experiment.py gen.json scoring.json \
+uv run python scripts/run_full_experiment.py gen.json scoring.json \
     --samples-per-arm 20
 
 # Forking paths
-python scripts/run_full_experiment.py --method forking-paths gen.json scoring.json \
+uv run python scripts/run_full_experiment.py --method forking-paths gen.json scoring.json \
     --max-alternates-per-position 5 \
     --min-prob-for-alternate 0.1 \
     --min-entropy-to-fork 1.5 \
     --samples-per-fork 2
 
 # Entropy seeking
-python scripts/run_full_experiment.py --method seeking-entropy gen.json scoring.json \
+uv run python scripts/run_full_experiment.py --method seeking-entropy gen.json scoring.json \
     --samples-per-expansion 3 \
     --num-expansion-rounds 5
 ```
@@ -83,42 +89,60 @@ python scripts/run_full_experiment.py --method seeking-entropy gen.json scoring.
 2. **For each method**:
    - Load generation config and apply CLI overrides
    - Set random seed for reproducibility
-   - **Step 1 (Generate)**: Run generation pipeline, save to `out/gen_<method>_<config>.json`
-   - **Step 2 (Score)**: Load generation output, run scoring pipeline, save to `out/score_*.json`
-   - **Step 3 (Estimate)**: Load scoring output, compute normativity metrics, save to `out/est_*.json`
+   - **Step 1 (Generate)**: Run generation pipeline, save to `out/<method>/gen_<config>.json`
+   - **Step 2 (Score)**: Load generation output, run scoring pipeline, save to `out/<method>/score_*.json`
+   - **Step 3 (Estimate)**: Load scoring output, compute normativity metrics, save to `out/<method>/est_*.json`
 3. **If `--all`**: Display comparison table across methods
 
 ### Output Files
 
 ```
 out/
-├── gen_simple-sampling_<config>.json
-├── score_simple-sampling_<gen>_<scoring>.json
-├── est_simple-sampling_<gen>_<scoring>.json
-├── summary_gen_*.json
-├── summary_score_*.json
-└── summary_est_*.json
+├── simple-sampling/
+│   ├── gen_<config>.json
+│   ├── score_<gen>_<scoring>.json
+│   ├── est_<gen>_<scoring>.json
+│   ├── summary_gen_*.txt
+│   ├── summary_score_*.txt
+│   └── summary_est_*.txt
+├── forking-paths/
+│   └── ...
+└── seeking-entropy/
+    └── ...
 ```
 
 ---
 
-## generate_by_simple_sampling.py
+## generate_trajectories.py
 
-**Purpose**: Generate trajectories using temperature sampling.
+**Purpose**: Unified script for generating trajectories using any registered method.
 
-### Algorithm
+### Available Methods
 
-For each arm (trunk + branches):
-1. Construct prompt with arm-specific prefill
-2. Sample N trajectories using temperature sampling
-3. Record token IDs, log-probabilities, and decoded text
+1. **simple-sampling** (default): Temperature sampling with N samples per arm
+2. **forking-paths**: Systematically explore one-step deviations from the greedy path
+3. **seeking-entropy**: Expand the trajectory tree at high-uncertainty positions
 
 ### Usage
 
 ```bash
-python scripts/generate_by_simple_sampling.py trials/generation/<config>.json
-python scripts/generate_by_simple_sampling.py trials/generation/<config>.json \
-    --samples-per-arm 20
+# Simple sampling (default)
+uv run python scripts/generate_trajectories.py trials/generation/<config>.json
+uv run python scripts/generate_trajectories.py trials/generation/<config>.json --samples-per-arm 20
+
+# Forking paths
+uv run python scripts/generate_trajectories.py trials/generation/<config>.json --method forking-paths
+uv run python scripts/generate_trajectories.py trials/generation/<config>.json --method forking-paths \
+    --max-alternates-per-position 5 \
+    --min-prob-for-alternate 0.1 \
+    --min-entropy-to-fork 1.5 \
+    --samples-per-fork 2
+
+# Entropy seeking
+uv run python scripts/generate_trajectories.py trials/generation/<config>.json --method seeking-entropy
+uv run python scripts/generate_trajectories.py trials/generation/<config>.json --method seeking-entropy \
+    --samples-per-expansion 3 \
+    --num-expansion-rounds 5
 ```
 
 ### Arguments
@@ -126,9 +150,40 @@ python scripts/generate_by_simple_sampling.py trials/generation/<config>.json \
 | Argument | Type | Default | Description |
 |----------|------|---------|-------------|
 | `config` | positional | required | Path to generation config JSON |
+| `--method` | choice | simple-sampling | Generation method: `simple-sampling`, `forking-paths`, or `seeking-entropy` |
+
+### Method-Specific Arguments
+
+#### Simple Sampling
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
 | `--samples-per-arm` | int | 10 | Number of trajectories per arm |
 
-### How It Works
+#### Forking Paths
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--max-alternates-per-position` | int | 5 | Max alternate tokens per position |
+| `--min-prob-for-alternate` | float | 0.2 | Minimum probability for alternate token |
+| `--min-entropy-to-fork` | float | 1.75 | Minimum entropy (nats) to consider forking |
+| `--samples-per-fork` | int | 3 | Continuations to sample per fork point |
+
+#### Entropy Seeking
+
+| Argument | Type | Default | Description |
+|----------|------|---------|-------------|
+| `--samples-per-expansion` | int | 2 | Trajectories per expansion round |
+| `--num-expansion-rounds` | int | 3 | Number of expansion rounds |
+
+### How Each Method Works
+
+#### Simple Sampling
+
+For each arm (trunk + branches):
+1. Construct prompt with arm-specific prefill
+2. Sample N trajectories using temperature sampling
+3. Record token IDs, log-probabilities, and decoded text
 
 ```
 For each arm in [trunk, branch_1, branch_2, ...]:
@@ -139,18 +194,9 @@ For each arm in [trunk, branch_1, branch_2, ...]:
         save(trajectory.token_ids, trajectory.logprobs)
 ```
 
-### Output
+**Use case**: Simple, unbiased samples from the distribution.
 
-- `out/gen_simple-sampling_<config>.json`: Full trajectory data
-- `out/summary_gen_simple-sampling_<config>.json`: Human-readable summary
-
----
-
-## generate_by_forking_paths.py
-
-**Purpose**: Systematically explore one-step deviations from the greedy path.
-
-### Algorithm
+#### Forking Paths
 
 For each arm:
 1. Generate the greedy path (always pick highest-probability token)
@@ -158,29 +204,6 @@ For each arm:
    - Identify alternate tokens meeting probability threshold
    - For each alternate, spawn continuations from that deviation
 3. Return all trajectories (greedy path + fork continuations)
-
-### Usage
-
-```bash
-python scripts/generate_by_forking_paths.py trials/generation/<config>.json
-python scripts/generate_by_forking_paths.py trials/generation/<config>.json \
-    --max-alternates-per-position 5 \
-    --min-prob-for-alternate 0.1 \
-    --min-entropy-to-fork 1.5 \
-    --samples-per-fork 2
-```
-
-### Arguments
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `config` | positional | required | Path to generation config JSON |
-| `--max-alternates-per-position` | int | 5 | Max alternate tokens per position |
-| `--min-prob-for-alternate` | float | 0.2 | Minimum probability for alternate token |
-| `--min-entropy-to-fork` | float | 1.75 | Minimum entropy (nats) to consider forking |
-| `--samples-per-fork` | int | 3 | Continuations to sample per fork point |
-
-### How It Works
 
 ```
 greedy_path = generate_greedy(prompt + prefill)
@@ -197,17 +220,9 @@ for position in greedy_path:
                 save(continuation)
 ```
 
-### Use Case
+**Use case**: Reveals what the model "almost" said. Good for understanding local sensitivity.
 
-Reveals what the model "almost" said. Good for understanding local sensitivity: how would the output change if a single token were different?
-
----
-
-## generate_by_seeking_entropy.py
-
-**Purpose**: Expand the trajectory tree at high-uncertainty positions.
-
-### Algorithm
+#### Entropy Seeking
 
 For each arm:
 1. Initialize tree with N sampled trajectories
@@ -217,25 +232,6 @@ For each arm:
    - Sample N new continuations from that fork point
    - Mark position as used, compute entropy for new paths
 4. Return all trajectories
-
-### Usage
-
-```bash
-python scripts/generate_by_seeking_entropy.py trials/generation/<config>.json
-python scripts/generate_by_seeking_entropy.py trials/generation/<config>.json \
-    --samples-per-expansion 3 \
-    --num-expansion-rounds 5
-```
-
-### Arguments
-
-| Argument | Type | Default | Description |
-|----------|------|---------|-------------|
-| `config` | positional | required | Path to generation config JSON |
-| `--samples-per-expansion` | int | 2 | Trajectories per expansion round |
-| `--num-expansion-rounds` | int | 3 | Number of expansion rounds |
-
-### How It Works
 
 ```
 # Initialize
@@ -255,9 +251,12 @@ for round in 1..num_expansion_rounds:
     mark_used(best_path, best_pos)
 ```
 
-### Use Case
+**Use case**: Focuses exploration on uncertain decision points.
 
-Focuses exploration on uncertain decision points. Good for understanding where the model has multiple plausible continuations.
+### Output
+
+- `out/<method>/gen_<config>.json`: Full trajectory data
+- `out/<method>/summary_gen_<config>.txt`: Human-readable summary
 
 ---
 
@@ -268,9 +267,9 @@ Focuses exploration on uncertain decision points. Good for understanding where t
 ### Usage
 
 ```bash
-python scripts/score_trajectories.py \
+uv run python scripts/score_trajectories.py \
     trials/scoring/<scoring_config>.json \
-    out/gen_<method>_<config>.json
+    out/<method>/gen_<config>.json
 ```
 
 ### Arguments
@@ -304,41 +303,41 @@ python scripts/score_trajectories.py \
 
 ### Output
 
-- `out/score_<method>_<gen>_<scoring>.json`: Full scoring data
-- `out/summary_score_*.json`: Human-readable summary
+- `out/<method>/score_<gen>_<scoring>.json`: Full scoring data
+- `out/<method>/summary_score_*.txt`: Human-readable summary
 
 ---
 
 ## visualize_estimation.py
 
-**Purpose**: Generate `out/viz/` plots from an existing estimation output JSON.
+**Purpose**: Generate visualization plots from an existing estimation output JSON.
 
 ### Usage
 
 ```bash
-python scripts/visualize_estimation.py out/est_<name>.json
-python scripts/visualize_estimation.py out/est_<name>.json --output-dir out/viz
+uv run python scripts/visualize_estimation.py out/<method>/est_<name>.json
+uv run python scripts/visualize_estimation.py out/<method>/est_<name>.json --output-dir custom/path
 # Explicit paths if auto-inference fails:
-python scripts/visualize_estimation.py out/est_<name>.json \
-    --scoring out/score_<name>.json \
-    --generation out/gen_<name>.json
+uv run python scripts/visualize_estimation.py out/<method>/est_<name>.json \
+    --scoring out/<method>/score_<name>.json \
+    --generation out/<method>/gen_<name>.json
 ```
 
 ### Arguments
 
 | Argument | Type | Description |
 |----------|------|-------------|
-| `estimation` | positional | Path to estimation output JSON (`out/est_*.json`) |
-| `--scoring` | optional | Path to scoring JSON (`out/score_*.json`). Auto-inferred from estimation filename. |
-| `--generation` | optional | Path to generation JSON (`out/gen_*.json`). Auto-inferred from `generation_file` field in scoring output. |
-| `--output-dir` | optional | Output directory for plots (default: `out/viz`) |
+| `estimation` | positional | Path to estimation output JSON (`out/<method>/est_*.json`) |
+| `--scoring` | optional | Path to scoring JSON (`out/<method>/score_*.json`). Auto-inferred from estimation path. |
+| `--generation` | optional | Path to generation JSON (`out/<method>/gen_*.json`). Auto-inferred from `generation_file` field in scoring output. |
+| `--output-dir` | optional | Output directory for plots (default: `out/<method>/viz`) |
 
 ### How It Works
 
-1. Infers the generation method name from the filename (e.g. `est_simple-sampling_...` → `simple-sampling`)
-2. Auto-infers the scoring path (`score_<name>.json`) and generation path (from the `generation_file` field in the score JSON)
+1. Infers the generation method name from the parent folder (e.g. `out/simple-sampling/est_...` → `simple-sampling`)
+2. Auto-infers the scoring path (`score_<name>.json` in same folder) and generation path (from the `generation_file` field in the score JSON)
 3. Calls `visualize_result()` to generate all plots
-4. Saves plots to `{output_dir}/{method}/`
+4. Saves plots to `out/<method>/viz/`
 
 ### Which plots require which files?
 
@@ -363,7 +362,7 @@ See [src/viz/README.md](../src/viz/README.md) for the full list of generated plo
 ### Usage
 
 ```bash
-python scripts/estimate_normativity.py out/score_<name>.json
+uv run python scripts/estimate_normativity.py out/<method>/score_<name>.json
 ```
 
 ### Arguments
@@ -395,8 +394,8 @@ python scripts/estimate_normativity.py out/score_<name>.json
 
 ### Output
 
-- `out/est_<method>_<gen>_<scoring>.json`: Full estimation data
-- `out/summary_est_*.json`: Human-readable summary
+- `out/<method>/est_<gen>_<scoring>.json`: Full estimation data
+- `out/<method>/summary_est_*.txt`: Human-readable summary
 
 ---
 
@@ -516,13 +515,13 @@ CLI arguments > JSON config > default_config.py
 ### Data Flow
 
 ```
-Generation Config ─────▶ generate_*.py ─────▶ Generation Output
-                                                     │
-                                                     ▼
-Scoring Config    ─────▶ score_trajectories.py ────▶ Scoring Output
-                                                     │
-                                                     ▼
-                         estimate_normativity.py ──▶ Estimation Output
+Generation Config ─────▶ generate_trajectories.py ──▶ Generation Output
+                                                           │
+                                                           ▼
+Scoring Config    ─────▶ score_trajectories.py ──────────▶ Scoring Output
+                                                           │
+                                                           ▼
+                         estimate_normativity.py ────────▶ Estimation Output
 ```
 
 ### File Dependencies
@@ -532,29 +531,32 @@ trials/generation/example.json
 trials/scoring/example.json
         │
         ▼
-out/gen_simple-sampling_example.json
+out/simple-sampling/gen_example.json
         │
         ▼
-out/score_simple-sampling_example_example.json
+out/simple-sampling/score_example_example.json
         │
         ▼
-out/est_simple-sampling_example_example.json
+out/simple-sampling/est_example_example.json
 ```
 
 ### Running Individual Steps
 
 ```bash
-# Step 1: Generate
-python scripts/generate_by_simple_sampling.py trials/generation/example.json
+# Step 1: Generate (default: simple-sampling)
+uv run python scripts/generate_trajectories.py trials/generation/example.json
+
+# Or use a specific method:
+uv run python scripts/generate_trajectories.py trials/generation/example.json --method forking-paths
 
 # Step 2: Score (requires generation output)
-python scripts/score_trajectories.py \
+uv run python scripts/score_trajectories.py \
     trials/scoring/example.json \
-    out/gen_simple-sampling_example.json
+    out/simple-sampling/gen_example.json
 
 # Step 3: Estimate (requires scoring output)
-python scripts/estimate_normativity.py \
-    out/score_simple-sampling_example_example.json
+uv run python scripts/estimate_normativity.py \
+    out/simple-sampling/score_example_example.json
 ```
 
 ### Using run_full_experiment.py
@@ -562,7 +564,7 @@ python scripts/estimate_normativity.py \
 Equivalent to running all three steps:
 
 ```bash
-python scripts/run_full_experiment.py \
+uv run python scripts/run_full_experiment.py \
     trials/generation/example.json \
     trials/scoring/example.json
 ```

@@ -28,14 +28,17 @@ This runs three stages:
 
 ### Output Files
 
-All outputs go to `out/`:
+All outputs go to `out/<method>/<gen_name>/`:
 
 | File | Description |
 |------|-------------|
-| `out/gen_sampling_example.json` | Generated trajectories with token tree |
-| `out/score_sampling_example_example.json` | Judgment results per trajectory |
-| `out/est_sampling_example_example.json` | Full normativity estimates |
-| `out/summary_est_sampling_example_example.json` | Human-readable summary |
+| `out/simple-sampling/example/generation.json` | Generated trajectories with token tree |
+| `out/simple-sampling/example/generation_cfg.json` | Copy of original generation config |
+| `out/simple-sampling/example/example/scoring.json` | Judgment results per trajectory |
+| `out/simple-sampling/example/example/scoring_cfg.json` | Copy of original scoring config |
+| `out/simple-sampling/example/example/estimation.json` | Full normativity estimates |
+| `out/simple-sampling/example/example/viz/` | Visualizations for this experiment |
+| `out/simple-sampling/example/example/viz/dynamics/` | Dynamics plots |
 
 ## Directory Structure
 
@@ -43,7 +46,7 @@ All outputs go to `out/`:
 queering-nlp-bias/
 ├── scripts/                    # Pipeline scripts
 │   ├── run_full_experiment.py  # Full pipeline orchestrator
-│   ├── generate_by_*.py        # Three generation methods
+│   ├── generate_trajectories.py # Unified generation (--method flag)
 │   ├── score_trajectories.py   # Score trajectories against structures
 │   ├── estimate_normativity.py # Compute cores and deviances
 │   └── schemas/                # Config schemas (generation, scoring, estimation)

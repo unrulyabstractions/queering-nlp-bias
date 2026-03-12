@@ -1,81 +1,80 @@
 # Scripts / Schemas
 
-> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
+Shared utilities for pipeline scripts across generation, scoring, estimation, and experiment workflows.
 
-
-Script utilities for the experiment pipeline.
-
-## Contents
+## Module Contents
 
 | File | Purpose |
 |------|---------|
-| `script_utils.py` | Argument parsing, model loading, and logging utilities |
+| `script_utils.py` | Argument parsing, model loading, logging, and pipeline orchestration |
 
-## What This Module Provides
+## Utilities
 
 ### Argument Parsing
 
-`parse_generation_args()` handles CLI argument parsing for generation scripts:
-- Loads generation config from JSON
-- Applies CLI overrides to config parameters
-- Sets random seed for reproducibility
+`parse_generation_args()` provides unified CLI argument parsing for generation scripts:
 
 ```python
-from schemas.script_utils import parse_generation_args, ArgSpec
+from scripts.schemas.script_utils import parse_generation_args, ArgSpec
 
 parsed = parse_generation_args(
-    description="My generation script",
+    description="Generate trajectories",
     examples=["config.json", "config.json --samples-per-arm 10"],
-    extra_args=[
-        ArgSpec("samples-per-arm", int, "N", "Trajectories per arm"),
-    ],
+    extra_args=[ArgSpec("samples-per-arm", int, "N", "Trajectories per arm")],
 )
-
-config = parsed.config       # GenerationConfig with CLI overrides applied
+config = parsed.config
 config_path = parsed.config_path
 ```
 
+- Loads generation config from JSON
+- Applies CLI overrides to method parameters
+- Sets random seed from config
+
 ### Model Loading
 
-`load_model()` loads the model from config and logs model type:
+`load_model()` initializes the model runner and logs model type (base vs. chat/instruct):
 
 ```python
-from schemas.script_utils import load_model
+from scripts.schemas.script_utils import load_model
 
-runner = load_model(config)  # Returns ModelRunner, logs device and model type
+runner = load_model(config)
 ```
 
 ### Logging Utilities
 
+Log generation setup and experiment metadata:
+
 ```python
-from schemas.script_utils import log_prompt_header, log_experiment_start
+from scripts.schemas.script_utils import log_prompt_header, log_experiment_start, log_output_paths
 
-# Log prompt structure at generation start
-log_prompt_header(config.prompt, config.trunk, config.branches)
-
-# Log experiment header with parameters
+log_prompt_header(config.prompt, config.trunk, config.branches, config.twig_variations)
 log_experiment_start("EXPERIMENT", paths, method="simple-sampling")
+log_output_paths(paths)
 ```
 
 ### CLI Override Application
 
-`apply_cli_overrides_to_config()` maps CLI arguments to method parameters:
+Map CLI arguments to method parameters:
 
 ```python
-from schemas.script_utils import apply_cli_overrides_to_config
+from scripts.schemas.script_utils import apply_cli_overrides_to_config
 
-overrides = {"samples_per_arm": 20, "max_alternates": 5}
-apply_cli_overrides_to_config(config, overrides)
+apply_cli_overrides_to_config(config, {"samples_per_arm": 20})
 ```
 
-## Main Schema Classes
+### Generation Pipeline Runner
 
-The main schema classes are in `src/`:
+Execute the full generation workflow in a single call:
 
 ```python
-from src.generation import GenerationConfig, GenerationOutput
-from src.scoring import ScoringConfig, ScoringOutput
-from src.estimation import ScoringData, EstimationOutput
+from scripts.schemas.script_utils import run_generation_script
+
+output = run_generation_script(
+    config=config,
+    config_path=config_path,
+    method="simple-sampling",
+    section_title="Simple Sampling",
+)
 ```
 
-See `src/` for full documentation.
+Handles: model loading, logging, pipeline execution, trajectory logging, file saving, and summary display.

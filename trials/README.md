@@ -216,15 +216,15 @@ Given configs:
 
 Outputs (with default simple-sampling method):
 ```
-out/gen_sampling_example.json           # Generated trajectories
-out/score_sampling_example_example.json # Judgment results
-out/est_sampling_example_example.json   # Estimation results
-out/summary_est_sampling_example_example.json # Human-readable summary
+out/simple-sampling/gen_example.json           # Generated trajectories
+out/simple-sampling/score_example_example.json # Judgment results
+out/simple-sampling/est_example_example.json   # Estimation results
+out/simple-sampling/summary_est_example_example.txt # Human-readable summary
 ```
 
 With `--method forking-paths`:
 ```
-out/gen_forking-paths_example.json
-out/score_forking-paths_example_example.json
+out/forking-paths/gen_example.json
+out/forking-paths/score_example_example.json
 ...
 ```

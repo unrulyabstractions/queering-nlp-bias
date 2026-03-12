@@ -75,11 +75,11 @@ uv run python scripts/run_full_experiment.py \
     trials/generation/my_experiment.json \
     trials/scoring/my_scoring.json
 
-# 4. Generate visualizations (auto-inferred from est filename)
-uv run python scripts/visualize_estimation.py out/est_simple-sampling_my_experiment.json
+# 4. Generate visualizations (auto-inferred from est path)
+uv run python scripts/visualize_estimation.py out/simple-sampling/est_my_experiment_my_scoring.json
 
 # 5. Check outputs
-ls out/ out/viz/
+ls out/simple-sampling/ out/simple-sampling/viz/
 ```
 
 ---
@@ -299,23 +299,26 @@ uv run python scripts/run_full_experiment.py --all gen.json scoring.json
 ### Individual Steps
 
 ```bash
-# Step 1: Generate trajectories
-uv run python scripts/generate_by_simple_sampling.py gen.json --samples-per-arm 10
+# Step 1: Generate trajectories (default: simple-sampling)
+uv run python scripts/generate_trajectories.py gen.json --samples-per-arm 10
+
+# Or use a specific method:
+uv run python scripts/generate_trajectories.py gen.json --method forking-paths
 
 # Step 2: Score trajectories
-uv run python scripts/score_trajectories.py scoring.json out/gen_simple-sampling_example.json
+uv run python scripts/score_trajectories.py scoring.json out/simple-sampling/gen_example.json
 
 # Step 3: Estimate normativity
-uv run python scripts/estimate_normativity.py out/score_simple-sampling_example_example.json
+uv run python scripts/estimate_normativity.py out/simple-sampling/score_example_example.json
 
 # Step 4: Generate visualizations
-# gen and scoring paths are auto-inferred from the estimation filename
-uv run python scripts/visualize_estimation.py out/est_simple-sampling_example_example.json
+# gen and scoring paths are auto-inferred from the estimation path
+uv run python scripts/visualize_estimation.py out/simple-sampling/est_example_example.json
 
 # Supply paths explicitly if auto-inference fails (e.g. files were moved)
-uv run python scripts/visualize_estimation.py out/est_simple-sampling_example_example.json \
-    --scoring out/score_simple-sampling_example_example.json \
-    --generation out/gen_simple-sampling_example.json
+uv run python scripts/visualize_estimation.py out/simple-sampling/est_example_example.json \
+    --scoring out/simple-sampling/score_example_example.json \
+    --generation out/simple-sampling/gen_example.json
 ```
 
 ---
@@ -511,9 +514,9 @@ After all stages complete, a summary shows the experiment setup and results:
 
 ## Understanding Output Files
 
-All outputs go to `out/`.
+All outputs go to `out/<method>/`.
 
-### Generation Output: `out/gen_<method>_<config>.json`
+### Generation Output: `out/<method>/gen_<config>.json`
 
 ```json
 {
@@ -549,11 +552,11 @@ All outputs go to `out/`.
 - `trajs[].group_idx`: Which branch (0=trunk, 1=first branch, etc.)
 - `trajs[].logprobs`: Log-probability of each token
 
-### Scoring Output: `out/score_<method>_<gen>_<scoring>.json`
+### Scoring Output: `out/<method>/score_<gen>_<scoring>.json`
 
 ```json
 {
-  "generation_file": "out/gen_simple-sampling_example.json",
+  "generation_file": "out/simple-sampling/gen_example.json",
   "judge_model": "Qwen/Qwen3-4B-Instruct-2507",
   "categorical_judgements": ["Does this...?", ["Q1?", "Q2?"]],
   "branches": ["trunk", "branch_1", "branch_2"],
@@ -577,7 +580,7 @@ All outputs go to `out/`.
 - `results[].graded_scores`: Continuous judgments (0.0-1.0)
 - `results[].conditional_logprobs`: Log p(continuation | each prefix)
 
-### Estimation Output: `out/est_<method>_<gen>_<scoring>.json`
+### Estimation Output: `out/<method>/est_<gen>_<scoring>.json`
 
 ```json
 {
@@ -702,7 +705,7 @@ uv run python scripts/run_full_experiment.py gen.json scoring.json --samples-per
 ### Verify Generations
 
 Before running scoring, check that generations look right:
-1. Open `out/gen_*.json`
+1. Open `out/<method>/gen_*.json`
 2. Check `continuation_text` fields
 3. Verify branches diverge as expected
 

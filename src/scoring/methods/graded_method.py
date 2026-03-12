@@ -7,10 +7,11 @@ using a language model as a judge.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar
 
 from src.common.callback_types import LogFn
+from src.common.default_config import JUDGE_MAX_TOKENS
 from src.inference import ModelRunner
 from src.inference.embedding_runner import EmbeddingRunner
 
@@ -19,6 +20,7 @@ from ..scoring_method_registry import (
     register_method,
     score_with_bundling,
 )
+from .logging.scoring_logging_utils import log_parse_failure
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PARAMETERS
@@ -29,7 +31,7 @@ from ..scoring_method_registry import (
 class GradedParams(ScoringMethodParams):
     """Parameters for graded (0-1 scale) judgment scoring."""
 
-    max_tokens: int = 10
+    max_tokens: int = field(default_factory=lambda: JUDGE_MAX_TOKENS)
 
     # Registry metadata
     name: ClassVar[str] = "graded"
@@ -52,13 +54,14 @@ def build_graded_prompt(text: str, question: str) -> str:
     """Build prompt for graded judgment (0-1 scale)."""
     return f"""Read the following text and answer the question with a score between 0.0 and 1.0.
 0.0 means completely no/false, 1.0 means completely yes/true, values in between indicate partial agreement.
+Try to give nuance.
 
 TEXT:
 {text}
 
 QUESTION: {question}
 
-Answer with just a number between 0.0 and 1.0:"""
+Answer with just a number between 0.0000 and 1.0000. Give 4 significant digits of precision."""
 
 
 def parse_graded_response(response: str) -> float | None:
@@ -122,6 +125,8 @@ def score_graded(
             prefilling=runner.skip_thinking_prefix,
         )
         score = parse_graded_response(response)
+        if score is None and log_fn:
+            log_parse_failure("GRADED", question, response, log_fn)
         return score, response
 
     return score_with_bundling(items, score_single, params.label_prefix, log_fn)

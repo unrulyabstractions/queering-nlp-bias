@@ -31,12 +31,25 @@ This creates natural comparison groups: we can compare how stories about boys vs
 
 ## Generation Methods
 
+All generation methods are available through the unified `generate_trajectories.py` script:
+
+```bash
+# Simple sampling (default)
+python scripts/generate_trajectories.py trials/generation/example.json
+
+# Forking paths
+python scripts/generate_trajectories.py trials/generation/example.json --method forking-paths
+
+# Entropy seeking
+python scripts/generate_trajectories.py trials/generation/example.json --method seeking-entropy
+```
+
 ### 1. Simple Sampling
 
 Sample trajectories using temperature-scaled multinomial sampling.
 
 ```bash
-python scripts/generate_by_simple_sampling.py trials/generation/example.json \
+python scripts/generate_trajectories.py trials/generation/example.json \
     --samples-per-arm 10
 ```
 
@@ -56,7 +69,7 @@ python scripts/generate_by_simple_sampling.py trials/generation/example.json \
 Systematically explore one-step deviations from the greedy path.
 
 ```bash
-python scripts/generate_by_forking_paths.py trials/generation/example.json \
+python scripts/generate_trajectories.py trials/generation/example.json --method forking-paths \
     --max-alternates-per-position 5 \
     --min-prob-for-alternate 0.01 \
     --min-entropy-to-fork 1.0 \
@@ -83,7 +96,7 @@ python scripts/generate_by_forking_paths.py trials/generation/example.json \
 Expand the tree at high-uncertainty positions.
 
 ```bash
-python scripts/generate_by_seeking_entropy.py trials/generation/example.json \
+python scripts/generate_trajectories.py trials/generation/example.json --method seeking-entropy \
     --samples-per-expansion 3 \
     --num-expansion-rounds 4
 ```
@@ -103,7 +116,7 @@ python scripts/generate_by_seeking_entropy.py trials/generation/example.json \
 
 ## Output Format
 
-Generation outputs are saved to `out/gen_<method>_<config>.json`:
+Generation outputs are saved to `out/<method>/gen_<config>.json`:
 
 ```json
 {

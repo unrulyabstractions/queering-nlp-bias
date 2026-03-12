@@ -12,16 +12,19 @@ from pathlib import Path
 from typing import Any
 
 from src.common.logging import HEADER_WIDTH, log, log_params, log_section
-from src.common.seed import set_seed
+from src.common.random_seed import set_seed
+from src.common.experiment_types import OutputPaths
 from src.generation import (
     GenerationConfig,
-    OutputPaths,
+    GenerationOutput,
+    run_generation_pipeline,
 )
 from src.generation.generation_config import MethodParamsOverride
 from src.generation.generation_method_registry import (
     get_params_class,
     list_methods,
 )
+from src.generation.methods.logging import log_tree_trajectories
 from src.inference import ModelRunner
 
 
@@ -176,19 +179,99 @@ def load_model(config: GenerationConfig) -> ModelRunner:
     return runner
 
 
-def log_prompt_header(prompt: str, trunk: str, branches: list[str]) -> None:
+def log_prompt_header(
+    prompt: str,
+    trunk: str,
+    branches: list[str],
+    twig_variations: list[str] | None = None,
+) -> None:
     """Log the prompt and structure at the start of generation.
 
     Args:
         prompt: The user prompt
-        trunk: The trunk/shared prefix text
+        trunk: The trunk text
         branches: List of branch continuation texts (e.g., [" boy", " cat"])
+        twig_variations: Optional list of twig variation texts
     """
     log_section("Generation Setup")
     log("  Prompt:")
     for line in prompt.split("\n"):
         log(f"    {line}")
-    log(f'\n  Trunk (shared prefix): "{trunk}"')
+    log(f'\n  Trunk: "{trunk}"')
     if branches:
         log(f"  Branches ({len(branches)}): {branches}")
-        log(f"  Total groups: {len(branches) + 1} (trunk + {len(branches)} branches)")
+    if twig_variations:
+        log(f"  Twig variations ({len(twig_variations)}): {twig_variations}")
+
+    # Count arms: root + trunk + branches + (branches * twig_variations)
+    n_branches = len(branches)
+    n_twigs = n_branches * len(twig_variations) if twig_variations else 0
+    total_arms = 2 + n_branches + n_twigs  # root + trunk + branches + twigs
+
+    parts = ["root", "trunk"]
+    if n_branches:
+        parts.append(f"{n_branches} branches")
+    if n_twigs:
+        parts.append(f"{n_twigs} twigs")
+    log(f"  Total arms: {total_arms} ({', '.join(parts)})")
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Generation Pipeline Runner
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def run_generation_script(
+    config: GenerationConfig,
+    config_path: Path,
+    method: str,
+    section_title: str,
+) -> GenerationOutput:
+    """Run a complete generation script pipeline.
+
+    This shared function handles the common pattern used by all generate_by_*.py
+    scripts:
+        1. Load model
+        2. Log section header and parameters
+        3. Log prompt structure
+        4. Run generation pipeline
+        5. Log trajectory details
+        6. Save output and summary files
+        7. Display generation summary
+
+    Args:
+        config: The generation configuration
+        config_path: Path to the config file (used for output paths)
+        method: The generation method name (e.g., "simple-sampling")
+        section_title: Title for the log section (e.g., "Simple Sampling")
+
+    Returns:
+        The GenerationOutput from the pipeline
+    """
+    runner = load_model(config)
+
+    log_section(section_title)
+    config.get_params(method).print()
+
+    log_prompt_header(config.prompt, config.trunk, config.branches, config.twig_variations)
+
+    # Run generation pipeline with logging
+    result = run_generation_pipeline(runner, config, method=method, log_fn=log)
+
+    # Log trajectory details
+    log_tree_trajectories(result.result, runner)
+
+    # Save outputs (and copy original config)
+    n_trajs = len(result.result.trajectories)
+    output_path = GenerationOutput.compute_output_path(config_path, method=method)
+    result.output.save(output_path, config_path=config_path)
+    log(f"\nSaved {n_trajs} trajectories to {output_path}")
+
+    summary_path = GenerationOutput.compute_summary_path(config_path, method=method)
+    result.output.save_summary(summary_path)
+    log(f"Saved summary to {summary_path}")
+
+    # Show summary
+    result.output.summarize()
+
+    return result.output

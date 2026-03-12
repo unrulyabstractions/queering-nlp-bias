@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 from typing import Callable, TypeVar, Union, overload
 
-from .timer import P
+from .profiling_timer import P
 from ..device_utils import log_memory
 from src.common.logging import log
 

@@ -1,8 +1,5 @@
 # Common Utilities
 
-> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
-
-
 This package provides shared infrastructure used throughout the codebase.
 
 ## Core Abstractions
@@ -12,19 +9,19 @@ This package provides shared infrastructure used throughout the codebase.
 The foundation for all structured data. Every dataclass that crosses module boundaries or gets serialized should inherit from `BaseSchema`.
 
 **Key features:**
-- **Deterministic IDs**: `get_id()` returns a Blake2b hash of the object's contents, ensuring identical objects produce identical IDs regardless of when/where they're created
+- **Deterministic IDs**: `get_id()` returns a Blake2b hash of the object's contents, ensuring identical objects produce identical IDs
 - **Serialization**: `to_dict()` and `from_dict()` handle nested dataclasses, enums, and special float values (NaN, Inf)
 - **Canonical rounding**: Floats are rounded to 8 decimal places using ROUND_HALF_EVEN for reproducibility
-- **Type conversion**: `from_dict()` automatically converts nested structures to their proper types
+- **JSON support**: `to_string()` for readable output, `from_json()` for loading from files
+- **Hook system**: `_to_dict_hook()` allows subclasses to customize serialization (e.g., prob expansion in BranchingNode)
 
 ```python
 @dataclass
 class Experiment(BaseSchema):
     name: str
     params: list[float]
-    config: NestedConfig  # Also a BaseSchema
 
-# Deterministic ID for deduplication/caching
+# Deterministic ID for deduplication
 exp.get_id()  # "a1b2c3d4..."
 
 # Round-trip serialization
@@ -35,7 +32,7 @@ assert exp.get_id() == restored.get_id()
 
 ### ParamsSchema
 
-Extends BaseSchema for parameter objects, adding CLI-style display:
+Extends BaseSchema for parameter objects, adding CLI-style display. Subclasses define `_cli_args` to map field names to CLI argument names:
 
 ```python
 @dataclass
@@ -57,19 +54,19 @@ params.print()
 
 ### Callback Types
 
-Standardized function signatures for cross-cutting concerns:
+Standardized function signatures for logging and progress:
 
 ```python
 LogFn = Callable[[str], None]
 # Used for logging throughout pipelines
 
 ProgressFn = Callable[[str, int, int], None]
-# (task_name, current, total) for progress bars
+# (task_name, current, total) for progress tracking
 ```
 
 ## Auto-Export System
 
-The `auto_export` function eliminates boilerplate in `__init__.py` files:
+The `auto_export` function eliminates boilerplate in `__init__.py` files. One-liner setup:
 
 ```python
 # In any package's __init__.py:
@@ -77,21 +74,22 @@ from src.common.auto_export import auto_export
 __all__ = auto_export(__file__, __name__, globals())
 ```
 
-This automatically:
+**What it does:**
 1. Imports all `.py` modules in the directory
 2. Imports all subpackages (directories with `__init__.py`)
-3. Re-exports public names from modules
+3. Re-exports public names (not starting with `_`) from modules
 4. Makes subpackages available as attributes
 
-**What gets exported:**
-- All public names (not starting with `_`) from `.py` files
-- All subpackages
-- Excludes: stdlib modules, third-party libs (numpy, torch, etc.), typing imports
+**What gets excluded from exports:**
+- Stdlib modules (sys, os, json, etc.)
+- Third-party packages (numpy, torch, pandas, etc.)
+- Typing constructs (Any, Callable, etc.)
+- Dataclass helpers (field, asdict, etc.)
 
 **Import patterns enabled:**
 ```python
 # Flat imports (most common)
-from src.common import BaseSchema, TokenTree
+from src.common import BaseSchema, TokenTree, ParamsSchema
 
 # Subpackage imports
 from src.common import math
@@ -105,57 +103,168 @@ from src.common.base_schema import BaseSchema
 
 ### TokenTree
 
-Represents multiple token trajectories organized into a tree structure:
-- Stores trajectories with group membership (e.g., "boy" vs "girl" continuations)
-- Detects divergence points (branching nodes) where trajectories split
-- Creates binary forks for pairwise comparison between groups
+Represents multiple token trajectories organized into a tree:
+- **Trajectories**: `trajs` - list of TokenTrajectory objects with group membership
+- **Nodes**: `nodes` - BranchingNode objects at divergence points
+- **Forks**: `forks` - BinaryFork objects for pairwise group comparisons
+- **Metadata**: `trunk_length`, `prompt_length`, `trunk_text`, `fork_arms`
+
+**Key methods:**
+- `from_trajectories()` - build tree from trajectories with group assignments
+- `add_trajectory()` - add a trajectory, recalculate nodes/forks
+- `add_fork_between_groups()` - add a fork relationship
+- `get_logits_at_node()` - retrieve logits from first trajectory at node
+- `pop_heavy()` - clear full_logits and vocab_logits for serialization
+- `decode_texts()` - decode trunk and continuation text
 
 ### TokenTrajectory
 
-A single token sequence with log-probabilities:
-- `token_ids`: list of token IDs
-- `logprobs`: log-probability of each token given context
-- Properties: `predictions` (next-token IDs), `prob(pos)` (probability at position)
+A single token sequence with log-probabilities and metadata:
+
+**Core fields:**
+- `token_ids`: list of token IDs in the sequence
+- `logprobs`: log-probability of each token
+- `logits`: logit (max logit) for each token
+- `full_logits`: full vocabulary logits (torch.Tensor, cleared before serialization)
+
+**Text fields:**
+- `prefill_text`: trunk/branch/twig text prepended before generation
+- `generated_text`: text the model generated
+- Properties: `continuation_text` (prefill + generated), `continuation_text_no_thinking` (strips `<think>...</think>`)
+
+**Metadata:**
+- `arm_token_lengths`: token count (prompt + prefill) for each arm
+- `arm_text_lengths`: character count for each arm's prefill
+- `arm_index`: which groups this trajectory belongs to
+- `nodes_idx`: indices of BranchingNodes this trajectory passes through
+- `traj_idx`: index in parent tree
+
+**Text extraction:**
+- `text_after_arm(arm_idx)` - get continuation text after a specific arm's prefill
+- `get_conditional_prob(start, end)` - probability of substring
 
 ### BranchingNode
 
-Where trajectories diverge:
-- `position`: index in the sequence where divergence occurs
-- `next_token_ids`: the different tokens that follow
-- `next_token_logprobs`: their log-probabilities
+A divergence point where trajectories split:
+
+**Core fields:**
+- `next_token_ids`: tuple of token IDs chosen at this divergence
+- `next_token_logprobs`: tuple of log-probabilities for each token
+- `branching_token_position`: position in sequence where divergence occurs
+
+**Data:**
+- `traj_idx`: indices of trajectories passing through this node
+- `vocab_logits`: full logits from each trajectory at this position (optional)
+- `forks_idx`: indices of BinaryForks created from this node
+- `node_idx`: index in parent tree
+
+**Serialization:**
+- Implements `_to_dict_hook()` to summarize `vocab_logits` as `"[N items]"` instead of full arrays
 
 ### BinaryFork
 
 Pairwise comparison between two branches:
-- `tokens`: (token_a, token_b)
-- `logprobs`: (logprob_a, logprob_b)
-- `groups`: (group_a, group_b)
+
+**Core fields:**
+- `next_token_ids`: tuple of (token_a, token_b)
+- `next_token_logprobs`: tuple of (logprob_a, logprob_b)
+- `arm_index`: tuple of (group_a, group_b) for the two branches
+- `fork_idx`: index in parent tree
+
+## Experiment Types
+
+### GenerationArm
+
+Configuration for one arm of the generation tree:
+- `name`: arm identifier (e.g., "prompt", "trunk", "branch_boy", "branch_girl")
+- `prefill`: text to prepend before generation
+- `parent_idx`: index of parent arm (for AfterBranch text selection)
+
+### ArmGenerationResult
+
+Result from generating trajectories across all branches:
+- `trajectories`: list of GeneratedTrajectory objects
+- `arm_indices`: arm index for each trajectory
+- `arm_token_lengths`: token count (prompt + prefill) for each arm
+- `arms`: full GenerationArm objects with prefills
+
+**Properties:**
+- `prompt_length`: length of just the prompt (root arm)
+- `trunk_length`: length of prompt + trunk
+- `arm_names`: arm names in index order
+
+### OutputPaths
+
+Container for output paths throughout the experiment pipeline:
+- `generation`: generation output directory
+- `judgment`: scoring/judgment output directory
+- `estimation`: estimation results directory
 
 ## Utility Modules
 
-### log_utils.py
+### device_utils.py
 
-Structured logging with consistent formatting:
-- `log_header()`, `log_major()`, `log_stage()` - Section headers
-- `log_table_header()` - Formatted table columns
-- `log_kv()` - Key-value pairs
-- `log_wrapped()` - Word-wrapped text
+GPU/CPU/MPS detection and memory management:
+- `get_device()` - return best available device (cuda, mps, or cpu)
+- `get_memory_usage()` - dict with cuda/mps/ram memory stats
+- `log_memory()` - print and track memory at a stage
+- `check_memory_trend()` - detect memory leaks
+- `clear_gpu_memory()` - empty GPU caches
 
 ### file_io.py
 
-JSON loading with comment stripping (allows `//` comments in config files).
+JSON utilities with robustness to formatting:
+- `save_json()` - pretty-print JSON (converts multiline text to arrays)
+- `load_json()` - load JSON (restores multiline text, tolerates trailing commas)
+- `parse_file_path()` - flexible path parsing (simple name, filename, or full path)
+- `ensure_dir()` - create directory if needed
+- `get_timestamp()` - current timestamp string
 
-### device_utils.py
+### schema_utils.py
 
-GPU/CPU/MPS detection and memory management.
+Safe float conversion for JSON round-trip:
+- `safe_float()` - convert value to float, handling "Inf", "-Inf", "NaN" strings
 
-### seed.py
+### random_seed.py
 
-Reproducibility via `set_seed()`.
+Reproducibility:
+- `set_seed(seed)` - initialize random, numpy, and torch seeds
+
+### default_config.py
+
+Single source of truth for all default parameter values:
+- **Generation**: TEMPERATURE, MAX_NEW_TOKENS, SAMPLING_SAMPLES_PER_ARM, FORKING_* params, ENTROPY_* params
+- **Scoring**: JUDGE_MAX_TOKENS, STRING_SELECTION
+- **Embedding**: EMBEDDING_MODEL
+- **Estimation**: DEFAULT_STATISTIC, DEFAULT_WEIGHTING_METHOD
+
+### viz_utils.py
+
+Text formatting and visualization for console output:
+
+**Text utilities:**
+- `escape_newlines()` - convert newlines to `\\n`
+- `truncate()` - truncate to max_len with suffix
+- `preview()` - escape newlines and truncate
+- `wrap_text()` - word-wrap to width
+
+**Float utilities:**
+- `sanitize_float()` - replace inf/nan with finite values
+- `sanitize_floats()` - apply to list
+
+**Statistics:**
+- `compute_stats()` - min, max, mean, std, count
+- `compute_percentiles()` - compute percentiles of list
+
+**Visualization:**
+- `format_histogram_vertical()` - vertical histogram with Unicode bars
+- `format_sequence_plot()` - horizontal sequence plot (values over positions) using Unicode blocks
+- `print_lines()` - print list of lines with optional log function
 
 ## Design Principles
 
-1. **No nested dicts**: Use `BaseSchema` subclasses instead of `dict[str, dict[...]]`
-2. **Auto-export everything**: No manual `__all__` lists in `__init__.py`
-3. **Imports at top**: No inline imports except for circular dependency resolution
-4. **Unique filenames**: No two `.py` files share a name across the repo
+1. **All dataclasses inherit from BaseSchema**: Ensures serialization, deterministic IDs, and round-trip safety
+2. **Auto-export everything**: No manual `__all__` lists; auto_export handles it
+3. **All imports at top**: No inline imports except circular dependency resolution
+4. **No nested dicts**: Use BaseSchema subclasses instead of `dict[str, dict[...]]`
+5. **Unique filenames**: No two `.py` files share a name across the repo

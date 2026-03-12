@@ -31,60 +31,152 @@ class EstimationArmResult(BaseSchema):
     # e.g., {"prob": {...}, "inv-ppl": {...}}
     estimates: dict[str, dict[str, Any]] = field(default_factory=dict)
 
+    def _get_estimate_or_raise(self, method: str) -> dict[str, Any]:
+        """Get estimate dict for method, raising KeyError if not found."""
+        if method not in self.estimates:
+            raise KeyError(
+                f"Weighting method '{method}' not found in arm '{self.name}'. "
+                f"Available methods: {list(self.estimates.keys())}"
+            )
+        return self.estimates[method]
+
     def get_core(self, method: str = "prob") -> list[float]:
-        """Get core for a weighting method."""
-        est = self.estimates.get(method, {})
-        return est.get("core", [])
+        """Get core for a weighting method.
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
+        core = est.get("core")
+        if core is None:
+            raise KeyError(f"Missing 'core' in estimate for method '{method}'")
+        return core
 
     def get_deviance_avg(self, method: str = "prob") -> float:
-        """Get E[d|B] for a weighting method."""
-        est = self.estimates.get(method, {})
+        """Get E[d|B] for a weighting method.
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
         return safe_float(est.get("deviance_avg"), 0.0)
 
     def get_deviance_avg_trunk(self, method: str = "prob") -> float:
-        """Get E[d|T] for a weighting method."""
-        est = self.estimates.get(method, {})
+        """Get E[∂|trunk] for a weighting method.
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
         return safe_float(est.get("deviance_avg_trunk"), 0.0)
 
-    def get_deviance_delta(self, method: str = "prob") -> float:
-        """Get E[Δd] for a weighting method."""
-        est = self.estimates.get(method, {})
-        return safe_float(est.get("deviance_delta"), 0.0)
+    def get_deviance_avg_root(self, method: str = "prob") -> float:
+        """Get E[∂|root] for a weighting method.
 
-    def get_orientation_avg(self, method: str = "prob") -> list[float]:
-        """Get E[θ|T] for a weighting method."""
-        est = self.estimates.get(method, {})
-        return est.get("orientation_avg", [])
-
-    def get_orientation_norm(self, method: str = "prob") -> float:
-        """Get ||E[θ]|| for a weighting method."""
-        est = self.estimates.get(method, {})
-        return safe_float(est.get("orientation_norm"), 0.0)
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
+        return safe_float(est.get("deviance_avg_root"), 0.0)
 
     def get_core_variants(self, method: str = "prob") -> list[dict[str, Any]]:
-        """Get core variants for a weighting method."""
-        est = self.estimates.get(method, {})
+        """Get core variants for a weighting method.
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
         return est.get("core_variants", [])
 
     def get_excess_deviance_avg(self, method: str = "prob") -> float:
-        """Get E[∂⁺] for a weighting method."""
-        est = self.estimates.get(method, {})
+        """Get E[∂⁺] for a weighting method.
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
         return safe_float(est.get("excess_deviance_avg"), 0.0)
 
     def get_deficit_deviance_avg(self, method: str = "prob") -> float:
-        """Get E[∂⁻] for a weighting method."""
-        est = self.estimates.get(method, {})
+        """Get E[∂⁻] for a weighting method.
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
         return safe_float(est.get("deficit_deviance_avg"), 0.0)
 
     def get_mutual_deviance_avg(self, method: str = "prob") -> float:
-        """Get E[∂_M] for a weighting method."""
-        est = self.estimates.get(method, {})
+        """Get E[∂_M] for a weighting method.
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
         return safe_float(est.get("mutual_deviance_avg"), 0.0)
 
     def get_core_diversity(self, method: str = "prob") -> float:
-        """Get core diversity (Hill D_1) for a weighting method."""
-        est = self.estimates.get(method, {})
+        """Get core diversity (Hill D_1) for a weighting method.
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
         return safe_float(est.get("core_diversity"), 0.0)
+
+    def get_orientation_from_root(self, method: str = "prob") -> list[float]:
+        """Get orientation vector relative to root core.
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
+        return est.get("orientation_from_root", [])
+
+    def get_orientation_norm_from_root(self, method: str = "prob") -> float:
+        """Get orientation norm (magnitude) relative to root core.
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
+        return safe_float(est.get("orientation_norm_from_root"), 0.0)
+
+    def get_orientation_from_trunk(self, method: str = "prob") -> list[float]:
+        """Get orientation vector relative to trunk core.
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
+        return est.get("orientation_from_trunk", [])
+
+    def get_orientation_norm_from_trunk(self, method: str = "prob") -> float:
+        """Get orientation norm (magnitude) relative to trunk core.
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
+        return safe_float(est.get("orientation_norm_from_trunk"), 0.0)
+
+    def get_orientation_from_parent(self, method: str = "prob") -> list[float]:
+        """Get orientation vector relative to parent branch core (for twigs).
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
+        return est.get("orientation_from_parent", [])
+
+    def get_orientation_norm_from_parent(self, method: str = "prob") -> float:
+        """Get orientation norm relative to parent branch core (for twigs).
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
+        return safe_float(est.get("orientation_norm_from_parent"), 0.0)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], index: int = 0) -> EstimationArmResult:

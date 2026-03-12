@@ -160,11 +160,11 @@ Control which portion of the trajectory is scored:
 
 ## Output Format
 
-Scoring outputs are saved to `out/score_<method>_<gen>_<scoring>.json`:
+Scoring outputs are saved to `out/<method>/score_<gen>_<scoring>.json`:
 
 ```json
 {
-  "generation_file": "out/gen_sampling_example.json",
+  "generation_file": "out/simple-sampling/gen_example.json",
   "judge_model": "Qwen/Qwen3-4B-Instruct-2507",
   "categorical_judgements": [
     ["Does this story talk about a person?", "Does this story talk about a boy?"],

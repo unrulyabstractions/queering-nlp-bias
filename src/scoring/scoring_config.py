@@ -15,6 +15,11 @@ from pathlib import Path
 from typing import Any
 
 from src.common.base_schema import BaseSchema
+from src.common.default_config import (
+    EMBEDDING_MODEL,
+    JUDGE_MAX_TOKENS,
+    STRING_SELECTION,
+)
 
 from .scoring_method_registry import (
     ScoringMethodParams,
@@ -32,12 +37,15 @@ class StringSelection(Enum):
         WholeContinuation: Just the generated response/continuation (default)
         AfterTrunk: Text after the trunk tokens (continuation minus trunk)
         AfterBranch: Text after the branch point (continuation minus trunk and branch)
+        AfterTwig: Text after the twig point (continuation minus trunk, branch, and twig)
     """
 
     WholeTrajectory = "WholeTrajectory"
     WholeContinuation = "WholeContinuation"
+    NonThinkingContinuation = "NonThinkingContinuation"
     AfterTrunk = "AfterTrunk"
     AfterBranch = "AfterBranch"
+    AfterTwig = "AfterTwig"
 
 
 @dataclass
@@ -75,13 +83,15 @@ class ScoringConfig(BaseSchema):
     model: str = ""
 
     # Embedding model for similarity-based methods
-    embedding_model: str = "all-MiniLM-L6-v2"
+    embedding_model: str = field(default_factory=lambda: EMBEDDING_MODEL)
 
     # Text selection for scoring
-    string_selection: StringSelection = StringSelection.WholeContinuation
+    string_selection: StringSelection = field(
+        default_factory=lambda: StringSelection(STRING_SELECTION)
+    )
 
     # Generic max_tokens for LLM methods
-    max_tokens: int = 10
+    max_tokens: int = field(default_factory=lambda: JUDGE_MAX_TOKENS)
 
     # Method-specific parameter overrides
     method_params: dict[str, MethodParamsOverride] = field(default_factory=dict)
@@ -112,11 +122,11 @@ class ScoringConfig(BaseSchema):
         """Create config from dict, moving method data to scoring_data."""
         # Extract known fields
         model = data.get("model", "")
-        embedding_model = data.get("embedding_model", "all-MiniLM-L6-v2")
-        string_selection = data.get("string_selection", "WholeContinuation")
+        embedding_model = data.get("embedding_model", EMBEDDING_MODEL)
+        string_selection = data.get("string_selection", STRING_SELECTION)
         if isinstance(string_selection, str):
             string_selection = StringSelection(string_selection)
-        max_tokens = data.get("max_tokens", 10)
+        max_tokens = data.get("max_tokens", JUDGE_MAX_TOKENS)
         method_params_raw = data.get("method_params", {})
 
         # Convert method_params

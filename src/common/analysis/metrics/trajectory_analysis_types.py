@@ -22,7 +22,7 @@ from ...math import (
     worst_token_rank,
 )
 from ...token_trajectory import TokenTrajectory
-from ..base import DistributionalAnalysis
+from ..distributional_analysis_base import DistributionalAnalysis
 
 
 @dataclass

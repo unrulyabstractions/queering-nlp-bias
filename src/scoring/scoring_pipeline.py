@@ -15,10 +15,9 @@ from src.inference import ModelRunner
 from src.inference.embedding_runner import EmbeddingRunner
 
 from .scoring_config import ScoringConfig, StringSelection
-from .scoring_method_registry import get_method, get_params_class, iter_methods
 from .scoring_data import TrajectoryData
+from .scoring_method_registry import get_method, get_params_class
 from .scoring_output import ScoringOutput, ScoringResult
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TEXT PROCESSING
@@ -30,20 +29,24 @@ def get_text_for_scoring(
     config: ScoringConfig,
     eos_token: str | None = None,
 ) -> str:
-    """Get the text to score based on string_selection config."""
+    """Get the text to score based on string_selection config.
+
+    Uses precomputed text fields from TrajectoryData - no parsing.
+    """
     selection = config.string_selection
 
-    if selection == StringSelection.WholeTrajectory:
-        text = traj.full_text
-    elif (
-        selection == StringSelection.WholeContinuation
-        or selection == StringSelection.AfterTrunk
-    ):
-        text = traj.response
+    if selection == StringSelection.WholeContinuation:
+        text = traj.continuation_text
+    elif selection == StringSelection.NonThinkingContinuation:
+        text = traj.continuation_text_no_thinking
+    elif selection == StringSelection.AfterTrunk:
+        text = traj.text_after_trunk
     elif selection == StringSelection.AfterBranch:
-        text = traj.response_after_branch
+        text = traj.text_after_branch
+    elif selection == StringSelection.AfterTwig:
+        text = traj.text_after_twig
     else:
-        text = traj.response
+        text = traj.continuation_text_no_thinking
 
     markers = [eos_token] if eos_token else None
     return strip_eos_tokens(text, markers)
@@ -103,7 +106,9 @@ def score_trajectory(
         if params_class.requires_runner and runner is None:
             raise ValueError(f"{method_name} requires a model runner but none provided")
         if params_class.requires_embedder and embedder is None:
-            raise ValueError(f"{method_name} requires an embedding runner but none provided")
+            raise ValueError(
+                f"{method_name} requires an embedding runner but none provided"
+            )
 
         # Run the scoring function
         scores, raw_responses = score_fn(text, items, params, runner, embedder, log_fn)
@@ -132,11 +137,10 @@ ScoringProgressFn = Callable[[int, int, TrajectoryData], None]
 def run_scoring_pipeline(
     config: ScoringConfig,
     trajectories: list[TrajectoryData],
-    branches: list[str],
+    arm_names: list[str],
     arm_texts: dict[str, str],
     generation_file: str = "",
     scoring_file: str = "",
-    prefix_logprobs: dict[str, Any] | None = None,
     progress_fn: ScoringProgressFn | None = None,
     log_fn: LogFn | None = None,
     eos_token: str | None = None,
@@ -163,11 +167,11 @@ def run_scoring_pipeline(
         if progress_fn:
             progress_fn(i, len(trajectories), traj)
 
-        scores = score_trajectory(runner, embedder, config, traj, log_fn=log_fn, eos_token=eos_token)
-
-        results.append(
-            ScoringResult.from_trajectory(traj, scores)
+        scores = score_trajectory(
+            runner, embedder, config, traj, log_fn=log_fn, eos_token=eos_token
         )
+
+        results.append(ScoringResult.from_trajectory(traj, scores))
 
     # Create output
     output = ScoringOutput.create(
@@ -175,9 +179,8 @@ def run_scoring_pipeline(
         scoring_file=scoring_file,
         scoring_config=config,
         results=results,
-        branches=branches,
+        arm_names=arm_names,
         arm_texts=arm_texts,
-        prefix_logprobs=prefix_logprobs,
     )
 
     return ScoringPipelineResult(results=results, output=output)

@@ -162,7 +162,7 @@ This reveals how branching affects the normative pattern.
 
 ## Output Format
 
-Estimation outputs are saved to `out/est_<method>_<gen>_<scoring>.json`:
+Estimation outputs are saved to `out/<method>/est_<gen>_<scoring>.json`:
 
 ```json
 {

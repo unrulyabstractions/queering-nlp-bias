@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ...base_schema import BaseSchema
-from ..base import DistributionalAnalysis
+from ..distributional_analysis_base import DistributionalAnalysis
 
 
 @dataclass

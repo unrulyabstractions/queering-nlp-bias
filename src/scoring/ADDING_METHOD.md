@@ -1,8 +1,5 @@
 # Adding a New Scoring Method
 
-> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
-
-
 Adding a new scoring method requires **ONE FILE** - no changes to config, pipeline, or output needed.
 
 ## Quick Summary
@@ -109,7 +106,7 @@ No other files need modification:
 uv run python -c "from src.scoring import list_methods; print(list_methods())"
 
 # Run with your method
-uv run python scripts/score_trajectories.py trials/scoring/my_config.json out/gen_*.json
+uv run python scripts/score_trajectories.py trials/scoring/my_config.json out/<method>/gen_*.json
 ```
 
 ## Key Points

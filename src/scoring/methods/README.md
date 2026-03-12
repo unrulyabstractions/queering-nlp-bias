@@ -1,46 +1,64 @@
 # Scoring Methods
 
-> **Note**: This documentation was LLM-generated. If something seems wrong or contradicts the code, please report bugs.
+Pluggable scoring methods for trajectories. All methods are automatically registered and discovered by the pipeline.
 
-Implementation of trajectory scoring methods.
+## Available Methods
 
-## Contents
+### Categorical (`categorical_method.py`)
+- **Type**: LLM-based, binary judgment
+- **Output**: 0 or 1
+- **Config key**: `categorical_judgements`
+- **Label prefix**: `c` (c1, c2, c3, ...)
+- **Requirements**: Model runner
+- **Scoring**: Prompts the judge model with yes/no questions
 
-- `categorical_method.py` - Binary yes/no judgments using LLM
-- `graded_method.py` - Continuous 0-1 scale judgments using LLM
-- `similarity_method.py` - Embedding-based cosine similarity
-- `logging/` - Method-specific logging utilities
+### Graded (`graded_method.py`)
+- **Type**: LLM-based, continuous scale
+- **Output**: Float 0.0-1.0
+- **Config key**: `graded_judgements`
+- **Label prefix**: `g` (g1, g2, g3, ...)
+- **Requirements**: Model runner
+- **Scoring**: Prompts the judge model for nuanced 0.0-1.0 scale judgments
 
-## Method Overview
+### Similarity (`similarity_method.py`)
+- **Type**: Embedding-based, no LLM
+- **Output**: Float 0.0-1.0 (cosine similarity)
+- **Config key**: `similarity_scoring`
+- **Label prefix**: `s` (s1, s2, s3, ...)
+- **Requirements**: Embedding model
+- **Scoring**: Computes cosine similarity between text embedding and reference embeddings
 
-### Categorical
+### Count Occurrences (`count_occurrences_method.py`)
+- **Type**: Lexical, no LLM
+- **Output**: Float (ratio)
+- **Config key**: `count_occurrences`
+- **Label prefix**: `o` (o1, o2, o3, ...)
+- **Requirements**: None
+- **Scoring**: Returns (# occurrences) / (# total words) for each target word/phrase
 
-Ask the judge model to answer 0 (no) or 1 (yes):
+## Method Registry
 
-```
-Read the following text and answer the question with 0 (no) or 1 (yes).
+All methods are auto-discovered. To add a new method:
 
-TEXT: {trajectory_text}
+1. Create a file named `my_method_name.py`
+2. Define a params dataclass inheriting from `ScoringMethodParams`:
+   ```python
+   @dataclass
+   class MyParams(ScoringMethodParams):
+       name: ClassVar[str] = "my-method"
+       config_key: ClassVar[str] = "my_method_config"
+       label_prefix: ClassVar[str] = "m"
+       requires_runner: ClassVar[bool] = False
+       requires_embedder: ClassVar[bool] = False
+   ```
+3. Define a scoring function and decorate with `@register_method(MyParams)`:
+   ```python
+   @register_method(MyParams)
+   def score_my_method(text, items, params, runner=None, embedder=None, log_fn=None):
+       # items = list[str | list[str]] from config[config_key]
+       # Return: (scores, raw_responses) tuple
+       ...
+   ```
+4. No other changes needed — the method is automatically discovered and integrated into the pipeline
 
-QUESTION: Does this text mention a person?
-
-Answer with just 0 or 1:
-```
-
-### Graded
-
-Ask the judge model to score on a 0.0 to 1.0 scale:
-
-```
-Read the following text and answer the question with a score between 0.0 and 1.0.
-
-TEXT: {trajectory_text}
-
-QUESTION: How masculine is the protagonist?
-
-Answer with just a number between 0.0 and 1.0:
-```
-
-### Similarity
-
-Compute cosine similarity between trajectory embedding and reference word embeddings.
+**Shared utilities**: Use `score_with_bundling()` from `scoring_method_registry` to handle bundled items and logging consistently.

@@ -33,10 +33,12 @@ from src.inference.generated_trajectory import GeneratedTrajectory
 
 from ..generation_config import GenerationConfig
 from ..generation_method_registry import GenerationMethodParams, register_method
-from ..generation_types import ArmGenerationResult
+from src.common.experiment_types import ArmGenerationResult
+
+from .generation_method_utils import compute_arm_token_lengths
 from .entropy_seeking_types import ExpansionPoint, TreePath
 from .logging.entropy_seeking_logging import (
-    log_arm_header,
+    log_arm_header_entropy,
     log_expansion_round,
     log_expansion_summary,
     log_initialize_tree,
@@ -133,6 +135,7 @@ def initialize_tree(
     runner: ModelRunner,
     prompt_ids: list[int],
     formatted_prompt: str,
+    arm_prefill: str,
     max_new_tokens: int,
     temperature: float,
     samples_per_expansion: int,
@@ -160,10 +163,11 @@ def initialize_tree(
         entropies = compute_entropies(runner, traj.token_ids, prompt_len)
 
         text = runner.decode_ids(traj.token_ids)
-        continuation = text[len(formatted_prompt) :]
+        continuation = text[len(formatted_prompt):]
 
-        # Set continuation_text immediately - we know the exact prefix length here
-        traj.continuation_text = continuation
+        # Set text fields (pipe, not parse)
+        traj.prefill_text = arm_prefill
+        traj.generated_text = continuation
 
         path = TreePath(
             trajectory=traj.sanitize(),
@@ -189,6 +193,7 @@ def expand_tree(
     next_path_id: int,
     prompt_ids: list[int],
     formatted_prompt: str,
+    arm_prefill: str,
     max_new_tokens: int,
     temperature: float,
     samples_per_expansion: int,
@@ -244,10 +249,11 @@ def expand_tree(
             entropies = compute_entropies(runner, traj.token_ids, prompt_len)
 
             text = runner.decode_ids(traj.token_ids)
-            continuation = text[len(formatted_prompt) :]
+            continuation = text[len(formatted_prompt):]
 
-            # Set continuation_text immediately - we know the exact prefix length here
-            traj.continuation_text = continuation
+            # Set text fields (pipe, not parse)
+            traj.prefill_text = arm_prefill
+            traj.generated_text = continuation
 
             path = TreePath(
                 trajectory=traj.sanitize(),
@@ -284,6 +290,7 @@ def expand_tree(
 def generate_entropy_seeking_for_arm(
     runner: ModelRunner,
     formatted_prompt: str,
+    arm_prefill: str,
     max_new_tokens: int,
     temperature: float,
     samples_per_expansion: int,
@@ -310,6 +317,7 @@ def generate_entropy_seeking_for_arm(
         runner,
         prompt_ids,
         formatted_prompt,
+        arm_prefill,
         max_new_tokens,
         temperature,
         samples_per_expansion,
@@ -322,6 +330,7 @@ def generate_entropy_seeking_for_arm(
         next_path_id,
         prompt_ids,
         formatted_prompt,
+        arm_prefill,
         max_new_tokens,
         temperature,
         samples_per_expansion,
@@ -354,24 +363,26 @@ def generate_entropy_seeking(
         ArmGenerationResult containing all trajectories and metadata
     """
     arms = config.get_arms(runner.skip_thinking_prefix)
-    prompt_length = config.compute_prompt_length(runner)
-    trunk_length = config.compute_trunk_length(runner)
+    arm_token_lengths = compute_arm_token_lengths(runner, config, arms)
+
+    base_formatted_prompt = runner.apply_chat_template(config.prompt)
 
     all_trajectories: list[GeneratedTrajectory] = []
     all_arm_indices: list[int] = []
 
-    for arm in arms:
-        formatted_prompt = runner.apply_chat_template(config.prompt) + arm.prefill
-        arm_name = "trunk" if arm.arm_index == 0 else f"branch_{arm.arm_index}"
+    for arm_idx, arm in enumerate(arms):
+        formatted_prompt = base_formatted_prompt + arm.prefill
+        arm_name = arm.name
 
         if log_fn:
-            log_arm_header(
-                arm_name, config.trunk + (arm.prefill if arm.arm_index > 0 else "")
+            log_arm_header_entropy(
+                arm_name, config.trunk + (arm.prefill if arm_idx > 0 else "")
             )
 
         trajs = generate_entropy_seeking_for_arm(
             runner,
             formatted_prompt,
+            arm.prefill,
             config.max_new_tokens,
             config.temperature,
             params.samples_per_expansion,
@@ -380,11 +391,11 @@ def generate_entropy_seeking(
         )
 
         all_trajectories.extend(trajs)
-        all_arm_indices.extend(arm.arm_index for _ in trajs)
+        all_arm_indices.extend(arm_idx for _ in trajs)
 
     return ArmGenerationResult(
         trajectories=all_trajectories,
         arm_indices=all_arm_indices,
-        trunk_length=trunk_length,
-        prompt_length=prompt_length,
+        arm_token_lengths=arm_token_lengths,
+        arms=arms,
     )

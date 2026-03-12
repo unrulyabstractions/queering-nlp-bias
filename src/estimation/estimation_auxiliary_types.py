@@ -65,7 +65,7 @@ class TrajectoryGrouping(BaseSchema):
 
     traj_idx: int
     arm_idxs: list[int]  # Trajectory can belong to multiple arms (trunk + its branch)
-    continuation_text: str
+    traj_text: str  # Full trajectory text (may include prompt for some arms)
 
 
 @dataclass

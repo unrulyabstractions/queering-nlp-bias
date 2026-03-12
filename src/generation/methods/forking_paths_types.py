@@ -60,17 +60,3 @@ class ForkPoint:
     continuations: list[GeneratedTrajectory]
 
 
-@dataclass
-class PositionAnalysisResult:
-    """Result of analyzing all positions in the greedy path."""
-
-    analyses: list[PositionAnalysis]
-    qualifying_forks: list[QualifyingFork]
-
-
-@dataclass
-class ForkExpansionResult:
-    """Result of expanding fork points into trajectories."""
-
-    trajectories: list[GeneratedTrajectory]
-    fork_points: list[ForkPoint]

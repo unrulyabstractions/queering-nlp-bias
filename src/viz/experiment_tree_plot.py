@@ -18,6 +18,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.path import Path as MplPath
 
+from .viz_plot_utils import STRUCTURE_COLORS, lighten_color
+
 # Suppress matplotlib glyph warnings (emojis, special unicode)
 warnings.filterwarnings("ignore", message="Glyph .* missing from current font")
 
@@ -36,18 +38,6 @@ PALETTE = {
     "greedy_star": "#E6A800",
     "grid": "#EEEEEE",
 }
-
-# Structure colors - vibrant but not harsh
-STRUCTURE_COLORS = [
-    "#4A90D9",  # blue
-    "#E67E22",  # orange
-    "#2ECC71",  # green
-    "#E74C3C",  # red
-    "#9B59B6",  # purple
-    "#1ABC9C",  # teal
-    "#F39C12",  # yellow
-    "#E91E63",  # pink
-]
 
 
 @dataclass
@@ -143,6 +133,19 @@ def load_trajectory_scores(estimation_path: Path) -> dict[int, list[float]]:
     return scores_by_traj
 
 
+def get_traj_continuation_text(traj: dict) -> str:
+    """Get continuation text from trajectory dict.
+
+    Computes from prefill_text + generated_text if continuation_text not stored.
+    """
+    stored = traj.get("continuation_text")
+    if stored:
+        return stored
+    prefill = traj.get("prefill_text") or ""
+    generated = traj.get("generated_text") or ""
+    return prefill + generated
+
+
 def extract_trajectories_from_gen_data(gen_data: dict) -> list[dict]:
     """Extract trajectory list from generation data."""
     # Try tree.trajs first (forking-paths, seeking-entropy)
@@ -151,7 +154,7 @@ def extract_trajectories_from_gen_data(gen_data: dict) -> list[dict]:
         trajs = tree["trajs"]
         return [
             {
-                "text": t.get("continuation_text", ""),
+                "text": get_traj_continuation_text(t),
                 "traj_idx": t.get("traj_idx", i),
                 "probability": 1.0,
                 "log_probability": sum(t.get("logprobs", [0.0])),
@@ -590,18 +593,6 @@ def plot_tree(
     except Exception:
         plt.close()
         return None
-
-
-def lighten_color(hex_color: str, factor: float = 0.5) -> str:
-    """Lighten a hex color by blending with white."""
-    hex_color = hex_color.lstrip("#")
-    r, g, b = int(hex_color[:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
-
-    r = int(r + (255 - r) * factor)
-    g = int(g + (255 - g) * factor)
-    b = int(b + (255 - b) * factor)
-
-    return f"#{r:02x}{g:02x}{b:02x}"
 
 
 def create_tree_plots(

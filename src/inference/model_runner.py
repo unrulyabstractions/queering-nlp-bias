@@ -7,6 +7,7 @@ from typing import Any, Optional
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
+from src.common.default_config import MAX_NEW_TOKENS
 from src.common.device_utils import get_device
 from src.common.logging import log
 from src.common.profiler import profile
@@ -169,7 +170,7 @@ class ModelRunner:
     def generate(
         self,
         prompt: str,
-        max_new_tokens: int = 256,
+        max_new_tokens: int = MAX_NEW_TOKENS,
         temperature: float = 0.0,
         past_kv_cache: Any = None,
         prefilling: str = "",
@@ -215,7 +216,7 @@ class ModelRunner:
     def generate_trajectory(
         self,
         token_ids: list[int],
-        max_new_tokens: int = 256,
+        max_new_tokens: int = MAX_NEW_TOKENS,
         temperature: float = 0.0,
     ) -> GeneratedTrajectory:
         """Generate text autoregressively and return trajectory with logprobs.
@@ -237,7 +238,7 @@ class ModelRunner:
     def generate_trajectory_from_prompt(
         self,
         prompt: str,
-        max_new_tokens: int = 256,
+        max_new_tokens: int = MAX_NEW_TOKENS,
         temperature: float = 0.0,
         prefilling: str = "",
     ) -> GeneratedTrajectory:
@@ -257,11 +258,14 @@ class ModelRunner:
         """
         formatted = self.apply_chat_template(prompt) + prefilling
         token_ids = self.encode_ids(formatted, add_special_tokens=True)
+        prefill_length = len(token_ids)  # Where generated content starts
         traj = self.generate_trajectory(token_ids, max_new_tokens, temperature)
 
-        # Set continuation_text - strip the formatted prefix to get just the continuation
+        # Set text fields
         full_text = self.decode_ids(traj.token_ids)
-        traj.continuation_text = full_text[len(formatted) :]
+        traj.prefill_text = prefilling  # Trunk/branch/twig text
+        traj.generated_text = full_text[len(formatted):]  # Model-generated text
+        traj.prefill_length = prefill_length
 
         return traj
 

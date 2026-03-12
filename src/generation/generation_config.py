@@ -14,9 +14,10 @@ from pathlib import Path
 from typing import Any
 
 from src.common.base_schema import BaseSchema
+from src.common.default_config import MAX_NEW_TOKENS, TEMPERATURE
+from src.common.experiment_types import GenerationArm
 
 from .generation_method_registry import GenerationMethodParams, get_default_params
-from .generation_types import GenerationArm
 
 
 @dataclass
@@ -62,10 +63,11 @@ class GenerationConfig(BaseSchema):
     model: str = ""
     trunk: str = ""
     branches: list[str] = field(default_factory=list)
+    twig_variations: list[str] = field(default_factory=list)
 
     # General generation params
-    temperature: float = 1.0
-    max_new_tokens: int = 128
+    temperature: float = field(default_factory=lambda: TEMPERATURE)
+    max_new_tokens: int = field(default_factory=lambda: MAX_NEW_TOKENS)
     seed: int | None = None
 
     # Method-specific parameter overrides - keyed by method name
@@ -83,63 +85,50 @@ class GenerationConfig(BaseSchema):
     def get_arms(self, skip_prefix: str = "") -> list[GenerationArm]:
         """Get arm configurations for generation.
 
+        Returns list of arms. Position in list IS the arm index.
+        parent_idx points to parent's position for AfterBranch.
+
         Args:
             skip_prefix: Prefix to prepend (e.g., reasoning skip tokens)
 
         Returns:
-            List of GenerationArm objects: trunk first, then each branch
+            List of GenerationArm objects.
         """
-        # Always include trunk as first arm
-        result = [GenerationArm(prefill=skip_prefix + self.trunk, name="trunk", arm_index=0)]
+        result: list[GenerationArm] = []
 
-        # Add explicit branches if defined
-        if self.branches:
-            result.extend(
+        # Root (idx 0) - no parent
+        result.append(GenerationArm(name="root", prefill=skip_prefix))
+
+        # Trunk (idx 1) - parent is root
+        result.append(
+            GenerationArm(name="trunk", prefill=skip_prefix + self.trunk, parent_idx=0)
+        )
+
+        # Branches and twigs
+        trunk_idx = 1
+        for branch_num, branch in enumerate(self.branches, start=1):
+            branch_prefill = skip_prefix + self.trunk + branch
+            branch_idx = len(result)
+
+            # Branches have trunk as parent
+            result.append(
                 GenerationArm(
-                    prefill=skip_prefix + self.trunk + branch,
-                    name=f"branch_{i + 1}",
-                    arm_index=i + 1,
+                    name=f"branch_{branch_num}",
+                    prefill=branch_prefill,
+                    parent_idx=trunk_idx,
                 )
-                for i, branch in enumerate(self.branches)
             )
 
+            for twig_num, twig in enumerate(self.twig_variations, start=1):
+                result.append(
+                    GenerationArm(
+                        name=f"twig_{twig_num}_b{branch_num}",
+                        prefill=branch_prefill + twig,
+                        parent_idx=branch_idx,
+                    )
+                )
+
         return result
-
-    @property
-    def fork_arms(self) -> list[tuple[int, int]]:
-        """Get all pairwise fork arms between branches as (left, right) tuples."""
-        if len(self.branches) < 2:
-            return []
-        return [(i, j) for i in range(len(self.branches)) for j in range(i + 1, len(self.branches))]
-
-    def compute_prompt_length(self, runner) -> int:
-        """Compute the shared prefix length between prompt-only and prompt+trunk.
-
-        Due to BPE tokenization, adding trunk text may change how the prompt is
-        tokenized. This finds the last position where both tokenizations agree,
-        which is where trunk-specific logprobs start.
-        """
-        skip_prefix = runner.skip_thinking_prefix
-        prompt_only = runner.apply_chat_template(self.prompt) + skip_prefix
-        prompt_trunk = prompt_only + self.trunk
-
-        tokens_prompt = runner.encode_ids(prompt_only, add_special_tokens=True)
-        tokens_trunk = runner.encode_ids(prompt_trunk, add_special_tokens=True)
-
-        # Find the divergence point
-        shared_length = 0
-        for i, (t1, t2) in enumerate(zip(tokens_prompt, tokens_trunk)):
-            if t1 != t2:
-                break
-            shared_length = i + 1
-
-        return shared_length
-
-    def compute_trunk_length(self, runner) -> int:
-        """Compute the length of the trunk (prompt + trunk, no branch) in tokens."""
-        skip_prefix = runner.skip_thinking_prefix
-        formatted = runner.apply_chat_template(self.prompt) + skip_prefix + self.trunk
-        return len(runner.encode_ids(formatted, add_special_tokens=True))
 
     def get_params(self, method: str) -> GenerationMethodParams:
         """Get typed params object for a generation method.

@@ -12,7 +12,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import ClassVar
 
-from src.common.math.probability import compute_inv_perplexity_weights
+from src.common.math.probability_utils import compute_inv_perplexity_weights
 
 from ..weighting_method_registry import WeightingMethodParams, register_method
 

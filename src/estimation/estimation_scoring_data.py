@@ -55,32 +55,6 @@ class ScoringMethodConfig(BaseSchema):
 
 
 @dataclass
-class ScoringResultRecord(BaseSchema):
-    """A single trajectory's scoring results - generic storage."""
-
-    trajectory_idx: int
-    branch: str
-    text: str = ""
-    n_continuation_tokens: int = 0
-    conditional_logprobs: dict[str, float] = field(default_factory=dict)
-
-    # Generic storage: method_name -> list of scores
-    method_scores: dict[str, list[Any]] = field(default_factory=dict)
-
-    @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> ScoringResultRecord:
-        """Create from a result dict."""
-        return cls(
-            trajectory_idx=data.get("trajectory_idx", 0),
-            branch=data.get("branch", "trunk"),
-            text=data.get("text", ""),
-            n_continuation_tokens=data.get("n_continuation_tokens", 0),
-            conditional_logprobs=data.get("conditional_logprobs", {}),
-            method_scores=data.get("method_scores", {}),
-        )
-
-
-@dataclass
 class ScoringMetadata(BaseSchema):
     """Metadata from scoring process."""
 
@@ -100,7 +74,7 @@ class ScoringData(BaseSchema):
 
     # Trajectory results
     results: list[dict[str, Any]] = field(default_factory=list)
-    branches: list[str] = field(default_factory=list)
+    arm_names: list[str] = field(default_factory=list)
     arm_texts: dict[str, str] = field(default_factory=dict)
 
     # Metadata
@@ -157,7 +131,7 @@ class ScoringData(BaseSchema):
         instance = cls(
             scoring_data=scoring_data,
             results=data.get("results", []),
-            branches=data.get("branches", []),
+            arm_names=data.get("arm_names", data.get("branches", [])),
             arm_texts=data.get("arm_texts", {}),
             metadata=metadata,
         )
@@ -336,11 +310,11 @@ class ScoringData(BaseSchema):
     def compute_arm_scoring(self) -> list[ArmScoring]:
         """Compute per-structure compliance scores for each arm."""
         structures = self.get_structure_info()
-        arm_names = self.branches if self.branches else ["trunk"]
+        arm_name_list = self.arm_names if self.arm_names else ["trunk"]
         results_by_arm = self._group_results_by_arm()
 
         scoring = []
-        for arm_idx, arm_name in enumerate(arm_names):
+        for arm_idx, arm_name in enumerate(arm_name_list):
             results = results_by_arm.get(arm_name, [])
             if not results:
                 continue
@@ -404,7 +378,7 @@ class ScoringData(BaseSchema):
         method_name = struct.method_name
         struct_idx = struct.struct_idx_in_method
 
-        # Get flat index calculator for this method's items
+        # Get method config for flat index calculation
         method_config = next(
             (m for m in self.get_scoring_methods() if m.method_name == method_name),
             None,
@@ -412,14 +386,12 @@ class ScoringData(BaseSchema):
         if method_config is None:
             return ScoreComputation(aggregate=0.0)
 
-        items = method_config.items
-
         if struct.is_bundled:
             all_values: list[float] = []
             item_scores: dict[str, float] = {}
 
             for q_idx, question in enumerate(struct.questions):
-                flat_idx = self._get_flat_index_for_items(items, struct_idx, q_idx)
+                flat_idx = method_config.get_flat_index(struct_idx, q_idx)
                 values = self._extract_values(results, method_name, flat_idx)
                 if values:
                     avg = sum(values) / len(values)
@@ -429,7 +401,7 @@ class ScoringData(BaseSchema):
             aggregate = sum(all_values) / len(all_values) if all_values else 0.0
             return ScoreComputation(aggregate=aggregate, item_scores=item_scores)
         else:
-            flat_idx = self._get_flat_index_for_items(items, struct_idx, 0)
+            flat_idx = method_config.get_flat_index(struct_idx, 0)
             values = self._extract_values(results, method_name, flat_idx)
             aggregate = sum(values) / len(values) if values else 0.0
             return ScoreComputation(aggregate=aggregate)
@@ -454,23 +426,6 @@ class ScoringData(BaseSchema):
                 values.append(float(val) if val is not None else 0.0)
         return values
 
-    def _get_flat_index_for_items(
-        self, items: list[ScoringItem], struct_idx: int, question_idx: int
-    ) -> int:
-        """Get the flat index into a scores array for a structure/question.
-
-        This is a unified helper that works for any scoring method's items.
-        """
-        flat_idx = 0
-        for i, item in enumerate(items):
-            if i == struct_idx:
-                return flat_idx + question_idx
-            if isinstance(item, list):
-                flat_idx += len(item)
-            else:
-                flat_idx += 1
-        return flat_idx
-
     def group_by_arm(self) -> dict[str, list[TrajectoryScoringData]]:
         """Group results by arm (trunk or branch), returning TrajectoryScoringData objects."""
         grouped: dict[str, list[TrajectoryScoringData]] = {}
@@ -479,6 +434,7 @@ class ScoringData(BaseSchema):
             idx = result["trajectory_idx"]
             compliance = self.get_structure_scores(result)
             conditional_logprobs = result.get("conditional_logprobs", {})
+            text = result.get("text", "")
 
             if branch not in grouped:
                 grouped[branch] = []
@@ -489,10 +445,34 @@ class ScoringData(BaseSchema):
                     structure_scores=compliance,
                     conditional_logprobs=conditional_logprobs,
                     n_continuation_tokens=result.get("n_continuation_tokens", 0),
+                    text=text,
                 )
             )
 
         return grouped
+
+    def get_all_trajectories(self) -> list[TrajectoryScoringData]:
+        """Get all trajectories as typed TrajectoryScoringData objects."""
+        trajectories: list[TrajectoryScoringData] = []
+        for result in self.results:
+            branch = result.get("branch", "trunk")
+            idx = result["trajectory_idx"]
+            compliance = self.get_structure_scores(result)
+            conditional_logprobs = result.get("conditional_logprobs", {})
+            text = result.get("text", "")
+
+            trajectories.append(
+                TrajectoryScoringData(
+                    traj_idx=idx,
+                    branch=branch,
+                    structure_scores=compliance,
+                    conditional_logprobs=conditional_logprobs,
+                    n_continuation_tokens=result.get("n_continuation_tokens", 0),
+                    text=text,
+                )
+            )
+
+        return trajectories
 
     def get_continuations_by_arm(self) -> ContinuationsByArm:
         """Get continuations organized by arm."""

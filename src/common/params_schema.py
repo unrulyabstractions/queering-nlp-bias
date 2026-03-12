@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from abc import ABC
 from dataclasses import dataclass, fields
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from src.common.base_schema import BaseSchema
 from src.common.callback_types import LogFn
@@ -64,6 +64,6 @@ class ParamsSchema(BaseSchema, ABC):
             if value is not None:
                 log_fn(f"    {cli_arg} {value}")
 
-    def get_params_dict(self) -> dict[str, any]:
+    def get_params_dict(self) -> dict[str, Any]:
         """Return parameters as a dictionary."""
         return {f.name: getattr(self, f.name) for f in fields(self)}

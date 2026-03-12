@@ -3,6 +3,13 @@
 This module defines data structures for storing estimation results
 from a single weighting method. ArmEstimate aggregates these across
 all registered weighting methods.
+
+Orientation vectors are pre-computed and stored here:
+- orientation_from_root = arm_core - root_core
+- orientation_from_trunk = arm_core - trunk_core
+- orientation_from_parent = arm_core - parent_branch_core (for twigs only)
+
+Deviance deltas can be computed from deviance_avg - deviance_avg_trunk.
 """
 
 from __future__ import annotations
@@ -18,10 +25,9 @@ from .estimation_core_types import CoreVariant
 class WeightedEstimate(BaseSchema):
     """Estimation results for ONE weighting method.
 
-    Contains all metrics computed using a specific weighting scheme:
+    Contains metrics that require weighted computation:
     - Core: weighted center of compliance vectors
-    - Deviance: spread around core (both this arm's and trunk's)
-    - Orientation: direction from reference (trunk) core
+    - Deviance: spread around cores (requires weights)
     - Core variants: different (q, r) parameterizations
     """
 
@@ -31,33 +37,33 @@ class WeightedEstimate(BaseSchema):
     # Primary core (q=1, r=1)
     core: list[float]
 
-    # Deviance stats relative to THIS arm's core: E[d|branch]
-    deviance_avg: float  # E[d|B]
-    deviance_var: float  # Var[d|B]
+    # Deviance stats relative to THIS arm's core
+    deviance_avg: float  # E[∂|self]
+    deviance_var: float  # Var[∂|self]
 
-    # Deviance stats relative to TRUNK core: E[d|trunk]
-    deviance_avg_trunk: float = 0.0  # E[d|T]
+    # Deviance relative to reference cores (requires weights to compute)
+    deviance_avg_root: float = 0.0  # E[∂|root]
+    deviance_avg_trunk: float = 0.0  # E[∂|trunk]
 
-    # Expected deviance delta: E[Δd] = E[d|branch] - E[d|trunk]
-    deviance_delta: float = 0.0  # E[Δd]
-
-    # Expected orientation relative to TRUNK core: E[θ|trunk]
-    orientation_avg: list[float] = field(default_factory=list)
-
-    # Distance between this arm's core and trunk core: ||E[θ|trunk]||
-    orientation_norm: float = 0.0
-
-    # Excess deviance: E[∂⁺] - how much samples over-comply
-    excess_deviance_avg: float = 0.0
-
-    # Deficit deviance: E[∂⁻] - how much samples under-comply
-    deficit_deviance_avg: float = 0.0
-
-    # Mutual deviance: E[∂_M] - symmetric deviance using JS divergence
-    mutual_deviance_avg: float = 0.0
+    # Directional deviance metrics
+    excess_deviance_avg: float = 0.0  # E[∂⁺] - over-compliance
+    deficit_deviance_avg: float = 0.0  # E[∂⁻] - under-compliance
+    mutual_deviance_avg: float = 0.0  # E[∂_M] - symmetric (JS divergence)
 
     # Core diversity: effective number of structures (Hill number D_1)
     core_diversity: float = 0.0
+
+    # Orientation relative to reference cores (pre-computed)
+    # Orientation = core - reference_core (vector difference)
+    orientation_from_root: list[float] = field(default_factory=list)
+    orientation_norm_from_root: float = 0.0
+
+    orientation_from_trunk: list[float] = field(default_factory=list)
+    orientation_norm_from_trunk: float = 0.0
+
+    # For twigs: orientation relative to parent branch core
+    orientation_from_parent: list[float] = field(default_factory=list)
+    orientation_norm_from_parent: float = 0.0
 
     # All (q, r) variants for this weighting scheme
     core_variants: list[CoreVariant] = field(default_factory=list)
@@ -68,13 +74,3 @@ class WeightedEstimate(BaseSchema):
             if v.name == name:
                 return v
         return None
-
-    @classmethod
-    def empty(cls, method_name: str) -> WeightedEstimate:
-        """Create an empty estimate for the given method."""
-        return cls(
-            method_name=method_name,
-            core=[],
-            deviance_avg=0.0,
-            deviance_var=0.0,
-        )

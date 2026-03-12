@@ -1,7 +1,5 @@
 # Adding a New Generation Method
 
-> **Note**: This documentation was LLM-generated. If something seems wrong or contradicts the code, please report bugs.
-
 This guide walks you through adding a new generation method to the pipeline.
 
 ## Quick Summary
@@ -29,7 +27,7 @@ from src.inference import ModelRunner
 
 from ..generation_config import GenerationConfig
 from ..generation_method_registry import GenerationMethodParams, register_method
-from ..generation_types import ArmGenerationResult
+from src.common.experiment_types import ArmGenerationResult
 
 
 @dataclass
@@ -49,14 +47,15 @@ def generate_my_method(
     log_fn: LogFn | None = None,
 ) -> ArmGenerationResult:
     """Generate trajectories using my algorithm."""
+    from .generation_method_utils import compute_arm_token_lengths
+
     arms = config.get_arms(runner.skip_thinking_prefix)
-    prompt_length = config.compute_prompt_length(runner)
-    trunk_length = config.compute_trunk_length(runner)
+    arm_token_lengths = compute_arm_token_lengths(runner, config, arms)
 
     all_trajectories = []
     all_arm_indices = []
 
-    for arm in arms:
+    for arm_idx, arm in enumerate(arms):
         # Your generation logic here
         traj = runner.generate_trajectory_from_prompt(
             prompt=config.prompt,
@@ -65,13 +64,13 @@ def generate_my_method(
             prefilling=arm.prefill,
         )
         all_trajectories.append(traj)
-        all_arm_indices.append(arm.arm_index)
+        all_arm_indices.append(arm_idx)
 
     return ArmGenerationResult(
         trajectories=all_trajectories,
         arm_indices=all_arm_indices,
-        trunk_length=trunk_length,
-        prompt_length=prompt_length,
+        arms=arms,
+        arm_token_lengths=arm_token_lengths,
     )
 ```
 
@@ -146,7 +145,7 @@ The pipeline accesses params via `config.get_params(method_name)`, which:
 
 ```bash
 # Check it's registered
-uv run python -c "from src.generation import list_output_names; print(list_output_names())"
+uv run python -c "from src.generation import list_methods; print(list_methods())"
 
 # Run with your method
 uv run python scripts/run_full_experiment.py \
@@ -164,8 +163,8 @@ uv run python scripts/run_full_experiment.py \
 class ArmGenerationResult:
     trajectories: list[GeneratedTrajectory]  # All generated trajectories
     arm_indices: list[int]                  # Arm index for each trajectory
-    trunk_length: int                         # Tokens in trunk portion
-    prompt_length: int                        # Tokens in prompt portion
+    arms: list[GenerationArm]               # Arm configuration objects
+    arm_token_lengths: list[int]            # Total tokens (prompt + prefill) per arm
 ```
 
 ### GeneratedTrajectory
@@ -178,14 +177,14 @@ class GeneratedTrajectory:
     entropies: list[float] | None  # Optional: entropy at each position
 ```
 
-### Arm
+### GenerationArm
 
 ```python
 @dataclass
-class Arm:
-    prefill: str     # Text to prefill (trunk + optional branch)
-    name: str        # "trunk" or "branch_N"
-    arm_index: int   # 0 for trunk, N for branch N
+class GenerationArm:
+    prefill: str      # Text to prefill (skip_prefix + trunk + optional branch)
+    name: str         # "root", "trunk", "branch_N", or "twig_*"
+    parent_idx: int   # Index of parent arm
 ```
 
 ## Tips

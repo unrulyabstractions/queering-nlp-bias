@@ -1,10 +1,10 @@
 """Score trajectories with registered scoring methods.
 
 Usage:
-    python scripts/score_trajectories.py trials/scoring/<scoring>.json out/gen_<gen>.json
+    python scripts/score_trajectories.py trials/scoring/<scoring>.json out/<method>/gen_<gen>.json
 
 Outputs:
-    out/score_<gen>_<scoring>.json
+    out/<method>/score_<gen>_<scoring>.json
 """
 
 from __future__ import annotations
@@ -20,10 +20,12 @@ from src.scoring import (
     GenerationOutputData,
     ScoringOutput,
     ScoringConfig,
+    TrajectoryData,
     run_scoring_pipeline,
     get_params_class,
 )
 from src.scoring.methods.logging.scoring_logging_utils import log_trajectory_header
+from src.scoring.scoring_pipeline import get_text_for_scoring
 
 
 def score_trajectories(
@@ -51,8 +53,9 @@ def score_trajectories(
     log_kv("String selection", config.string_selection.value)
 
     # Progress callback for logging
-    def on_progress(current: int, total: int, traj) -> None:
-        log_trajectory_header(traj, current, total, log_section)
+    def on_progress(current: int, total: int, traj: TrajectoryData) -> None:
+        selected_text = get_text_for_scoring(traj, config)
+        log_trajectory_header(traj, current, total, log_section, selected_text)
 
     # Indented log function for scoring details
     def indented_log(msg: str) -> None:
@@ -70,19 +73,18 @@ def score_trajectories(
     pipeline_result = run_scoring_pipeline(
         config=config,
         trajectories=gen_data.trajectories,
-        branches=gen_data.branches,
+        arm_names=gen_data.arm_names,
         arm_texts=gen_data.arm_texts,
         generation_file=str(gen_path),
         scoring_file=str(scoring_path),
-        prefix_logprobs=gen_data.prefix_logprobs,
         progress_fn=on_progress,
         log_fn=indented_log,
     )
 
-    # Save outputs
+    # Save outputs (and copy original config)
     log_step(3, "Save output")
     out_path = ScoringOutput.compute_output_path(gen_path, scoring_path)
-    pipeline_result.output.save(out_path)
+    pipeline_result.output.save(out_path, config_path=scoring_path)
     log(f"  Saved judgments to {out_path}")
 
     summary_path = ScoringOutput.compute_summary_path(gen_path, scoring_path)

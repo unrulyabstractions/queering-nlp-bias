@@ -1,6 +1,6 @@
-"""Bundled structure breakdown visualization.
+"""Structure breakdown visualization.
 
-Shows individual questions within bundled structures with per-branch percentages
+Shows all structures (both categorical and bundled) with per-branch percentages
 as grouped horizontal bar charts.
 """
 
@@ -12,30 +12,31 @@ from typing import Any
 import matplotlib.pyplot as plt
 import numpy as np
 
-# Branch colors (consistent with other plots)
-BRANCH_COLORS = ["#4A90D9", "#E67E22", "#2ECC71", "#9B59B6", "#E74C3C"]
+from src.estimation.arm_types import get_arm_color
+
+from .viz_plot_utils import save_figure, style_axis_clean
 
 
-def plot_bundled_structures(
+def plot_structure_breakdown(
     arm_scoring: list[dict[str, Any]],
     structure_info: list[dict[str, Any]],
     output_path: Path,
 ) -> Path | None:
     """Create grouped horizontal bar chart showing question breakdown per branch.
 
-    Only shows bundled structures (those with multiple questions).
+    Shows ALL structures:
+    - Categorical (non-bundled): single questions like c1, c2
+    - Bundled: grouped questions like g1, g2
 
     Args:
-        arm_scoring: List of per-branch scoring dicts with bundled_scoring
-        structure_info: List of structure info dicts with is_bundled, questions
+        arm_scoring: List of per-branch scoring dicts with simple_scoring and bundled_scoring
+        structure_info: List of structure info dicts with is_bundled, questions, description
         output_path: Where to save the plot
 
     Returns:
-        Path to saved file, or None if no bundled structures
+        Path to saved file, or None if no structures
     """
-    # Filter to bundled structures only
-    bundled_structs = [s for s in structure_info if s.get("is_bundled", False)]
-    if not bundled_structs:
+    if not structure_info:
         return None
 
     # Get branch names
@@ -43,12 +44,22 @@ def plot_bundled_structures(
     n_branches = len(branch_names)
 
     # Collect all questions grouped by structure
-    struct_questions: list[tuple[str, list[str]]] = []  # [(label, [questions])]
-    for struct in bundled_structs:
+    # Each entry: (label, [(question_text, is_simple)])
+    struct_questions: list[tuple[str, list[tuple[str, bool]]]] = []
+
+    for struct in structure_info:
         label = struct["label"]
-        questions = struct.get("questions", [])
-        if questions:
-            struct_questions.append((label, questions))
+        is_bundled = struct.get("is_bundled", False)
+
+        if is_bundled:
+            # Bundled structure: multiple questions
+            questions = struct.get("questions", [])
+            if questions:
+                struct_questions.append((label, [(q, False) for q in questions]))
+        else:
+            # Simple/categorical structure: single question
+            description = struct.get("description", label)
+            struct_questions.append((label, [(description, True)]))
 
     if not struct_questions:
         return None
@@ -64,6 +75,7 @@ def plot_bundled_structures(
     # Build data for plotting with gaps between structures
     y_positions = []
     structure_spans = []  # (start_pos, end_pos, label)
+    question_is_simple = []  # Track which questions are simple
     current_pos = 0
     gap = 0.8  # Gap between structure groups
 
@@ -72,8 +84,9 @@ def plot_bundled_structures(
             current_pos += gap
 
         start_pos = current_pos
-        for _ in questions:
+        for q_text, is_simple in questions:
             y_positions.append(current_pos)
+            question_is_simple.append(is_simple)
             current_pos += 1
         end_pos = current_pos - 1
         structure_spans.append((start_pos, end_pos, label))
@@ -84,17 +97,25 @@ def plot_bundled_structures(
     # Plot bars for each branch
     for branch_idx, arm in enumerate(arm_scoring):
         bundled = arm.get("bundled_scoring", {})
+        simple = arm.get("simple_scoring", {})
 
         values = []
+        q_idx = 0
         for label, questions in struct_questions:
-            bundle = bundled.get(label, {})
-            items = bundle.get("items", {})
-            for q in questions:
-                val = items.get(q, items.get(q[:50], 0.0))
+            for q_text, is_simple in questions:
+                if is_simple:
+                    # Simple/categorical: get from simple_scoring
+                    val = simple.get(label, 0.0)
+                else:
+                    # Bundled: get from bundled_scoring
+                    bundle = bundled.get(label, {})
+                    items = bundle.get("items", {})
+                    val = items.get(q_text, items.get(q_text[:50], 0.0))
                 values.append(val * 100)
+                q_idx += 1
 
         offset = (branch_idx - n_branches / 2 + 0.5) * bar_height
-        color = BRANCH_COLORS[branch_idx % len(BRANCH_COLORS)]
+        color = get_arm_color(arm["branch"])
 
         bars = ax.barh(
             y_positions + offset,
@@ -107,21 +128,21 @@ def plot_bundled_structures(
             alpha=0.85,
         )
 
-        # Add value labels
+        # Add value labels (only when bars are wide enough)
         for bar, val in zip(bars, values):
-            if val > 8:
+            if val > 15:
                 ax.text(
                     bar.get_width() - 2, bar.get_y() + bar.get_height() / 2,
                     f"{val:.0f}%",
                     ha="right", va="center",
-                    color="white", fontsize=8, fontweight="bold"
+                    color="white", fontsize=7, fontweight="bold"
                 )
 
     # Build y-tick labels (questions only)
     y_labels = []
     for _, questions in struct_questions:
-        for q in questions:
-            q_short = q[:45] + "..." if len(q) > 48 else q
+        for q_text, _ in questions:
+            q_short = q_text[:45] + "..." if len(q_text) > 48 else q_text
             y_labels.append(q_short)
 
     ax.set_yticks(y_positions)
@@ -139,22 +160,21 @@ def plot_bundled_structures(
             alpha=0.6, zorder=0
         )
 
-        # Vertical line on left edge
+        # Vertical line on left edge (neutral blue accent)
         ax.plot(
             [0, 0], [start_pos - 0.45, end_pos + 0.45],
-            color=BRANCH_COLORS[0], linewidth=4, alpha=0.8,
+            color="#4A90D9", linewidth=3, alpha=0.7,
             transform=ax.get_yaxis_transform(), clip_on=False
         )
 
-        # Structure label in left margin
+        # Structure label - small, positioned at top-left of each group
         ax.text(
-            -0.18, mid_pos,
-            label.upper(),
-            ha="center", va="center",
-            fontsize=12, fontweight="bold",
-            color="#333",
+            -0.02, start_pos - 0.35,
+            label.lower(),
+            ha="right", va="bottom",
+            fontsize=8, fontweight="bold",
+            color="#666",
             transform=ax.get_yaxis_transform(),
-            bbox=dict(boxstyle="round,pad=0.25", facecolor="white", edgecolor="#999", linewidth=1.5)
         )
 
     # Set x-axis
@@ -164,33 +184,31 @@ def plot_bundled_structures(
 
     # Title
     ax.set_title(
-        "Bundled Structure Breakdown by Branch",
+        "Structure Breakdown by Branch",
         fontsize=13, fontweight="bold", pad=15
     )
 
-    # Grid
-    ax.grid(axis="x", alpha=0.3, linestyle=":")
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
+    # Grid and styling
+    style_axis_clean(ax, grid_axis="x", remove_top_spine=True, remove_right_spine=True)
     ax.spines["left"].set_visible(False)
     ax.tick_params(axis="y", length=0)
 
     # Invert y-axis
     ax.invert_yaxis()
 
-    # Legend at bottom
+    # Legend at bottom - very compact (2 rows max)
     ax.legend(
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.06),
-        ncol=min(n_branches, 5),
-        fontsize=10,
+        bbox_to_anchor=(0.5, -0.04),
+        ncol=min(n_branches, 4),
+        fontsize=7,
         framealpha=0.9,
+        handlelength=0.8,
+        handletextpad=0.3,
+        columnspacing=0.6,
     )
 
     # Save
-    output_path.parent.mkdir(parents=True, exist_ok=True)
     plt.subplots_adjust(left=0.30)
-    plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
-    plt.close()
-
+    save_figure(plt.gcf(), output_path)
     return output_path

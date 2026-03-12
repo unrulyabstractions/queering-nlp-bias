@@ -17,7 +17,7 @@ from src.common.callback_types import LogFn
 from src.inference import ModelRunner
 from src.inference.embedding_runner import EmbeddingRunner
 
-from ..scoring_method_registry import ScoringMethodParams, register_method
+from ..scoring_method_registry import ScoringMethodParams, register_method, score_with_bundling
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PARAMETERS
@@ -94,33 +94,10 @@ def score_count_occurrences(
         Tuple of (scores, raw_responses)
     """
     total_words = count_words(text)
-    scores: list[float] = []
-    label_prefix = params.label_prefix
 
-    for struct_idx, item in enumerate(items):
-        if isinstance(item, list):
-            if log_fn:
-                log_fn(
-                    f"[{label_prefix}{struct_idx + 1}] Bundled ({len(item)} items)"
-                )
+    def score_single(target: str) -> tuple[float, str]:
+        n_found = count_occurrences(text, target, params.case_sensitive)
+        score = n_found / total_words if total_words > 0 else 0.0
+        return score, ""
 
-            for target in item:
-                n_found = count_occurrences(text, target, params.case_sensitive)
-                score = n_found / total_words if total_words > 0 else 0.0
-                scores.append(score)
-
-                if log_fn:
-                    log_fn(
-                        f'     • "{target}" -> {score:.3f} ({n_found}/{total_words})'
-                    )
-        else:
-            n_found = count_occurrences(text, item, params.case_sensitive)
-            score = n_found / total_words if total_words > 0 else 0.0
-            scores.append(score)
-
-            if log_fn:
-                log_fn(
-                    f'[{label_prefix}{struct_idx + 1}] "{item}" -> {score:.3f} ({n_found}/{total_words})'
-                )
-
-    return scores, [""] * len(scores)
+    return score_with_bundling(items, score_single, params.label_prefix, log_fn)

@@ -44,7 +44,7 @@ ENTROPY_NUM_EXPANSION_ROUNDS = 3
 JUDGE_MAX_TOKENS = 10
 
 # Which text to score
-STRING_SELECTION = "WholeContinuation"
+STRING_SELECTION = "NonThinkingContinuation"
 
 
 # ══════════════════════════════════════════════════════════════════════════════

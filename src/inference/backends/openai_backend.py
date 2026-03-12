@@ -5,54 +5,13 @@ from __future__ import annotations
 import math
 import os
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import Any
 
-import tiktoken
 import torch
 from openai import OpenAI
 
+from .api_tokenizer import APITokenizer
 from .model_backend import Backend
-
-
-@dataclass
-class OpenAITokenizer:
-    """Minimal tokenizer interface wrapping tiktoken for OpenAI models."""
-
-    encoding_name: str = "o200k_base"  # GPT-4o encoding
-
-    def __post_init__(self):
-        self._encoding = tiktoken.get_encoding(self.encoding_name)
-
-    @property
-    def vocab_size(self) -> int:
-        return self._encoding.n_vocab
-
-    @property
-    def bos_token_id(self) -> int | None:
-        return None  # OpenAI models don't expose BOS
-
-    @property
-    def eos_token_id(self) -> int | None:
-        return self._encoding.eot_token
-
-    @property
-    def pad_token_id(self) -> int | None:
-        return None
-
-    @property
-    def bos_token(self) -> str | None:
-        return None
-
-    @property
-    def eos_token(self) -> str | None:
-        return "<|endoftext|>"
-
-    def encode(self, text: str, add_special_tokens: bool = True) -> list[int]:
-        return self._encoding.encode(text)
-
-    def decode(self, token_ids: list[int], skip_special_tokens: bool = True) -> str:
-        return self._encoding.decode(token_ids)
 
 
 class OpenAIBackend(Backend):
@@ -69,7 +28,8 @@ class OpenAIBackend(Backend):
         """
         super().__init__(runner)
         self._model = model
-        self._tokenizer = OpenAITokenizer()
+        # GPT-4o uses o200k_base encoding
+        self._tokenizer = APITokenizer(encoding_name="o200k_base")
         self._client = None
 
     def _get_client(self):

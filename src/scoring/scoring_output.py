@@ -52,10 +52,10 @@ class ScoringResult(BaseSchema):
             method_raw[method_name] = raw
 
         return cls(
-            trajectory_idx=traj.trajectory_idx,
-            branch=traj.branch,
-            branch_idx=traj.branch_idx,
-            text=traj.full_text,
+            trajectory_idx=traj.idx,
+            branch=traj.arm_name,
+            branch_idx=traj.arm_idx,
+            text=traj.generated_text,
             conditional_logprobs=traj.conditional_logprobs,
             n_continuation_tokens=traj.n_continuation_tokens,
             method_scores=method_scores,
@@ -75,12 +75,11 @@ class ScoringOutput(BaseSchema):
     # Generic storage: config_key -> list of items
     scoring_data: dict[str, list[str | list[str]]] = field(default_factory=dict)
 
-    branches: list[str] = field(default_factory=list)
+    arm_names: list[str] = field(default_factory=list)
     arm_texts: dict[str, str] = field(default_factory=dict)
     scored_at: str = ""
     num_results: int = 0
     results: list[dict[str, Any]] = field(default_factory=list)
-    prefix_logprobs: dict[str, Any] | None = None
 
     @classmethod
     def create(
@@ -89,9 +88,8 @@ class ScoringOutput(BaseSchema):
         scoring_file: str,
         scoring_config: Any,  # ScoringConfig
         results: list[ScoringResult],
-        branches: list[str],
+        arm_names: list[str],
         arm_texts: dict[str, str],
-        prefix_logprobs: dict[str, Any] | None = None,
     ) -> ScoringOutput:
         """Create scoring output from results."""
         return cls(
@@ -100,40 +98,59 @@ class ScoringOutput(BaseSchema):
             judge_model=scoring_config.model,
             embedding_model=scoring_config.embedding_model,
             scoring_data=scoring_config.scoring_data,
-            branches=branches,
+            arm_names=arm_names,
             arm_texts=arm_texts,
             scored_at=datetime.now().isoformat(),
             num_results=len(results),
             results=[r.to_dict() for r in results],
-            prefix_logprobs=prefix_logprobs,
         )
 
-    def save(self, path: str | Path) -> Path:
-        """Save output to JSON file."""
+    def save(self, path: str | Path, config_path: str | Path | None = None) -> Path:
+        """Save output to JSON file.
+
+        Args:
+            path: Output path for scoring.json
+            config_path: Original config file to copy as scoring_cfg.json
+        """
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(), f, indent=2, sort_keys=True)
+
+        # Copy original config if provided
+        if config_path:
+            import shutil
+            cfg_dest = path.parent / "scoring_cfg.json"
+            shutil.copy(config_path, cfg_dest)
+
         return path
 
     @staticmethod
     def compute_output_path(gen_path: str | Path, scoring_path: str | Path) -> Path:
-        """Compute the output path for judgment results."""
+        """Compute the output path for judgment results.
+
+        Output structure: out/<method>/<gen_name>/<scoring_name>/scoring.json
+        Method and gen_name extracted from gen_path.
+        """
         gen_path = Path(gen_path)
         scoring_path = Path(scoring_path)
-        out_dir = Path("out")
-        gen_name = gen_path.stem.replace("gen_", "")
+        method = gen_path.parent.parent.name  # out/<method>/<gen_name>/generation.json
+        gen_name = gen_path.parent.name
         scoring_name = scoring_path.stem
-        return out_dir / f"score_{gen_name}_{scoring_name}.json"
+        return Path("out") / method / gen_name / scoring_name / "scoring.json"
 
     @staticmethod
     def compute_summary_path(gen_path: str | Path, scoring_path: str | Path) -> Path:
-        """Compute the output path for scoring summary."""
+        """Compute the output path for scoring summary.
+
+        Output structure: out/<method>/<gen_name>/<scoring_name>/score_summary.txt
+        """
         gen_path = Path(gen_path)
         scoring_path = Path(scoring_path)
-        gen_name = gen_path.stem.replace("gen_", "")
+        method = gen_path.parent.parent.name
+        gen_name = gen_path.parent.name
         scoring_name = scoring_path.stem
-        return Path("out") / f"summary_score_{gen_name}_{scoring_name}.txt"
+        return Path("out") / method / gen_name / scoring_name / "score_summary.txt"
 
     def _get_active_methods(self) -> list[tuple[str, str, str]]:
         """Get active methods with their metadata.
@@ -165,37 +182,46 @@ class ScoringOutput(BaseSchema):
             by_branch.setdefault(branch, []).append(r)
         return by_branch
 
+    def _collect_scores_at_index(
+        self,
+        results: list[dict],
+        method_name: str,
+        flat_idx: int,
+    ) -> list[Any]:
+        """Collect valid scores at a specific flat index from results."""
+        values = []
+        for r in results:
+            method_scores = r.get("method_scores", {})
+            scores = method_scores.get(method_name, [])
+            if flat_idx < len(scores) and scores[flat_idx] is not None:
+                values.append(scores[flat_idx])
+        return values
+
     def _compute_branch_rates(
         self, branch_results: list[dict], labels: list[str]
     ) -> list[float]:
         """Compute rates for each structure label given branch results."""
         rates = []
 
-        for method_name, config_key, label_prefix in self._get_active_methods():
+        for method_name, config_key, _ in self._get_active_methods():
             items = self.scoring_data.get(config_key, [])
             flat_idx = 0
 
-            for struct_idx, item in enumerate(items):
+            for item in items:
                 if isinstance(item, list):
                     # Bundled - average all sub-items
-                    values = []
+                    all_values = []
                     for sub_idx in range(len(item)):
-                        idx = flat_idx + sub_idx
-                        for r in branch_results:
-                            method_scores = r.get("method_scores", {})
-                            scores = method_scores.get(method_name, [])
-                            if idx < len(scores) and scores[idx] is not None:
-                                values.append(scores[idx])
-                    rates.append(sum(values) / len(values) if values else 0.0)
+                        values = self._collect_scores_at_index(
+                            branch_results, method_name, flat_idx + sub_idx
+                        )
+                        all_values.extend(values)
+                    rates.append(sum(all_values) / len(all_values) if all_values else 0.0)
                     flat_idx += len(item)
                 else:
-                    # Single item
-                    values = []
-                    for r in branch_results:
-                        method_scores = r.get("method_scores", {})
-                        scores = method_scores.get(method_name, [])
-                        if flat_idx < len(scores) and scores[flat_idx] is not None:
-                            values.append(scores[flat_idx])
+                    values = self._collect_scores_at_index(
+                        branch_results, method_name, flat_idx
+                    )
                     rates.append(sum(values) / len(values) if values else 0.0)
                     flat_idx += 1
 
@@ -230,7 +256,7 @@ class ScoringOutput(BaseSchema):
         lines.append(f"  {'Branch':<14} {'N':>4}  {header}")
         lines.append("  " + "-" * 70)
 
-        for branch_name in self.branches:
+        for branch_name in self.arm_names:
             branch_results = by_branch.get(branch_name, [])
             if not branch_results:
                 continue
@@ -275,41 +301,55 @@ class ScoringOutput(BaseSchema):
         by_branch: dict[str, list[dict]],
     ) -> None:
         """Log scores for a single method."""
-        # Global stats first
         flat_idx = 0
         for struct_idx, item in enumerate(items):
             if isinstance(item, list):
-                log(f"\n  [{label_prefix}{struct_idx + 1}] Bundled ({len(item)} items):")
-                group_values = []
-                for sub_idx, sub_item in enumerate(item):
-                    idx = flat_idx + sub_idx
-                    values = []
-                    for r in self.results:
-                        method_scores = r.get("method_scores", {})
-                        scores = method_scores.get(method_name, [])
-                        if idx < len(scores) and scores[idx] is not None:
-                            values.append(scores[idx])
-                    if values:
-                        avg = sum(values) / len(values)
-                        group_values.append(avg)
-                        if isinstance(avg, float):
-                            log(f"      • {preview(sub_item, 40)}: avg={avg:.4f}")
-                        else:
-                            pct = avg * 100 if isinstance(avg, (int, float)) else avg
-                            log(f"      • {preview(sub_item, 40)}: {pct:.1f}%")
-                if group_values:
-                    group_avg = sum(group_values) / len(group_values)
-                    log(f"      → group avg={group_avg:.4f}")
+                self._log_bundled_item_scores(
+                    method_name, label_prefix, struct_idx, item, flat_idx
+                )
                 flat_idx += len(item)
             else:
-                values = []
-                for r in self.results:
-                    method_scores = r.get("method_scores", {})
-                    scores = method_scores.get(method_name, [])
-                    if flat_idx < len(scores) and scores[flat_idx] is not None:
-                        values.append(scores[flat_idx])
-                if values:
-                    avg = sum(values) / len(values)
-                    log(f"\n  [{label_prefix}{struct_idx + 1}] {preview(item, 50)}")
-                    log(f"      → avg={avg:.4f} ({len(values)}/{self.num_results} valid)")
+                self._log_single_item_scores(
+                    method_name, label_prefix, struct_idx, item, flat_idx
+                )
                 flat_idx += 1
+
+    def _log_bundled_item_scores(
+        self,
+        method_name: str,
+        label_prefix: str,
+        struct_idx: int,
+        sub_items: list[str],
+        flat_idx: int,
+    ) -> None:
+        """Log scores for a bundled item (list of sub-items)."""
+        log(f"\n  [{label_prefix}{struct_idx + 1}] Bundled ({len(sub_items)} items):")
+        group_values = []
+
+        for sub_idx, sub_item in enumerate(sub_items):
+            values = self._collect_scores_at_index(
+                self.results, method_name, flat_idx + sub_idx
+            )
+            if values:
+                avg = sum(values) / len(values)
+                group_values.append(avg)
+                log(f"      * {preview(sub_item, 40)}: avg={avg:.4f}")
+
+        if group_values:
+            group_avg = sum(group_values) / len(group_values)
+            log(f"      -> group avg={group_avg:.4f}")
+
+    def _log_single_item_scores(
+        self,
+        method_name: str,
+        label_prefix: str,
+        struct_idx: int,
+        item: str,
+        flat_idx: int,
+    ) -> None:
+        """Log scores for a single item."""
+        values = self._collect_scores_at_index(self.results, method_name, flat_idx)
+        if values:
+            avg = sum(values) / len(values)
+            log(f"\n  [{label_prefix}{struct_idx + 1}] {preview(item, 50)}")
+            log(f"      -> avg={avg:.4f}")

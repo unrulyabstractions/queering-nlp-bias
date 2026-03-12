@@ -9,6 +9,7 @@ from typing import Any, TypeVar
 import torch
 
 from .base_schema import BaseSchema
+from .text.thinking_filter import strip_thinking_blocks
 from .viz_utils import sanitize_floats
 
 T = TypeVar("T", bound="TokenTrajectory")
@@ -26,13 +27,48 @@ class TokenTrajectory(BaseSchema):
     logprobs: list[float]
     logits: list[float]
     full_logits: torch.Tensor | None = None
-    continuation_text: str | None = None  # Decoded text from continuation tokens only
     entropies: list[float] | None = None  # Per-position entropy (for generated tokens)
+
+    # Text fields (set by generate_trajectory_from_prompt)
+    prefill_text: str | None = None  # Trunk/branch/twig text prepended before generation
+    generated_text: str | None = None  # Text the model actually generated
+
+    # Per-arm lengths (set by GenerationOutput.from_tree, indices match arm list)
+    arm_token_lengths: list[int] | None = None  # Token count for each arm's prefill
+    arm_text_lengths: list[int] | None = None  # Char count for each arm's prefill
 
     traj_idx: int | None = None  # Index in parent tree's trajs tuple
     nodes_idx: tuple[int, ...] | None = None
     arm_index: tuple[int, ...] | None = None
     analysis: Any | None = None
+    prefill_length: int | None = None  # Token position where generated content starts
+
+    @property
+    def continuation_text(self) -> str | None:
+        """Full continuation = prefill + generated."""
+        if self.generated_text is None:
+            return None
+        prefill = self.prefill_text or ""
+        return prefill + self.generated_text
+
+    @property
+    def continuation_text_no_thinking(self) -> str | None:
+        """Full continuation with <think>...</think> blocks removed."""
+        text = self.continuation_text
+        if text is None:
+            return None
+        return strip_thinking_blocks(text)
+
+    def text_after_arm(self, arm_idx: int) -> str:
+        """Get continuation text after a specific arm's prefill.
+
+        Uses precomputed arm_text_lengths to slice without parsing.
+        """
+        continuation = self.continuation_text_no_thinking or ""
+        if self.arm_text_lengths is None or arm_idx >= len(self.arm_text_lengths):
+            return continuation
+        offset = self.arm_text_lengths[arm_idx]
+        return continuation[offset:]
 
     def can_have_internals(self) -> bool:
         return False

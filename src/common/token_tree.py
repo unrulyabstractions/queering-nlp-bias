@@ -137,13 +137,12 @@ class TokenTree(BaseSchema):
         """
         trunk_length = self.trunk_length or 0
 
+        # Decode trunk_text from a non-root trajectory
         if self.trajs and trunk_length > 0 and not self.trunk_text:
-            self.trunk_text = runner.decode_ids(self.trajs[0].token_ids[:trunk_length])
-
-        for traj in self.trajs:
-            # Skip if already set (generation method set it with correct prefix)
-            if traj.continuation_text is None:
-                traj.continuation_text = runner.decode_ids(traj.token_ids[trunk_length:])
+            for traj in self.trajs:
+                if traj.arm_index and traj.arm_index[0] >= 1:
+                    self.trunk_text = runner.decode_ids(traj.token_ids[:trunk_length])
+                    break
 
     @classmethod
     def from_dict(cls, d: dict) -> TokenTree:

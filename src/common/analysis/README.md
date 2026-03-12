@@ -1,16 +1,20 @@
 # Analysis Module
 
-> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
-
-
 Token tree analysis for computing metrics on trajectories, forks, and nodes.
 
-## Contents
+## Overview
 
-- `analyze.py` - Main entry point (`analyze_token_tree`)
-- `base.py` - `DistributionalAnalysis` base class (auto-converts logprobs to probs)
-- `builders.py` - Builder functions for analysis objects
-- `metrics/` - Analysis dataclasses for forks, nodes, trajectories
+Provides analysis infrastructure for token trees with two main components:
+
+1. **Analysis computation** - Main entry point (`analyze_token_tree`) that mutates tree in place
+2. **Serialization support** - `DistributionalAnalysis` base class automatically converts logprobs to probabilities during serialization
+
+## Modules
+
+- `tree_analysis.py` - Entry point `analyze_token_tree()` that analyzes trajectories, forks, and nodes
+- `analysis_builders.py` - Builder functions: `build_fork_analysis()`, `build_node_analysis()`
+- `distributional_analysis_base.py` - `DistributionalAnalysis` base class for analysis dataclasses
+- `metrics/` - Structured dataclasses for fork/node/trajectory analysis results
 
 ## Usage
 
@@ -22,18 +26,20 @@ analyze_token_tree(tree)
 
 # Access results
 for traj in tree.trajs:
-    print(traj.analysis.perplexity)
+    print(traj.analysis.metrics.perplexity)
 
 for fork in tree.forks:
-    print(fork.analysis.log_odds)
+    print(fork.analysis.metrics.log_odds)
+
+for node in tree.nodes:
+    print(node.analysis.metrics.vocab_entropy)
 ```
 
 ## DistributionalAnalysis
 
-Base class that automatically expands logprob fields to probability fields during serialization:
+Base class that automatically expands logprob fields to probability fields:
+- `*_logprob` → `*_prob` (via exp)
+- `*_logprobs` → `*_probs` (via exp)
+- `log_odds` → `odds` (via exp)
 
-```python
-@dataclass
-class MyAnalysis(DistributionalAnalysis):
-    token_logprob: float  # In to_dict(), adds token_prob = exp(token_logprob)
-```
+Used by all analysis dataclasses to provide both logprob and probability representations in serialized output.

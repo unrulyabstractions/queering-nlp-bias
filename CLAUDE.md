@@ -1,5 +1,17 @@
 # Project Guidelines
 
+## Running Scripts
+
+**ALWAYS use `uv run` to execute Python scripts.** This project uses `uv` for dependency management. Never use bare `python` or `python3` commands.
+
+```bash
+# Correct:
+uv run python scripts/generate_by_simple_sampling.py trials/generation/example.json
+
+# Wrong:
+python scripts/generate_by_simple_sampling.py trials/generation/example.json
+```
+
 ## Critical Rules (NEVER violate these)
 
 1. **ALL `__init__.py` files MUST use auto-export.** Every `__init__.py` automatically exports all public symbols from its submodules. No manual export lists. Use a pattern like:

@@ -6,14 +6,15 @@ using a sentence embedding model.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar
 
 from src.common.callback_types import LogFn
+from src.common.default_config import EMBEDDING_MODEL
 from src.inference import ModelRunner
 from src.inference.embedding_runner import EmbeddingRunner
 
-from ..scoring_method_registry import ScoringMethodParams, register_method
+from ..scoring_method_registry import ScoringMethodParams, register_method, score_with_bundling
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PARAMETERS
@@ -24,7 +25,7 @@ from ..scoring_method_registry import ScoringMethodParams, register_method
 class SimilarityParams(ScoringMethodParams):
     """Parameters for embedding similarity scoring."""
 
-    embedding_model: str = "all-MiniLM-L6-v2"
+    embedding_model: str = field(default_factory=lambda: EMBEDDING_MODEL)
 
     # Registry metadata
     name: ClassVar[str] = "similarity"
@@ -68,45 +69,25 @@ def score_similarity(
     if embedder is None:
         raise ValueError("Similarity scoring requires an embedding runner")
 
-    # Flatten references for embedding computation
-    flat_refs: list[str] = []
-    for item in items:
-        if isinstance(item, list):
-            flat_refs.extend(item)
-        else:
-            flat_refs.append(item)
-
-    # Get all similarities at once (more efficient)
+    # Pre-compute all similarities in one batch for efficiency
+    flat_refs = _flatten_items(items)
     all_similarities = embedder.similarities(text=text, references=flat_refs)
 
-    # Build output list and log with bundled structure
-    scores: list[float] = []
-    sim_idx = 0
-    label_prefix = params.label_prefix
+    # Create an iterator to consume pre-computed similarities
+    sim_iter = iter(all_similarities)
 
-    for struct_idx, item in enumerate(items):
+    def score_single(ref: str) -> tuple[float, str]:
+        return next(sim_iter), ""
+
+    return score_with_bundling(items, score_single, params.label_prefix, log_fn)
+
+
+def _flatten_items(items: list[str | list[str]]) -> list[str]:
+    """Flatten a list of items (strings or lists of strings) into a flat list."""
+    flat: list[str] = []
+    for item in items:
         if isinstance(item, list):
-            if log_fn:
-                log_fn(
-                    f"[{label_prefix}{struct_idx + 1}] Bundled ({len(item)} items)"
-                )
-
-            for ref in item:
-                score = all_similarities[sim_idx]
-                scores.append(score)
-                sim_idx += 1
-
-                if log_fn:
-                    ref_preview = ref[:40] + "..." if len(ref) > 40 else ref
-                    log_fn(f"     • {ref_preview} -> {score:.3f}")
+            flat.extend(item)
         else:
-            score = all_similarities[sim_idx]
-            scores.append(score)
-            sim_idx += 1
-
-            if log_fn:
-                ref_preview = item[:40] + "..." if len(item) > 40 else item
-                log_fn(f"[{label_prefix}{struct_idx + 1}] {ref_preview} -> {score:.3f}")
-
-    # Similarity doesn't have raw responses
-    return scores, [""] * len(scores)
+            flat.append(item)
+    return flat

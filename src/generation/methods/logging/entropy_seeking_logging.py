@@ -61,8 +61,9 @@ def log_paths(
     """
     log("\n  Paths:")
     for path in tree_paths[:max_display]:
-        cont = path.continuation[:60] + "..." if len(path.continuation) > 60 else path.continuation
-        log(f'    [{path.path_id}] "{cont}"')
+        cont_display = path.continuation.replace("\n", "\\n")
+        cont_display = cont_display[:60] + "..." if len(cont_display) > 60 else cont_display
+        log(f'    [{path.path_id}] "{cont_display}"')
     if len(tree_paths) > max_display:
         log(f"    ... and {len(tree_paths) - max_display} more")
 
@@ -122,8 +123,9 @@ def log_expansion_round(
     if new_paths:
         log("  New paths:")
         for new_path in new_paths:
-            cont = new_path.continuation[:50] + "..." if len(new_path.continuation) > 50 else new_path.continuation
-            log(f'    [{new_path.path_id}] <- [{source_path.path_id}]@{relative_pos}: "{cont}"')
+            cont_display = new_path.continuation.replace("\n", "\\n")
+            cont_display = cont_display[:50] + "..." if len(cont_display) > 50 else cont_display
+            log(f'    [{new_path.path_id}] <- [{source_path.path_id}]@{relative_pos}: "{cont_display}"')
 
     log_tree_visualization(all_paths, max_tokens)
 
@@ -144,18 +146,18 @@ def log_expansion_summary(
     log(f"\n  Total: {len(tree_paths)} paths ({initial_count} initial + {expansion_count} from expansion)")
 
 
-def log_arm_header(arm_name: str, continuation: str) -> None:
+def log_arm_header_entropy(arm_name: str, continuation: str) -> None:
     """Log arm header for entropy seeking.
 
     Args:
-        arm_name: Name of the arm (trunk, branch_1, etc.)
+        arm_name: Name of the arm (root, trunk, branch_1, twig_1_b1, etc.)
         continuation: The continuation prefix for this arm
     """
-    display_name = arm_name.replace("_", " ").title() if "_" in arm_name else arm_name.capitalize()
-    if arm_name == "trunk":
-        display_name = "Trunk"
-    else:
-        display_name = f"Branch: {arm_name}"
+    display_name = arm_name.replace("_", " ").title()
 
     log(f"\n{display_name}")
-    log(f'  Continuation: "{continuation}"')
+    if continuation:
+        prefill_display = continuation.replace("\n", "\\n")
+        log(f'  Prefill: "{prefill_display}"')
+    else:
+        log("  Prefill: N/A")

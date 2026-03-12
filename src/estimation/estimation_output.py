@@ -78,13 +78,13 @@ class EstimationOutput(BaseSchema):
         scoring_data: dict[str, list[ScoringItem]],
         arms: list[ArmEstimate],
         texts: dict[int, str],
-        generation_file: str = "",
-        scoring_file: str = "",
-        judge_model: str = "",
-        embedding_model: str = "",
-        structure_info: list[StructureInfo] | None = None,
-        arm_scoring: list[ArmScoring] | None = None,
-        continuations_by_arm: ContinuationsByArm | None = None,
+        generation_file: str,
+        scoring_file: str,
+        judge_model: str,
+        embedding_model: str,
+        structure_info: list[StructureInfo],
+        arm_scoring: list[ArmScoring],
+        continuations_by_arm: ContinuationsByArm,
     ) -> EstimationOutput:
         """Create estimation output with auto-generated summary."""
         # Build trajectory -> arms mapping
@@ -93,10 +93,18 @@ class EstimationOutput(BaseSchema):
             for traj in arm.trajectories:
                 traj_to_arms.setdefault(traj.traj_idx, []).append(arm.arm_idx)
 
+        def get_text_or_raise(idx: int) -> str:
+            if idx not in texts:
+                raise KeyError(
+                    f"Missing continuation text for trajectory {idx}. "
+                    f"Available indices: {sorted(texts.keys())[:10]}..."
+                )
+            return texts[idx]
+
         summary = EstimationSummary(
             trajectories=[
                 TrajectoryGrouping(
-                    traj_idx=idx, arm_idxs=aids, continuation_text=texts.get(idx, "")
+                    traj_idx=idx, arm_idxs=aids, traj_text=get_text_or_raise(idx)
                 )
                 for idx, aids in sorted(traj_to_arms.items())
             ],
@@ -113,9 +121,9 @@ class EstimationOutput(BaseSchema):
             scoring_file=scoring_file,
             judge_model=judge_model,
             embedding_model=embedding_model,
-            structure_info=structure_info or [],
-            arm_scoring=arm_scoring or [],
-            continuations_by_arm=continuations_by_arm or ContinuationsByArm(),
+            structure_info=structure_info,
+            arm_scoring=arm_scoring,
+            continuations_by_arm=continuations_by_arm,
         )
 
     def save(self, path: str | Path) -> Path:
@@ -128,15 +136,20 @@ class EstimationOutput(BaseSchema):
 
     @staticmethod
     def compute_output_path(judgment_path: Path) -> Path:
-        """Compute the output path for estimation results."""
-        name = judgment_path.stem.replace("score_", "")
-        return Path("out") / f"est_{name}.json"
+        """Compute the output path for estimation results.
+
+        Output structure: out/<method>/<gen_name>/<scoring_name>/estimation.json
+        judgment_path is out/<method>/<gen_name>/<scoring_name>/scoring.json
+        """
+        return judgment_path.parent / "estimation.json"
 
     @staticmethod
     def compute_summary_path(judgment_path: Path) -> Path:
-        """Compute the output path for summary results."""
-        name = judgment_path.stem.replace("score_", "")
-        return Path("out") / f"summary_est_{name}.txt"
+        """Compute the output path for summary results.
+
+        Output structure: out/<method>/<gen_name>/<scoring_name>/est_summary.txt
+        """
+        return judgment_path.parent / "est_summary.txt"
 
     def get_structure_labels(self) -> list[str]:
         """Get structure labels from structure_info."""
@@ -214,9 +227,7 @@ class EstimationOutput(BaseSchema):
         log_structures(self.structure_info)
 
         # Show per-branch rates
-        log_banner(
-            "COMPLIANCE RATES BY BRANCH (% yes for categorical, avg for similarity)"
-        )
+        log_banner("SCORES BY ARM")
         log_compliance_rates(self.arm_scoring, labels)
 
         # Show cores with labels

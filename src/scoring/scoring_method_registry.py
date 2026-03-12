@@ -22,7 +22,6 @@ The method is automatically:
 
 from __future__ import annotations
 
-from abc import abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, TypeVar
 
@@ -69,7 +68,14 @@ P = TypeVar("P", bound=ScoringMethodParams)
 # Args: (text, items, params, runner, embedder, log_fn)
 # Returns: (scores, raw_responses)
 ScoreFn = Callable[
-    [str, list[str | list[str]], P, "ModelRunner | None", "EmbeddingRunner | None", LogFn | None],
+    [
+        str,
+        list[str | list[str]],
+        P,
+        "ModelRunner | None",
+        "EmbeddingRunner | None",
+        LogFn | None,
+    ],
     tuple[list[Any], list[str]],
 ]
 

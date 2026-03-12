@@ -1,240 +1,146 @@
-"""Data types for trajectory scoring.
-
-This module defines data structures for loaded generation output
-and trajectory data extracted for scoring.
-"""
+"""Data types for trajectory scoring."""
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from src.common.text import arm_display_name
+from src.common.experiment_types import GenerationArm
 from src.common.token_tree import TokenTree
+from src.common.token_trajectory import TokenTrajectory
 
 
 @dataclass
 class TrajectoryData:
-    """Data extracted from a trajectory for judgment."""
+    """Wrapper around TokenTrajectory with scoring-specific fields.
 
-    trajectory_idx: int
-    branch: str  # Display name (trunk, branch_1, etc.) - NOT raw branch text
-    branch_idx: int  # Index of branch in config order (0=trunk, 1=branch_1, etc.)
-    prompt: str  # The prompt/trunk text (includes chat template)
-    response: str  # Continuation after trunk (includes branch token for branch trajs)
-    response_after_branch: str  # Continuation after branch token (branch stripped)
-    conditional_logprobs: dict[str, float]  # Log prob conditioned on each arm
-    n_continuation_tokens: int = 0  # Number of tokens in continuation
+    All text selections are precomputed during loading - no parsing at scoring time.
+    """
+
+    traj: TokenTrajectory
+    arm_name: str
+    arm_idx: int
+    n_continuation_tokens: int
+    conditional_logprobs: dict[str, float] = field(default_factory=dict)
+
+    # Precomputed text selections (piped from arm structure, not parsed)
+    text_after_trunk: str = ""
+    text_after_branch: str = ""
+    text_after_twig: str = ""
 
     @property
-    def full_text(self) -> str:
-        """Full text (prompt + response) for judgment."""
-        return self.prompt + self.response
+    def idx(self) -> int:
+        return self.traj.traj_idx or 0
+
+    @property
+    def prefill_text(self) -> str:
+        return self.traj.prefill_text or ""
+
+    @property
+    def generated_text(self) -> str:
+        return self.traj.generated_text or ""
+
+    @property
+    def continuation_text(self) -> str:
+        return self.traj.continuation_text or ""
+
+    @property
+    def continuation_text_no_thinking(self) -> str:
+        return self.traj.continuation_text_no_thinking or ""
+
+    @property
+    def logprobs(self) -> list[float]:
+        return self.traj.logprobs
 
 
-@dataclass
-class ArmDefinitions:
-    """Defines the conditioning text for each arm (trunk or branch_N)."""
-
-    texts: dict[str, str]  # arm_name -> text at that conditioning level
-    token_lengths: dict[str, int]  # arm_name -> token length
-
-    @classmethod
-    def from_tree(cls, tree: TokenTree, branches: list[str]) -> ArmDefinitions:
-        """Build arm definitions from a token tree."""
-        trunk_text = tree.trunk_text or ""
-        trunk_length = tree.trunk_length or 0
-
-        texts = {"trunk": trunk_text}
-        token_lengths = {"trunk": trunk_length}
-
-        # For each branch, we need to find the text including the branch token
-        # The branch token is at position trunk_length
-        for branch in branches:
-            # Find a trajectory in this branch to get the branch token
-            for traj in tree.trajs:
-                if traj.arm_index and len(branches) > traj.arm_index[0]:
-                    if branches[traj.arm_index[0]] == branch:
-                        # Get text up to and including the branch token
-                        branch_text = trunk_text + (traj.continuation_text or "")[:50]
-                        # Just use trunk + first part of continuation as approximation
-                        # The exact text would need decoding the branch token
-                        texts[branch] = f"{trunk_text}..."  # Placeholder
-                        token_lengths[branch] = trunk_length + 1
-                        break
-
-        return cls(texts=texts, token_lengths=token_lengths)
 
 
 @dataclass
 class GenerationOutputData:
-    """Loaded generation output with extracted trajectory data."""
+    """Loaded generation output with trajectory data."""
 
     tree: TokenTree | None
     trajectories: list[TrajectoryData]
     config: dict[str, Any]
-    branches: list[str]  # Branch names in config order
-    arm_texts: dict[str, str]  # arm_name -> conditioning text
-    prefix_logprobs: dict[str, Any] | None = None  # Conditional logprobs for prefixes
-    eos_token: str | None = None  # EOS token from the model that generated trajectories
+    arms: list[GenerationArm]
+    eos_token: str | None = None
+
+    @property
+    def arm_names(self) -> list[str]:
+        return [arm.name for arm in self.arms]
+
+    @property
+    def arm_prefills(self) -> list[str]:
+        return [arm.prefill for arm in self.arms]
+
+    @property
+    def arm_texts(self) -> dict[str, str]:
+        """Map arm names to prefill texts."""
+        return {arm.name: arm.prefill for arm in self.arms}
 
     @classmethod
     def load(cls, path: str | Path) -> GenerationOutputData:
         """Load generation output from JSON file."""
         path = Path(path)
-        if not path.exists():
-            raise FileNotFoundError(f"Generation output not found: {path}")
-
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
         config = data.get("config", {})
-        branches = config.get("branches", [])
+        tree = TokenTree.from_dict(data["tree"]) if data.get("tree") else None
 
-        # Try to load tree if present
-        tree = None
-        if data.get("tree"):
-            tree = TokenTree.from_dict(data["tree"])
+        # Load arms from structured data
+        arms_data = config.get("arms", [])
+        arms = [GenerationArm.from_dict(a) for a in arms_data]
 
-        # Build arm conditioning texts
-        arm_texts: dict[str, str] = {}
-        trajectories: list[TrajectoryData] = []
+        # Find trunk index from arms list
+        trunk_idx = next((i for i, arm in enumerate(arms) if arm.name == "trunk"), 1)
 
-        # Extract prefix logprobs from trajectories
-        prefix_logprobs: dict[str, Any] = {
-            "trunk_given_prompt": 0.0,
-            "branch_given_trunk": {},
-        }
-
+        trajectories = []
         if tree:
-            trunk_text = tree.trunk_text or ""
-            trunk_length = tree.trunk_length or 0
-            prompt_length = tree.prompt_length or 0
-
-            # Build arm conditioning texts using DISPLAY names as keys:
-            # - "trunk": just trunk_text
-            # - "branch_N": trunk_text + raw_branch_text
-            for raw_idx, raw_branch in enumerate(branches):
-                display_name = arm_display_name(raw_idx)
-                if raw_branch == "trunk":
-                    arm_texts[display_name] = trunk_text
-                else:
-                    arm_texts[display_name] = trunk_text + raw_branch
-
-            # Extract trajectories with conditional logprobs
             for i, traj in enumerate(tree.trajs):
-                continuation_text = traj.continuation_text or ""
+                traj.traj_idx = i
+                arm_idx = traj.arm_index[0] if traj.arm_index else 0
+                if arm_idx >= len(arms):
+                    continue
+                arm = arms[arm_idx]
 
-                # Get branch index from arm_index
-                if traj.arm_index and len(branches) > traj.arm_index[0]:
-                    branch_idx = traj.arm_index[0]
-                    raw_branch = branches[branch_idx]
+                # Get token length from arm data
+                token_length = arms_data[arm_idx].get("token_length", 0) if arm_idx < len(arms_data) else 0
+                n_cont = len(traj.token_ids) - token_length
+
+                # Compute conditional logprobs using token lengths from arms
+                cond_logprobs = {}
+                for idx, other_arm in enumerate(arms):
+                    other_length = arms_data[idx].get("token_length", 0) if idx < len(arms_data) else 0
+                    cond_logprobs[other_arm.name] = sum(traj.logprobs[other_length:])
+
+                # Text selections use precomputed arm_text_lengths via text_after_arm()
+                text_after_trunk = traj.text_after_arm(trunk_idx)
+                if arm.parent_idx is not None:
+                    text_after_branch = traj.text_after_arm(arm.parent_idx)
                 else:
-                    branch_idx = 0
-                    raw_branch = "trunk"
-
-                # Use display name for output
-                display_name = arm_display_name(branch_idx)
-
-                # response = continuation after trunk (includes branch token for branch trajs)
-                response = continuation_text
-
-                # response_after_branch = continuation after branch token (branch stripped)
-                # Use raw_branch for stripping since it's the actual text
-                if branch_idx > 0 and continuation_text.startswith(raw_branch):
-                    response_after_branch = continuation_text[len(raw_branch) :]
-                else:
-                    response_after_branch = continuation_text
-
-                # Extract prefix logprobs (once per branch)
-                if (
-                    trunk_length > prompt_length
-                    and prefix_logprobs["trunk_given_prompt"] == 0.0
-                ):
-                    # p(trunk | prompt) - sum logprobs for trunk tokens only (not prompt)
-                    prefix_logprobs["trunk_given_prompt"] = sum(
-                        traj.logprobs[prompt_length:trunk_length]
-                    )
-
-                if (
-                    branch_idx > 0
-                    and branch_idx not in prefix_logprobs["branch_given_trunk"]
-                ):
-                    # p(branch | prompt + trunk) - logprob of branch token at trunk_length
-                    if trunk_length < len(traj.logprobs):
-                        prefix_logprobs["branch_given_trunk"][branch_idx] = (
-                            traj.logprobs[trunk_length]
-                        )
-
-                # Compute conditional log probabilities using display names as keys
-                conditional_logprobs: dict[str, float] = {}
-
-                # For branch trajectories, BPE may merge trunk+branch differently.
-                # The continuation starts at position trunk_length for trunk trajs,
-                # but for branch trajs it also starts at trunk_length because BPE
-                # absorbed the trunk space into the branch token.
-
-                # p(continuation | trunk) - sum from trunk_length onwards
-                if branch_idx == 0:
-                    # Trunk trajectory: continuation starts at trunk_length
-                    conditional_logprobs["trunk"] = sum(traj.logprobs[trunk_length:])
-                else:
-                    # Branch trajectory: branch token is at trunk_length-1 due to BPE merge
-                    branch_token_pos = trunk_length - 1
-                    conditional_logprobs["trunk"] = sum(
-                        traj.logprobs[branch_token_pos:]
-                    )
-
-                # p(continuation | trunk + branch) for each non-trunk branch
-                for b_idx, b_raw in enumerate(branches):
-                    if b_raw == "trunk":
-                        continue  # Already handled above
-                    b_display = arm_display_name(b_idx)
-                    if b_idx == branch_idx:
-                        # This trajectory is in this branch
-                        conditional_logprobs[b_display] = sum(
-                            traj.logprobs[trunk_length:]
-                        )
-                    else:
-                        # Not in this branch - use 0.0 as marker
-                        conditional_logprobs[b_display] = 0.0
-
-                # Continuation tokens = total - trunk
-                n_continuation = len(traj.token_ids) - trunk_length
+                    text_after_branch = traj.generated_text or ""
+                text_after_twig = traj.generated_text or ""
 
                 trajectories.append(
                     TrajectoryData(
-                        trajectory_idx=i,
-                        branch=display_name,  # Use display name, not raw text
-                        branch_idx=branch_idx,
-                        prompt=arm_texts.get(display_name, trunk_text),
-                        response=response,
-                        response_after_branch=response_after_branch,
-                        conditional_logprobs=conditional_logprobs,
-                        n_continuation_tokens=n_continuation,
+                        traj=traj,
+                        arm_name=arm.name,
+                        arm_idx=arm_idx,
+                        n_continuation_tokens=n_cont,
+                        conditional_logprobs=cond_logprobs,
+                        text_after_trunk=text_after_trunk,
+                        text_after_branch=text_after_branch,
+                        text_after_twig=text_after_twig,
                     )
                 )
 
-            # Convert branches to display names for output
-            branches = [arm_display_name(i) for i in range(len(branches))]
-
-        result = cls(
+        return cls(
             tree=tree,
             trajectories=trajectories,
             config=config,
-            branches=branches,
-            arm_texts=arm_texts,
-            prefix_logprobs=prefix_logprobs
-            if prefix_logprobs["branch_given_trunk"]
-            else None,
+            arms=arms,
             eos_token=data.get("eos_token"),
         )
-        result.validate()
-        return result
-
-    def validate(self) -> None:
-        """Validate that the loaded data is usable for judgment."""
-        if not self.trajectories:
-            raise ValueError("No trajectories found in generation output")

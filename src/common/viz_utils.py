@@ -10,6 +10,11 @@ import math
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+def escape_newlines(text: str) -> str:
+    """Escape newlines for single-line display."""
+    return text.replace("\n", "\\n")
+
+
 def truncate(text: str, max_len: int = 50, suffix: str = "...") -> str:
     """Truncate text to max_len, adding suffix if truncated."""
     if len(text) <= max_len:
@@ -18,8 +23,10 @@ def truncate(text: str, max_len: int = 50, suffix: str = "...") -> str:
 
 
 def preview(text: str, max_len: int = 50) -> str:
-    """Create a preview of text, truncating with ellipsis if needed."""
-    return truncate(text, max_len, "...")
+    """Create a preview of text, escaping newlines and truncating if needed."""
+    # Escape newlines for display
+    escaped = text.replace("\n", "\\n")
+    return truncate(escaped, max_len, "...")
 
 
 def wrap_text(text: str, width: int = 78, indent: str = "  ") -> list[str]:

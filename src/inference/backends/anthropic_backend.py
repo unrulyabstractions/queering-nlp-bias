@@ -14,59 +14,13 @@ from __future__ import annotations
 
 import os
 from collections.abc import Sequence
-from dataclasses import dataclass
 from typing import Any
 
-import tiktoken
 import torch
 from anthropic import Anthropic
 
+from .api_tokenizer import APITokenizer
 from .model_backend import Backend
-
-
-@dataclass
-class AnthropicTokenizer:
-    """Minimal tokenizer interface for Anthropic models.
-
-    Uses tiktoken's cl100k_base encoding as an approximation since
-    Anthropic doesn't expose their tokenizer. This is used only for
-    token counting and encoding/decoding when needed.
-    """
-
-    encoding_name: str = "cl100k_base"  # Close approximation
-
-    def __post_init__(self):
-        self._encoding = tiktoken.get_encoding(self.encoding_name)
-
-    @property
-    def vocab_size(self) -> int:
-        return self._encoding.n_vocab
-
-    @property
-    def bos_token_id(self) -> int | None:
-        return None
-
-    @property
-    def eos_token_id(self) -> int | None:
-        return self._encoding.eot_token
-
-    @property
-    def pad_token_id(self) -> int | None:
-        return None
-
-    @property
-    def bos_token(self) -> str | None:
-        return None
-
-    @property
-    def eos_token(self) -> str | None:
-        return "<|endoftext|>"
-
-    def encode(self, text: str, add_special_tokens: bool = True) -> list[int]:
-        return self._encoding.encode(text)
-
-    def decode(self, token_ids: list[int], skip_special_tokens: bool = True) -> str:
-        return self._encoding.decode(token_ids)
 
 
 class AnthropicBackend(Backend):
@@ -95,7 +49,8 @@ class AnthropicBackend(Backend):
         """
         super().__init__(runner)
         self._model = model or self.DEFAULT_MODEL
-        self._tokenizer = AnthropicTokenizer()
+        # Use cl100k_base as approximation for Claude tokenization
+        self._tokenizer = APITokenizer(encoding_name="cl100k_base")
         self._client = None
 
     def _get_client(self):

@@ -12,13 +12,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from src.common.callback_types import LogFn, ProgressFn
+from src.common.experiment_types import ArmGenerationResult
 from src.common.token_tree import TokenTree
 from src.inference import ModelRunner
 
 from .generation_config import GenerationConfig
 from .generation_method_registry import get_method, get_output_name
 from .generation_output import GenerationOutput
-from .generation_types import ArmGenerationResult
 
 
 @dataclass
@@ -59,33 +59,27 @@ def run_generation_pipeline(
     # Run generation via method function
     result = generate_fn(runner, config, params, log_fn)
 
+    # Set arm_index on each trajectory and build tree
+    for traj, arm_idx in zip(result.trajectories, result.arm_indices):
+        traj.arm_index = (arm_idx,)
+
     # Build token tree from trajectories
-    tree = _build_token_tree(result, config, runner)
+    tree = TokenTree.from_trajectories(
+        trajs=result.trajectories,
+        trunk=list(range(result.trunk_length)),
+        prompt_length=result.prompt_length,
+    )
+    tree.decode_texts(runner)
 
     # Create output structure (output_name from registry)
     output = GenerationOutput.from_tree(
         config=config,
         model=runner.model_name,
         tree=tree,
+        arms=result.arms,
         method=get_output_name(method),
         eos_token=runner.eos_token,
+        arm_token_lengths=result.arm_token_lengths,
     )
 
     return GenerationPipelineResult(result=result, tree=tree, output=output)
-
-
-def _build_token_tree(
-    result: ArmGenerationResult,
-    config: GenerationConfig,
-    runner: ModelRunner,
-) -> TokenTree:
-    """Build token tree from generation result."""
-    tree = TokenTree.from_trajectories(
-        trajs=result.trajectories,
-        groups_per_traj=[(idx,) for idx in result.arm_indices],
-        fork_arms=config.fork_arms,
-        trunk=list(range(result.trunk_length)),
-        prompt_length=result.prompt_length,
-    )
-    tree.decode_texts(runner)
-    return tree

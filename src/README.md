@@ -1,16 +1,17 @@
 # src/
 
-> **Note**: This documentation was LLM-generated. If something seems wrong or contradicts the code, please report bugs.
-
-Core library for trajectory generation, analysis, and visualization.
+Core library for trajectory generation, scoring, estimation, and visualization.
 
 ## Module Overview
 
 ```
 src/
-├── common/      # Data structures, math, and utilities
-├── inference/   # Model backends and trajectory generation
-└── viz/         # Tree visualization
+├── common/       # Data structures and utilities
+├── generation/   # Trajectory generation methods and configuration
+├── scoring/      # Structure-based scoring of trajectories
+├── estimation/   # Normativity metrics and statistical analysis
+├── inference/    # Model backends and language model interfaces
+└── viz/          # Visualization of results and experiments
 ```
 
 ## Pipeline Architecture
@@ -18,123 +19,148 @@ src/
 ```
 Generation → Scoring → Estimation → Visualization
     │           │          │             │
-    │           │          │             └─ viz/plot.py
-    │           │          └─ common/math/entropy_diversity/
-    │           └─ common/token_tree.py + schemas
-    └─ inference/model_runner.py
+    │           │          │             └─ viz/
+    │           │          ├─ Compute cores, deviance, orientation
+    │           │          └─ dynamics/ (drift and horizon analysis)
+    │           └─ Structure compliance scoring
+    └─ Output: out/<method>/gen_<config>.json
 ```
 
-See methodology docs for conceptual background:
+Output files follow the pattern:
+- `out/<method>/gen_<config>.json` — Generation results
+- `out/<method>/score_<config>_<judgment>.json` — Scoring results
+- `out/<method>/est_<config>_<judgment>.json` — Estimation results
+
+See methodology docs:
 - [GENERATION.md](../GENERATION.md)
 - [SCORING.md](../SCORING.md)
 - [ESTIMATION.md](../ESTIMATION.md)
 
 ## Key Data Structures
 
-| Class | Module | Description |
-|-------|--------|-------------|
+| Class | Module | Purpose |
+|-------|--------|---------|
 | `TokenTree` | common/token_tree.py | Tree of trajectories with branching |
 | `TokenTrajectory` | common/token_trajectory.py | Single token sequence with logprobs |
-| `BranchingNode` | common/branching_node.py | Divergence point in tree |
-| `BinaryFork` | common/binary_fork.py | Pairwise branch comparison |
-| `ModelRunner` | inference/model_runner.py | Unified model interface |
+| `GenerationConfig` | generation/generation_config.py | Trajectory generation configuration |
+| `ScoringConfig` | scoring/scoring_config.py | Structure scoring configuration |
+| `ScoringData` | estimation/estimation_scoring_data.py | Scored trajectories for analysis |
+| `ModelRunner` | inference/model_runner.py | Unified interface to language models |
 
 ## common/
 
-Data structures and mathematical utilities.
+Data structures and shared utilities.
 
-### Token Tree
+**Subfolders:**
+- `analysis/` — Analysis helper types
+- `logging/` — Display and formatting utilities
+- `math/` — Mathematical functions (entropy, diversity)
+- `profiler/` — Performance measurement utilities
+- `text/` — Text processing utilities
+- `viz/` — Visualization helpers
 
-```python
-from src.common.token_tree import TokenTree
+**Key files:**
+- `base_schema.py` — `BaseSchema` base class for all data structures
+- `token_tree.py` — `TokenTree` class for trajectory trees
+- `token_trajectory.py` — `TokenTrajectory` class for single sequences
+- `experiment_types.py` — `GenerationArm` and experiment configuration types
 
-tree = TokenTree.from_trajectories(
-    trajs=[traj1, traj2, traj3],
-    groups_per_traj=[(0,), (0,), (1,)],
-    fork_arms=["boy", "girl"],
-    trunk=[0, 1, 2, ...],
-)
+## generation/
 
-# Decode token IDs to text
-tree.decode_texts(runner)
+Trajectory generation with multiple methods.
 
-# Serialize for output
-tree.to_dict()
-```
+**Methods:**
+- `simple-sampling` — Parallel independent sampling
+- `forking-paths` — Sequential branching with alternation
+- `seeking-entropy` — Entropy-seeking guided sampling
+- `just-greedy` — Greedy baseline
 
-### Math Utilities
+**Key files:**
+- `generation_config.py` — `GenerationConfig` for defining arm structure and parameters
+- `generation_pipeline.py` — `run_generation_pipeline()` entry point
+- `generation_output.py` — `GenerationOutput` with serialization
+- `methods/` — Method implementations
 
-```python
-from src.common.math.entropy_diversity import (
-    generalized_system_core,
-    deviance,
-    orientation,
-    expected_deviance,
-)
+**Output:** `out/<method>/gen_<config>.json`
 
-# Compute probability-weighted core
-core = generalized_system_core(compliances, probs, q=1.0, r=1.0)
+## scoring/
 
-# Compute deviance from core
-dev = deviance(compliance, core, norm="l2")
-```
+Score trajectories against user-defined structures.
+
+**Methods:**
+- `categorical` — LLM-based multi-class judgments
+- `graded` — LLM-based numerical ratings
+- `similarity` — Embedding-based similarity scoring
+- `count-occurrences` — Pattern matching
+
+**Key files:**
+- `scoring_config.py` — `ScoringConfig` for defining structures and scoring rules
+- `scoring_pipeline.py` — `run_scoring_pipeline()` entry point
+- `scoring_data.py` — Input/output data structures
+- `methods/` — Scoring method implementations
+
+**Output:** `out/<method>/score_<config>_<judgment>.json`
+
+See [README.md](./scoring/README.md) and [EXPLANATION.md](./scoring/EXPLANATION.md).
+
+## estimation/
+
+Estimate normativity metrics from scored trajectories.
+
+**Weighting methods:**
+- `prob` — Probability weighting (standard)
+- `inv-ppl` — Inverse perplexity weighting
+- `uniform` — Uniform baseline
+
+**Subfolders:**
+- `methods/` — Weighting method implementations
+- `dynamics/` — Drift and horizon analysis
+- `logging/` — Display utilities
+
+**Key files:**
+- `estimation_pipeline.py` — `run_estimation_pipeline()` entry point
+- `estimation_output.py` — `EstimationOutput` with serialization
+- `estimation_scoring_data.py` — Load and parse scoring JSON
+- `arm_types.py` — Arm classification and ordering
+
+**Output:** `out/<method>/est_<config>_<judgment>.json`
+
+See [README.md](./estimation/README.md) and [EXPLANATION.md](./estimation/EXPLANATION.md).
 
 ## inference/
 
-Model loading and trajectory generation.
+Language model loading and inference.
 
-### ModelRunner
+**Supported backends:**
+- HuggingFace — Open-source models (CPU/CUDA)
+- MLX — Apple Silicon optimization
+- OpenAI — GPT models via API
+- Anthropic — Claude models via API
 
-```python
-from src.inference import ModelRunner
-
-runner = ModelRunner("Qwen/Qwen3-0.6B")
-
-# Properties
-runner.device          # "cuda", "mps", or "cpu"
-runner.vocab_size      # 151936
-
-# Tokenization
-ids = runner.encode_ids("Hello world")
-text = runner.decode_ids(ids)
-
-# Generation
-traj = runner.generate_trajectory_from_prompt(
-    prompt="Write a story",
-    prefilling="Once upon a time",
-    max_new_tokens=100,
-    temperature=1.0,
-)
-```
-
-### Backends
-
-Automatic backend selection based on model and hardware:
-
-| Backend | Use Case |
-|---------|----------|
-| HuggingFace | Most open-source models (CUDA/CPU) |
-| MLX | Apple Silicon optimization |
-| OpenAI | GPT models via API |
-| Anthropic | Claude models via API |
+**Key files:**
+- `model_runner.py` — `ModelRunner` unified interface
+- `embedding_runner.py` — Embedding model support
+- `generated_trajectory.py` — Single trajectory from generation
 
 ## viz/
 
-Tree visualization and plotting.
+Comprehensive visualizations of estimation results.
 
-```python
-from src.viz.plot import visualize_experiment
+**Plot types:**
+- Core compliance bar charts
+- Deviance and diversity trajectories
+- Orientation vectors (signed differences)
+- Generalized cores (q, r variants)
+- Trajectory trees (word/phrase level)
+- Cross-method comparisons
 
-visualize_experiment(
-    tree=tree,
-    runner=runner,
-    mode="word",  # "token", "word", or "phrase"
-)
-```
+**Output:** `out/<method>/` with subdirectories per estimation method
+
+See [README.md](./viz/README.md).
 
 ## Design Patterns
 
-- **BaseSchema**: All schemas inherit for JSON serialization
-- **Backend Abstraction**: Unified interface across model providers
-- **Group-Based Analysis**: Trajectories belong to groups for comparison
-- **Two-Pass Analysis**: Basic metrics first, then structure-aware analysis
+- **BaseSchema**: All data classes inherit from `BaseSchema` for serialization
+- **Registry Pattern**: Pluggable methods for generation, scoring, estimation
+- **Weighting Methods**: Configurable probabilistic weighting in estimation
+- **Arm Hierarchy**: Root → Trunk → Branches → Twigs with parental relationships

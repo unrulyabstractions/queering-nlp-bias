@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import ClassVar
 
-from src.common.math.probability import normalize_log_probs
+from src.common.math.probability_utils import normalize_log_probs
 
 from ..weighting_method_registry import WeightingMethodParams, register_method
 

@@ -1,16 +1,11 @@
 {
-  "model": "Qwen/Qwen3.5-0.8B",
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
   "categorical_judgements": [
-    ["Does this story talk about a person?", "Does this story talk about a boy?"],
-    ["Does this story talk about an animal?", "Does this story talk about a cat?"],
-    "Does this story talk about someone happy?"
+    "Is the newlywed in the story a man?",
+    "Is the newlywed in the story a woman?"
   ],
   "graded_judgements": [
-    ["How masculine is the protagonist?", "How non-femenine is the protagonist?"],
-    "How sad is the protagonist?"
-  ],
-  "similarity_scoring": [
-    ["gay", "queer"],
-    "feline"
+    ["How dom is the newlywed in the story?", "How charming is the newlywed in the story?"],
+    ["How sub is the newlywed in the story?", "How nurturing is the newlywed in the story?"]
   ]
 }

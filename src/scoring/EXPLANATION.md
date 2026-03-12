@@ -1,8 +1,5 @@
 # Scoring Package Specification
 
-> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
-
-
 This document provides detailed specification for the trajectory scoring system.
 
 ## Overview
@@ -157,22 +154,35 @@ Answer with just a number between 0.0 and 1.0:
 
 1. **Load Generation Output**:
    ```python
-   gen_data = GenerationOutputData.load("out/gen_example.json")
+   gen_data = GenerationOutputData.load("out/simple-sampling/example/generation.json")
    ```
    This extracts `TrajectoryData` objects containing:
    - `trajectory_idx`: Index in the generation batch
-   - `branch`: Which branch the trajectory came from (e.g., "trunk", "branch_1")
-   - `prompt`: The input text
-   - `response`: The generated continuation
-   - `response_after_branch`: Continuation with branch token stripped
-   - `conditional_logprobs`: Log probabilities conditioned on each arm
+   - `arm_name`: Which arm the trajectory came from (e.g., "trunk", "branch_1")
+   - `generated_text`: The full generated text
+   - `continuation_text`: Generated text only (excluding prefill)
+   - `continuation_text_no_thinking`: Generated text with `<think>...</think>` blocks removed
+   - `text_after_trunk`: Text after trunk arm tokens
+   - `text_after_branch`: Text after branch arm tokens
+   - `text_after_twig`: Text after twig arm tokens (full continuation)
+   - `conditional_logprobs`: Log probabilities conditioned on each arm (see below)
+
+   **Conditional Logprob Computation**:
+
+   The `conditional_logprobs` dict maps arm names to log p(continuation | arm). For proper conditional
+   probabilities, we sum logprobs from the correct starting position for each arm:
+
+   - `p(x | trunk)` = sum of logprobs from `trunk_length` onwards
+   - `p(x | branch_N)` = sum from `trunk_length + branch_tokens` onwards
+   - `p(x | twig_M)` = sum from `trunk_length + branch_tokens + twig_tokens` onwards
 
 2. **Text Selection**:
    The `string_selection` config option determines which text portion to score:
-   - `WholeTrajectory`: prompt + response
-   - `WholeContinuation`: just the response (default)
-   - `AfterTrunk`: response minus trunk
-   - `AfterBranch`: response minus branch token
+   - `WholeContinuation`: Full generated continuation (default)
+   - `NonThinkingContinuation`: Continuation with `<think>...</think>` blocks removed
+   - `AfterTrunk`: Generated text excluding trunk arm tokens
+   - `AfterBranch`: Generated text excluding trunk and branch arm tokens
+   - `AfterTwig`: Generated text excluding trunk, branch, and twig arm tokens
 
 3. **EOS Token Stripping**:
    The pipeline strips EOS tokens from text before scoring to avoid artifacts.
@@ -214,7 +224,7 @@ For each trajectory:
 **Full output** (`ScoringOutput`):
 ```python
 {
-    "generation_file": "out/gen_example.json",
+    "generation_file": "out/simple-sampling/gen_example.json",
     "scoring_file": "trials/scoring/example.json",
     "judge_model": "gpt-4o-mini",
     "embedding_model": "all-MiniLM-L6-v2",
@@ -222,12 +232,36 @@ For each trajectory:
         "categorical_judgements": ["Q1?", "Q2?"],
         "similarity_scoring": ["reference text"]
     },
-    "branches": ["trunk", "branch_1"],
+    "arm_names": ["trunk", "branch_1"],
+    "arm_texts": {"trunk": "...", "branch_1": "..."},
     "scored_at": "2024-01-15T10:30:00",
     "num_results": 100,
     "results": [...]
 }
 ```
+
+### Output Paths
+
+Output paths are computed from generation and scoring file paths:
+
+```python
+# Scores output
+output_path = ScoringOutput.compute_output_path(gen_path, scoring_path)
+# Results in: out/<method>/<gen_name>/<scoring_name>/scoring.json
+# Example: out/simple-sampling/example/categorical/scoring.json
+
+# Config copy
+config_path = output_path.parent / "scoring_cfg.json"
+# Results in: out/<method>/<gen_name>/<scoring_name>/scoring_cfg.json
+# Example: out/simple-sampling/example/categorical/scoring_cfg.json
+
+# Summary output
+summary_path = ScoringOutput.compute_summary_path(gen_path, scoring_path)
+# Results in: out/<method>/<gen_name>/<scoring_name>/summary_scoring.txt
+# Example: out/simple-sampling/example/categorical/summary_scoring.txt
+```
+
+The `<method>` and `<gen_name>` are extracted from the generation path structure.
 
 ---
 
@@ -395,10 +429,11 @@ The flat list of individual scores is stored in `method_scores`, while the struc
 
 | Value | Description |
 |-------|-------------|
-| `WholeTrajectory` | Full text including prompt and response |
-| `WholeContinuation` | Just the generated response (default) |
-| `AfterTrunk` | Response minus trunk tokens |
-| `AfterBranch` | Response minus branch token |
+| `WholeContinuation` | Full generated continuation (default) |
+| `NonThinkingContinuation` | Continuation with `<think>...</think>` blocks removed |
+| `AfterTrunk` | Generated text excluding trunk arm tokens |
+| `AfterBranch` | Generated text excluding trunk and branch arm tokens |
+| `AfterTwig` | Generated text excluding trunk, branch, and twig arm tokens |
 
 ---
 

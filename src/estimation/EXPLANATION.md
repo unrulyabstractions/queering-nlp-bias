@@ -1,8 +1,5 @@
 # Estimation Algorithm Specification
 
-> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
-
-
 This document provides an in-depth explanation of the normativity estimation algorithm, including the mathematical foundations, weighting methods, and data flow.
 
 ## Overview
@@ -10,7 +7,7 @@ This document provides an in-depth explanation of the normativity estimation alg
 The estimation pipeline computes **normativity metrics** from scored trajectories. The core insight: diversity is always relative to a context (a "system" of structures). What counts as "diverse" depends on which structures we care about.
 
 **Input**: Scored trajectories with structure compliance scores and log probabilities
-**Output**: Per-arm statistics including core, deviance, orientation, and their variants
+**Output**: Per-arm statistics including core, deviance, and core variants
 
 ## Core Concepts
 
@@ -200,27 +197,23 @@ For each arm and weighting method, the pipeline computes:
 
 | Field | Symbol | Description |
 |-------|--------|-------------|
-| `core` | `<Lambda>` | Primary core (q=1, r=1) |
-| `deviance_avg` | `E[d\|B]` | Expected deviance relative to this arm's core |
-| `deviance_var` | `Var[d\|B]` | Variance of deviance |
-| `deviance_avg_trunk` | `E[d\|T]` | Expected deviance relative to trunk core |
-| `deviance_delta` | `E[Delta d]` | `E[d|branch] - E[d|trunk]` |
-| `orientation_avg` | `E[theta\|T]` | Expected orientation relative to trunk |
-| `orientation_norm` | `\|\|E[theta]\|\|` | L2 norm of expected orientation |
+| `core` | `Λ` | Primary core (q=1, r=1) |
+| `deviance_avg` | `E[∂\|self]` | Expected deviance relative to this arm's core |
+| `deviance_var` | `Var[∂\|self]` | Variance of deviance |
+| `deviance_avg_root` | `E[∂\|root]` | Expected deviance relative to root core |
+| `deviance_avg_trunk` | `E[∂\|trunk]` | Expected deviance relative to trunk core |
+| `orientation_from_root` | `θ(arm\|root)` | Orientation vector relative to root core |
+| `orientation_norm_from_root` | `\|\|θ\|\|` | Magnitude of orientation from root |
+| `orientation_from_trunk` | `θ(arm\|trunk)` | Orientation vector relative to trunk core |
+| `orientation_norm_from_trunk` | `\|\|θ\|\|` | Magnitude of orientation from trunk |
+| `orientation_from_parent` | `θ(arm\|parent)` | Orientation relative to parent branch (twigs only) |
+| `orientation_norm_from_parent` | `\|\|θ\|\|` | Magnitude of orientation from parent branch |
 | `core_variants` | - | List of (q, r) core variants with deviances |
 
-### Deviance Delta Interpretation
+### Derived Metrics (Computed on Demand)
 
-`deviance_delta = E[d|branch] - E[d|trunk]` measures how a branch changes diversity:
-- Positive: Branch increases deviance (more diverse / less normative)
-- Negative: Branch decreases deviance (more homogenized / more normative)
-- Zero: Branch maintains same deviance level as trunk
-
-### Orientation Norm Interpretation
-
-`orientation_norm = ||E[theta|T]||` measures distance between branch core and trunk core:
-- Zero: Branch core equals trunk core
-- Large: Branch core is far from trunk core (systematic shift)
+These values are computed from cores when needed, not stored:
+- **Deviance delta**: `E[∂|self] - E[∂|trunk]` (change vs trunk)
 
 ## Data Flow
 
@@ -236,12 +229,13 @@ ScoringData.load(path)
     |
     +-- scoring_data: dict[str, list[ScoringItem]]  # config_key -> items
     +-- results: list[dict]                          # Per-trajectory scores
-    +-- branches: list[str]                          # Branch names
+    +-- arm_names: list[str]                         # Arm names (root, trunk, branch_1, ...)
     +-- metadata: ScoringMetadata                    # File refs, model info
 ```
 
 Key methods:
 - `group_by_arm()` -> `dict[str, list[TrajectoryScoringData]]`
+- `get_all_trajectories()` -> `list[TrajectoryScoringData]` (all trajectories across arms)
 - `get_structure_scores(result)` -> `list[float]`  (compliance vector)
 - `get_structure_info()` -> `list[StructureInfo]`
 
@@ -268,7 +262,7 @@ run_estimation_pipeline(data, judgment_file)
     |               compute_weighted_estimate(reference_core=trunk_core)
     |
     v
-EstimationResult
+PipelineResult
     +-- output: EstimationOutput
     +-- arms: list[ArmEstimate]
     +-- trunk_cores: dict[str, list[float]]
@@ -293,9 +287,103 @@ Each `WeightedEstimate` contains all metrics for one weighting method.
 **File**: `estimation_output.py`
 
 The output can be:
-- Saved to JSON: `output.save(path)`
+- Saved to JSON: `output.save(path)` (goes to `out/<method>/<gen_name>/<scoring_name>/` subfolder)
 - Summarized to console: `output.summarize()`
-- Saved as text summary: `output.save_summary(path)`
+- Saved as text summary: `output.save_summary(path)` (goes to `out/<method>/<gen_name>/<scoring_name>/` subfolder)
+
+Example output paths:
+```
+out/simple-sampling/example/example/estimation.json
+out/simple-sampling/example/example/summary_estimation.txt
+out/simple-sampling/example/example/viz/           # Visualizations
+out/simple-sampling/example/example/viz/dynamics/  # Dynamics plots
+```
+
+### Trajectory Text Field
+
+Each `TrajectoryScoringData` now includes a `text` field containing the continuation text. This is used for:
+- Dynamics analysis (drift and horizon computation)
+- Output storage for downstream processing
+- Visualization and reporting
+
+## Dynamics Analysis: Drift, Horizon, and Pull
+
+**Files**: `dynamics/dynamics_types.py`, `dynamics/dynamics_computation.py`, `dynamics/dynamics_visualization.py`
+
+The dynamics module analyzes how trajectories evolve relative to reference cores. Three metrics capture complementary aspects:
+
+**Drift y(k)**: Deviance of PARTIAL text (re-scored) relative to root core
+- Re-scores partial text at token position k
+- Shows how far a trajectory has deviated from root as text develops
+- Plotted as a continuous curve over token position (purple)
+
+**Horizon z(arm)**: Deviance of FULL trajectory relative to each arm's core along trajectory's path
+- Uses pre-computed full trajectory scores (no re-scoring)
+- Only computes for arms on the trajectory's ancestry path (see below)
+- Plotted at each arm's prefix token count (blue, connected line)
+
+**Pull x(arm)**: L2 norm of arm's core at each arm's prefix position
+- Represents the "strength" of normative characterization at each arm
+- Plotted alongside horizon for comparison (orange, connected line)
+
+### Arm Ancestry
+
+A trajectory only computes horizon and pull for arms on its **ancestry path**. This is determined by `get_arm_ancestry()` from `arm_types.py`:
+
+| Trajectory Arm | Ancestry Path |
+|----------------|---------------|
+| `root` | `["root"]` |
+| `trunk` | `["root", "trunk"]` |
+| `branch_1` | `["root", "trunk", "branch_1"]` |
+| `branch_2` | `["root", "trunk", "branch_2"]` |
+| `twig_2_b1` | `["root", "trunk", "branch_1", "twig_2_b1"]` |
+
+### Output Structure
+
+Dynamics plots are saved to:
+```
+out/<method>/<gen_name>/<scoring_name>/viz/dynamics/traj_{idx}_{arm}.png
+```
+
+Each plot shows three curves:
+- Drift (purple): deviance from root as text develops
+- Horizon (blue): deviance from each arm's core at arm prefix positions
+- Pull (orange): L2 norm of arm's core at arm prefix positions
+
+### Example Usage
+
+```python
+from src.estimation.dynamics import compute_dynamics, plot_dynamics
+
+# Given an EstimationResult and ScoringConfig
+dynamics_result = compute_dynamics(
+    estimation_result=result,
+    scoring_config=scoring_config,
+    trajs_per_arm=1,  # Analyze 1 trajectory per arm
+)
+
+for traj_dyn in dynamics_result.trajectories:
+    print(f"Trajectory {traj_dyn.traj_idx} ({traj_dyn.arm_name}): {traj_dyn.n_tokens} tokens")
+
+    # Drift points (re-scored partial text vs root)
+    for drift_point in traj_dyn.drift_points:
+        print(f"  Drift @{drift_point.token_position}: deviance={drift_point.deviance:.4f}")
+
+    # Horizon points (full text vs each arm's core on ancestry path)
+    for hp in traj_dyn.horizon_points:
+        marker = "*" if hp.arm_name == traj_dyn.arm_name else ""
+        print(f"  Horizon({hp.arm_name}, @{hp.arm_prefix_tokens}): {hp.deviance:.4f}{marker}")
+
+    # Pull points (L2 norm of each arm's core)
+    for pp in traj_dyn.pull_points:
+        print(f"  Pull({pp.arm_name}, @{pp.arm_prefix_tokens}): ||core||={pp.pull:.4f}")
+
+# Generate visualization
+output_dir = Path("out/simple-sampling/gen_name/score_name/viz/dynamics")
+saved_paths = plot_dynamics(dynamics_result, output_dir)
+```
+
+For complete details, see [dynamics/EXPLANATION.md](./dynamics/EXPLANATION.md).
 
 ## Algorithm: compute_arm_estimate()
 
@@ -315,18 +403,18 @@ def compute_arm_estimate(arm_idx, name, trajectories, reference_cores=None):
         # Compute core (q=1, r=1)
         core = generalized_system_core(structure_scores_list, weights, q=1, r=1)
 
-        # Compute deviance stats
+        # Compute deviance stats relative to own core
         dev_avg = expected_deviance(structure_scores_list, core, weights)
         dev_var = deviance_variance(structure_scores_list, core, weights)
 
-        # Compute orientation relative to reference (trunk) core
-        ref_core = reference_cores.get(method_name) or core
-        orient_avg = expected_orientation(structure_scores_list, ref_core, weights)
-        orient_norm = ||orient_avg||_2
+        # Compute deviance relative to reference cores
+        dev_avg_root = expected_deviance(structure_scores_list, root_core, weights)
+        dev_avg_trunk = expected_deviance(structure_scores_list, trunk_core, weights)
 
-        # Compute deviance relative to trunk
-        dev_avg_trunk = expected_deviance(structure_scores_list, ref_core, weights)
-        dev_delta = dev_avg - dev_avg_trunk
+        # Pre-compute orientation vectors relative to reference cores
+        orientation_from_root = core - root_core  # vector subtraction
+        orientation_from_trunk = core - trunk_core
+        orientation_from_parent = core - parent_core  # for twigs only
 
         # Compute (q, r) variants
         core_variants = compute_core_variants(structure_scores_list, weights)

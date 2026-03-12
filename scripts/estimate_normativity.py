@@ -1,10 +1,10 @@
 """Estimate normativity from scoring results.
 
 Usage:
-    python scripts/estimate_normativity.py out/score_<name>.json
+    python scripts/estimate_normativity.py out/<method>/score_<name>.json
 
 Outputs:
-    out/est_<name>.json
+    out/<method>/est_<name>.json
 
 Computes structure-aware diversity metrics:
 - Core: Expected system compliance (average scores)

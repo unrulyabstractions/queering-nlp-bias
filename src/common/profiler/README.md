@@ -1,18 +1,17 @@
 # Profiler Module
 
-> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
-
-
 Simple profiling utilities for timing code execution.
 
 ## Contents
 
-- `timer.py` - Hierarchical profiler with context manager API
-- `decorators.py` - Function decorators for profiling
+- `profiling_timer.py` - Singleton profiler `P` with hierarchical timing and context manager API
+- `profiling_decorators.py` - Function decorator for automatic profiling and memory logging
 
-## Usage
+## Core API
 
-The singleton profiler `P` provides a simple API for timing:
+### Singleton Profiler `P`
+
+The `P` object provides timing with automatic parent-child hierarchy tracking:
 
 ```python
 from src.common.profiler import P
@@ -24,19 +23,38 @@ with P("load_data"):
 # Manual start/stop
 P.start("train")
 # ... training ...
-P.stop("train")
+elapsed = P.stop("train")  # Returns elapsed time in seconds
 
 # Nested timing (builds hierarchy)
 with P("outer"):
     with P("inner"):
         work()
 
-# Report summary
-P.report()      # Print timing report
-P.summary()     # Get dict of name -> ms
-P.reset()       # Clear all timings
+# Report and query
+P.report(min_ms=0.1)    # Print hierarchical timing report
+P.summary()             # Dict of name -> total_ms
+P.get("train")          # Get total ms for specific entry
+P.reset()               # Clear all timings
 
-# Enable/disable
-P.disable()     # No-op mode
-P.enable()      # Resume profiling
+# Control
+P.disable()             # No-op mode
+P.enable()              # Resume profiling
 ```
+
+### Profiling Decorator
+
+Automatically times function execution and logs memory usage:
+
+```python
+from src.common.profiler import profile
+
+@profile
+def my_func():
+    pass
+
+@profile("custom_name", verbose=True)
+def another_func():
+    pass
+```
+
+The decorator creates a timing entry in `P` and logs memory stats via `log_memory()`.

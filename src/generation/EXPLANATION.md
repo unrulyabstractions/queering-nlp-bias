@@ -1,8 +1,5 @@
 # Generation Package: In-Depth Specification
 
-> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
-
-
 This document provides detailed explanations of the generation algorithms, data flow, key data structures, and the registry pattern.
 
 ## Table of Contents
@@ -590,8 +587,62 @@ _cli_args: ClassVar[dict[str, str]] = {
 
 This enables:
 ```bash
-python scripts/run_full_experiment.py \
+uv run python scripts/run_full_experiment.py \
     --method forking-paths \
     --max-alternates-per-position 5 \
     config.json
+```
+
+---
+
+## Output File Organization
+
+Generation output is organized by method and trial name in the `out/` directory:
+
+```
+out/
+├── simple-sampling/
+│   └── example/
+│       ├── generation.json
+│       ├── generation_cfg.json
+│       └── summary_generation.txt
+├── forking-paths/
+│   └── example/
+│       ├── generation.json
+│       ├── generation_cfg.json
+│       └── summary_generation.txt
+├── seeking-entropy/
+│   └── example/
+│       ├── generation.json
+│       ├── generation_cfg.json
+│       └── summary_generation.txt
+└── just-greedy/
+    └── example/
+        ├── generation.json
+        ├── generation_cfg.json
+        └── summary_generation.txt
+```
+
+Each method produces:
+- **generation.json** - Full generation output with tree structure
+- **generation_cfg.json** - Copy of the original generation config
+- **summary_generation.txt** - Human-readable summary of trajectories and statistics
+
+Output path computation:
+```python
+# Automatic path generation based on config filename and method
+config_path = Path("trials/generation/example.json")
+method = "simple-sampling"
+
+output_dir = Path("out") / method / config_path.stem
+# Result: out/simple-sampling/example/
+
+output_path = output_dir / "generation.json"
+# Result: out/simple-sampling/example/generation.json
+
+config_copy_path = output_dir / "generation_cfg.json"
+# Result: out/simple-sampling/example/generation_cfg.json
+
+summary_path = output_dir / "summary_generation.txt"
+# Result: out/simple-sampling/example/summary_generation.txt
 ```

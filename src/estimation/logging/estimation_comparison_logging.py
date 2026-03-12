@@ -17,7 +17,7 @@ from src.common.logging import (
     log_section_title,
     log_table_header,
 )
-from src.generation import OutputPaths
+from src.common.experiment_types import OutputPaths
 
 from src.scoring.scoring_method_registry import iter_methods as iter_scoring_methods
 
@@ -55,19 +55,28 @@ def log_setup_summary(paths: OutputPaths) -> None:
     log(f"    {prompt}")
     log("")
 
-    # Arms section
+    # Arms section - show all arm types
     trunk = config.get("trunk", "")
     branches = config.get("branches", [])
+    twig_variations = config.get("twig_variations", [])
 
     log("  ARMS:")
+    log("")
+    log("    ROOT:       prompt only (no trunk)")
+    log("")
     if trunk:
-        log(f'    TRUNK:    "{trunk}"')
+        log(f'    TRUNK:      "{trunk}"')
+        log("")
 
-    # Branches - show each with TRUNK + branch
+    # Branches and their twigs
     if branches and branches != ["trunk"]:
         real_branches = [b for b in branches if b != "trunk"]
-        for i, b in enumerate(real_branches):
-            log(f'    BRANCH_{i + 1}: TRUNK + "{b}"')
+        for i, b in enumerate(real_branches, start=1):
+            log(f'    BRANCH_{i}:  TRUNK + "{b}"')
+            # Show twig variations for this branch
+            for t, twig in enumerate(twig_variations, start=1):
+                log(f'        TWIG_{t}_B{i}:  BRANCH_{i} + "{twig}"')
+            log("")
 
     log("")
 
@@ -120,6 +129,8 @@ def log_setup_summary(paths: OutputPaths) -> None:
 
 def _log_results_summary(est_data: dict[str, Any], labels: list[str]) -> None:
     """Log the results summary from estimation data."""
+    from src.estimation.arm_types import ArmKind, classify_arm
+
     col_w = 7
 
     def fmt_header(lbls: list[str]) -> str:
@@ -130,74 +141,33 @@ def _log_results_summary(est_data: dict[str, Any], labels: list[str]) -> None:
         """Format values row with centered numbers."""
         result = []
         for v in values:
-            # Avoid -0.00 display
             if abs(v) < 0.005:
                 v = 0.0
             result.append(f"{v:^{col_w}.2f}")
         return "".join(result)
 
-    arms = est_data.get("arms", [])
+    def fmt_scalar(v: float) -> str:
+        if abs(v) < 0.00005:
+            v = 0.0
+        return f"{v:>7.4f}"
 
+    arms = est_data.get("arms", [])
     if not arms:
         return
+
+    # Check if we have root arm
+    has_root = any(arm.get("name") == "root" for arm in arms)
 
     log_section_title("RESULTS")
     log_divider(width=76)
 
-    # Legend for expectations
-    log("  Legend:")
-    log("    core         = expected compliance per structure (normative center)")
-    log("    E[θ|trunk]   = how this arm's core differs from trunk (direction)")
-    log("    ||E[θ]||     = distance between cores: ||core - trunk_core||")
-    log("    E[∂|branch]  = avg spread around this arm's core")
-    log("    E[∂|trunk]   = avg spread around trunk's core")
-    log("    E[Δ∂]        = E[∂|branch] - E[∂|trunk] (deviance difference)")
+    # Legend
+    log("  core   = normativity characterization (weighted avg score per structure)")
+    log("  E[∂|X] = avg divergence from normativity (lower = tighter clustering)")
     log("")
 
-    header_indent = "                    "
+    header_indent = "                "
     table_width = len(header_indent) + col_w * len(labels)
-
-    def log_arm_data(
-        display_name: str,
-        n_traj: int,
-        core: list[float],
-        dev_branch: float,
-        dev_trunk: float,
-        dev_delta: float,
-        orient_avg: list[float],
-        orient_norm: float,
-    ) -> None:
-        """Helper to print one arm's data."""
-
-        def fmt_scalar(v: float) -> str:
-            if abs(v) < 0.00005:
-                v = 0.0
-            return f"{v:>7.4f}"
-
-        log(f"  {display_name} ({n_traj} trajectories)")
-        log(f"      core         = {fmt_values(core)}")
-        if orient_avg:
-            log(f"      E[θ|trunk]   = {fmt_values(orient_avg)}")
-        log(f"      ||E[θ]||     = {fmt_scalar(orient_norm)}")
-        log(f"      E[∂|branch]  = {fmt_scalar(dev_branch)}")
-        log(f"      E[∂|trunk]   = {fmt_scalar(dev_trunk)}")
-        log(f"      E[Δ∂]        = {fmt_scalar(dev_delta)}")
-        log("")
-
-    def get_display_name(arm: dict) -> str:
-        """Helper to get display name for an arm."""
-        name = arm.get("name", "")
-        if name == "trunk":
-            return "TRUNK"
-        elif name == "all_arms":
-            return "ALL_ARMS"
-        elif name.startswith("branch_"):
-            return name.upper().replace("_", "_")
-        else:
-            idx = arm.get("arm_index", 0)
-            if idx > 0:
-                return f"BRANCH_{idx}"
-            return name.upper()
 
     # Iterate over all registered weighting methods
     for method_name, _, _ in iter_weighting_methods():
@@ -211,25 +181,89 @@ def _log_results_summary(est_data: dict[str, Any], labels: list[str]) -> None:
             continue
 
         log(f"  [{desc}]")
-        log(f"{header_indent}{fmt_header(labels)}")
-        log(f"    {'─' * (table_width - 4)}")
+        log("")
+
+        # TABLE 1: Cores
+        log(f"  Cores:")
+        log(f"    {'Arm':<14}  {'N':>4}  {fmt_header(labels)}")
+        log(f"    {'─' * (20 + col_w * len(labels))}")
 
         for arm in arms:
-            display_name = get_display_name(arm)
+            name = arm.get("name", "")
             trajectories = arm.get("trajectories", [])
             n_traj = len(trajectories)
-
             est = arm.get("estimates", {}).get(method_name, {})
-            log_arm_data(
-                display_name,
-                n_traj,
-                est.get("core", []),
-                est.get("deviance_avg", 0.0),
-                est.get("deviance_avg_trunk", 0.0),
-                est.get("deviance_delta", 0.0),
-                est.get("orientation_avg", []),
-                est.get("orientation_norm", 0.0),
-            )
+            core = est.get("core", [])
+            log(f"    {name:<14}  {n_traj:>4}  {fmt_values(core)}")
+
+        log("")
+
+        # TABLE 2: Deviances
+        log(f"  Deviances:")
+
+        # Check what arm types we have
+        has_branch = any(classify_arm(arm.get("name", "")) == ArmKind.BRANCH for arm in arms)
+        has_twig = any(classify_arm(arm.get("name", "")) == ArmKind.TWIG for arm in arms)
+
+        # Build header based on what arms we have
+        dev_cols = ["E[∂|root]"] if has_root else []
+        dev_cols.append("E[∂|trunk]")
+        if has_branch:
+            dev_cols.append("E[∂|branch]")
+        if has_twig:
+            dev_cols.append("E[∂|twig]")
+        dev_header = "  ".join(f"{c:>11}" for c in dev_cols)
+        log(f"    {'Arm':<14}  {dev_header}")
+        log(f"    {'─' * (16 + 13 * len(dev_cols))}")
+
+        for arm in arms:
+            name = arm.get("name", "")
+            kind = classify_arm(name)
+            est = arm.get("estimates", {}).get(method_name, {})
+            dev_self = est.get("deviance_avg", 0.0)
+            dev_root = est.get("deviance_avg_root", 0.0)
+            dev_trunk = est.get("deviance_avg_trunk", 0.0)
+
+            # Build row based on arm type
+            row_parts = []
+
+            # E[∂|root] column
+            if has_root:
+                if kind == ArmKind.ROOT:
+                    row_parts.append(f"{fmt_scalar(dev_self):>11}")
+                else:
+                    row_parts.append(f"{fmt_scalar(dev_root):>11}")
+
+            # E[∂|trunk] column
+            if kind == ArmKind.ROOT:
+                row_parts.append(f"{'—':>11}")
+            elif kind == ArmKind.TRUNK:
+                row_parts.append(f"{fmt_scalar(dev_self):>11}")
+            else:
+                row_parts.append(f"{fmt_scalar(dev_trunk):>11}")
+
+            # E[∂|branch] column
+            if has_branch:
+                if kind == ArmKind.BRANCH:
+                    row_parts.append(f"{fmt_scalar(dev_self):>11}")
+                elif kind == ArmKind.TWIG:
+                    # For twigs, show deviance from parent branch
+                    dev_parent = est.get("deviance_avg_parent", dev_trunk)
+                    row_parts.append(f"{fmt_scalar(dev_parent):>11}")
+                else:
+                    row_parts.append(f"{'—':>11}")
+
+            # E[∂|twig] column
+            if has_twig:
+                if kind == ArmKind.TWIG:
+                    row_parts.append(f"{fmt_scalar(dev_self):>11}")
+                else:
+                    row_parts.append(f"{'—':>11}")
+
+            row = "  ".join(row_parts)
+            log(f"    {name:<14}  {row}")
+
+        log("")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -244,8 +278,8 @@ def log_arm_table(
     core_label: str,
 ) -> None:
     """Log a comparison table for all arms using a specific weighting method."""
-    for idx, arm_name in enumerate(arm_names):
-        display_name = "TRUNK" if idx == 0 else f"BRANCH_{idx}"
+    for arm_name in arm_names:
+        display_name = arm_name.upper()
         log_section_title(display_name)
         log_table_header(
             [

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import gc
 import os
-import sys
 
 import psutil
 import torch

@@ -1,9 +1,6 @@
 # src/inference/
 
-> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
-
-
-Model inference with multi-backend support.
+Model inference with multi-backend support (HuggingFace, MLX, OpenAI, Anthropic).
 
 ## Quick Start
 
@@ -14,27 +11,58 @@ runner = ModelRunner("Qwen/Qwen3-0.6B")
 traj = runner.generate_trajectory_from_prompt("Write a story", max_new_tokens=100)
 ```
 
-## Contents
+## ModelRunner
 
-| File | Purpose |
-|------|---------|
-| `model_runner.py` | Unified model interface |
-| `generated_trajectory.py` | Trajectory with logprobs and internals |
-| `embedding_runner.py` | Text embedding via sentence-transformers |
-| `backends/` | Backend implementations (MLX, HuggingFace, OpenAI, Anthropic) |
+`ModelRunner` is the unified inference interface. It automatically detects and routes to the appropriate backend based on model name and hardware.
 
-## Key Classes
+### Backend Selection
 
-- **ModelRunner**: Load models, encode/decode, generate trajectories
-- **GeneratedTrajectory**: Token sequence with logprobs (extends TokenTrajectory)
-- **EmbeddingRunner**: Compute text embeddings and cosine similarities
+Priority order:
+1. **OpenAI**: `openai/...`, `gpt-4`, `gpt-3`, `o1`, `o3` → OpenAI API
+2. **Anthropic**: `anthropic/...`, `claude` → Anthropic API
+3. **MLX**: Apple Silicon + MLX available → MLX (optimized)
+4. **HuggingFace**: Default fallback
 
-## Backend Selection
+### Model Loading
 
-Automatic based on model name and hardware:
-- `openai/...` or `gpt-4...` -> OpenAI API
-- `anthropic/...` or `claude...` -> Anthropic API
-- Apple Silicon + MLX available -> MLX
-- Otherwise -> HuggingFace
+Models are loaded in `__init__` based on detected backend:
 
-See [EXPLANATION.md](./EXPLANATION.md) for detailed architecture documentation.
+- **HuggingFace**: `AutoModelForCausalLM.from_pretrained()` with optional `torch.compile()` on CUDA
+- **MLX**: `mlx_lm.load()` for Apple Silicon
+- **OpenAI/Anthropic**: API clients initialized (no local model)
+
+### Key Features
+
+- **Auto chat model detection**: Detects instruct models by name patterns
+- **Reasoning model detection**: Checks tokenizer's chat template for thinking tokens
+- **Encoding/decoding**: Unified tokenizer access regardless of backend
+- **Trajectory generation**: Returns `GeneratedTrajectory` with logprobs
+
+## GeneratedTrajectory
+
+Extends `TokenTrajectory` with:
+- `internals`: dict of captured activations from forward pass
+- Methods: `from_inference()`, `from_logprobs()`, `from_token_trajectory()`
+
+## EmbeddingRunner
+
+Uses sentence-transformers for text embeddings and similarity scoring.
+
+```python
+from src.inference import EmbeddingRunner
+
+runner = EmbeddingRunner()
+sim = runner.similarity("hello", "hi")
+sims = runner.similarities("hello", ["hi", "bye"])
+```
+
+## Backends Directory
+
+- `model_backend.py`: Base `Backend` abstract class
+- `huggingface_backend.py`: HuggingFace + transformers
+- `mlx_backend.py`: MLX for Apple Silicon
+- `openai_backend.py`: OpenAI API
+- `anthropic_backend.py`: Anthropic API (no logprobs)
+- `backend_selection.py`: Hardware detection logic
+
+See [EXPLANATION.md](./EXPLANATION.md) for detailed architecture and API specifications.

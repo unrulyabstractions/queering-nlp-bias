@@ -7,17 +7,55 @@ Shows different statistical variants (standard, uniform, mode, etc.) with their
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
 
+from src.estimation.arm_types import get_arm_color, get_ordered_arms_for_plotting
+
+from .viz_plot_utils import save_figure, style_axis_clean
+
 if TYPE_CHECKING:
     from src.estimation.estimation_experiment_types import EstimationResult
 
-# Consistent arm colors
-ARM_COLORS = ["#4A90D9", "#E67E22", "#2ECC71", "#9B59B6", "#E74C3C"]
+
+def _group_arms_into_rows(arm_names: list[str]) -> list[list[str]]:
+    """Group arms into rows for plotting.
+
+    Row 1: root, trunk
+    Row 2+: branch_N and its twigs (twig_1_bN, twig_2_bN, ...)
+
+    Args:
+        arm_names: List of arm names in order
+
+    Returns:
+        List of rows, each row is a list of arm names
+    """
+    from src.estimation.arm_types import classify_arm, ArmKind, get_branch_index
+
+    rows: list[list[str]] = []
+
+    # Row 1: root and trunk
+    baseline_row = [n for n in arm_names if n in ("root", "trunk")]
+    if baseline_row:
+        rows.append(baseline_row)
+
+    # Group branches with their twigs
+    branches = [n for n in arm_names if classify_arm(n) == ArmKind.BRANCH]
+    for branch in branches:
+        branch_idx = get_branch_index(branch)
+        row = [branch]
+        # Find twigs for this branch
+        for n in arm_names:
+            if classify_arm(n) == ArmKind.TWIG:
+                twig_branch_idx = get_branch_index(n)
+                if twig_branch_idx == branch_idx:
+                    row.append(n)
+        rows.append(row)
+
+    return rows
 
 
 def plot_generalized_cores(
@@ -26,11 +64,13 @@ def plot_generalized_cores(
     structure_labels: list[str],
     output_path: Path,
 ) -> Path | None:
-    """Create heatmap showing generalized cores for all arms side by side.
+    """Create heatmap showing generalized cores for all arms organized in rows.
 
-    Each arm gets a column of heatmaps showing core values across variants.
-    Rows are variant names (standard, uniform, mode, etc.)
-    Columns within each arm are structure labels (c1, c2, etc.)
+    Layout:
+    - Row 1: root, trunk (baseline arms)
+    - Row 2: branch_1 and its twigs
+    - Row 3: branch_2 and its twigs
+    - etc.
 
     Args:
         result: Estimation result containing arms with core_variants
@@ -41,107 +81,129 @@ def plot_generalized_cores(
     Returns:
         Path to saved file, or None if no data
     """
-    # Get arms (skip all_arms)
-    arms = [a for a in result.arms if a.name != "all_arms"]
-    if not arms:
+    # Get arms in proper order
+    arm_names = [a.name for a in result.arms]
+    ordered_names = get_ordered_arms_for_plotting(arm_names)
+    arms_dict = {a.name: a for a in result.arms}
+
+    if not ordered_names:
+        return None
+
+    # Group arms into rows
+    rows = _group_arms_into_rows(ordered_names)
+    if not rows:
         return None
 
     # Get variant data from first arm to determine structure
-    first_variants = arms[0].estimates.get(weighting_method, {}).get("core_variants", [])
+    first_arm = arms_dict.get(ordered_names[0])
+    if not first_arm:
+        return None
+    first_variants = first_arm.estimates.get(weighting_method, {}).get("core_variants", [])
     if not first_variants:
         return None
 
     n_variants = len(first_variants)
     n_structures = len(structure_labels)
-    n_arms = len(arms)
+    n_rows = len(rows)
+    max_cols = max(len(row) for row in rows)
 
-    # Extract variant metadata
+    # Extract variant metadata for row labels
     variant_names = [v["name"] for v in first_variants]
     q_values = [v["q"] for v in first_variants]
     r_values = [v["r"] for v in first_variants]
 
-    # Row labels with q, r parameters
     row_labels = []
     for name, q, r in zip(variant_names, q_values, r_values):
         q_str = _format_param(q)
         r_str = _format_param(r)
         row_labels.append(f"{name} (q={q_str}, r={r_str})")
 
-    # Create figure with subplots for each arm - much larger for readability
-    fig_width = max(22, n_structures * 2.0 * n_arms + 5)
-    fig_height = max(18, n_variants * 1.0 + 5)
-    fig, axes = plt.subplots(1, n_arms, figsize=(fig_width, fig_height), sharey=True)
-    if n_arms == 1:
-        axes = [axes]
+    # Create figure with grid of subplots (extra width for colorbar)
+    fig_width = max(20, n_structures * 1.8 * max_cols + 6)
+    fig_height = max(12, n_variants * 0.6 * n_rows + 4)
+    fig, axes = plt.subplots(n_rows, max_cols, figsize=(fig_width, fig_height),
+                              squeeze=False)
 
     # Custom colormap
     cmap = LinearSegmentedColormap.from_list(
         "diverging", ["#3B82F6", "#FFFFFF", "#EF4444"]
     )
 
-    for arm_idx, (arm, ax) in enumerate(zip(arms, axes)):
-        estimates = arm.estimates.get(weighting_method, {})
-        core_variants = estimates.get("core_variants", [])
+    im = None  # For colorbar
 
-        if not core_variants:
-            continue
+    for row_idx, row_arms in enumerate(rows):
+        for col_idx in range(max_cols):
+            ax = axes[row_idx, col_idx]
 
-        # Build matrix: rows=variants, cols=structures (no E[∂])
-        matrix = np.zeros((n_variants, n_structures))
-        for i, v in enumerate(core_variants):
-            core = v.get("core", [])
-            for j in range(min(len(core), n_structures)):
-                matrix[i, j] = core[j]
+            if col_idx >= len(row_arms):
+                # Hide empty subplot
+                ax.set_visible(False)
+                continue
 
-        # Plot heatmap
-        im = ax.imshow(matrix, cmap=cmap, aspect="auto", vmin=0, vmax=1)
+            arm_name = row_arms[col_idx]
+            arm = arms_dict.get(arm_name)
+            if not arm:
+                ax.set_visible(False)
+                continue
 
-        # Set ticks
-        ax.set_xticks(np.arange(n_structures))
-        ax.set_xticklabels(structure_labels, fontsize=13)
-        if arm_idx == 0:
-            ax.set_yticks(np.arange(n_variants))
-            # Larger row labels, truncate long names
-            short_labels = [lbl[:30] + "..." if len(lbl) > 30 else lbl for lbl in row_labels]
-            ax.set_yticklabels(short_labels, fontsize=12)
+            estimates = arm.estimates.get(weighting_method, {})
+            core_variants = estimates.get("core_variants", [])
 
-        # Title
-        ax.set_title(arm.name.upper(), fontsize=16, fontweight="bold")
+            if not core_variants:
+                ax.set_visible(False)
+                continue
 
-        # Add value annotations with better contrast and larger font
-        for i in range(n_variants):
-            for j in range(n_structures):
-                val = matrix[i, j]
-                # Use white text on dark backgrounds (both red and blue extremes)
-                text_color = "white" if val < 0.35 or val > 0.65 else "black"
-                ax.text(
-                    j, i, f"{val:.2f}",
-                    ha="center", va="center",
-                    color=text_color, fontsize=11, fontweight="bold"
-                )
+            # Build matrix: rows=variants, cols=structures
+            matrix = np.zeros((n_variants, n_structures))
+            for i, v in enumerate(core_variants):
+                core = v.get("core", [])
+                for j in range(min(len(core), n_structures)):
+                    matrix[i, j] = core[j]
 
-        # Grid lines
-        ax.set_xticks(np.arange(n_structures + 1) - 0.5, minor=True)
-        ax.set_yticks(np.arange(n_variants + 1) - 0.5, minor=True)
-        ax.grid(which="minor", color="white", linestyle="-", linewidth=2)
-        ax.tick_params(which="minor", bottom=False, left=False)
+            # Plot heatmap
+            im = ax.imshow(matrix, cmap=cmap, aspect="auto", vmin=0, vmax=1)
 
-    # Add colorbar
-    cbar = fig.colorbar(im, ax=axes, shrink=0.8, pad=0.02)
-    cbar.set_label("Core Value", fontsize=10)
+            # Set ticks
+            ax.set_xticks(np.arange(n_structures))
+            ax.set_xticklabels(structure_labels, fontsize=10)
+
+            # Only show y-labels on first column of each row
+            if col_idx == 0:
+                ax.set_yticks(np.arange(n_variants))
+                short_labels = [lbl[:25] + "..." if len(lbl) > 25 else lbl for lbl in row_labels]
+                ax.set_yticklabels(short_labels, fontsize=9)
+            else:
+                ax.set_yticks([])
+
+            # Title
+            ax.set_title(arm_name.upper(), fontsize=12, fontweight="bold")
+
+            # Add value annotations
+            for i in range(n_variants):
+                for j in range(n_structures):
+                    val = matrix[i, j]
+                    text_color = "white" if val < 0.35 or val > 0.65 else "black"
+                    ax.text(
+                        j, i, f"{val:.2f}",
+                        ha="center", va="center",
+                        color=text_color, fontsize=9, fontweight="bold"
+                    )
+
+            # Grid lines
+            ax.set_xticks(np.arange(n_structures + 1) - 0.5, minor=True)
+            ax.set_yticks(np.arange(n_variants + 1) - 0.5, minor=True)
+            ax.grid(which="minor", color="white", linestyle="-", linewidth=1.5)
+            ax.tick_params(which="minor", bottom=False, left=False)
 
     # Suptitle
     fig.suptitle(
         f"Generalized Cores [{weighting_method}]",
-        fontsize=13, fontweight="bold"
+        fontsize=14, fontweight="bold"
     )
 
     # Save
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.subplots_adjust(top=0.92, wspace=0.1)
-    plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
-    plt.close()
-
+    plt.subplots_adjust(top=0.92, wspace=0.15, hspace=0.3)
+    save_figure(plt.gcf(), output_path)
     return output_path
 
 
@@ -152,8 +214,12 @@ def plot_generalized_deviance(
 ) -> Path | None:
     """Create line plots showing E[∂] as q→∞ (r=1) and r→∞ (q=1) for each arm.
 
-    Layout: columns = arms, rows = [q trajectory, r trajectory]
-    Each subplot shows a single clean line from -∞ to +∞.
+    Layout organized by arm groups:
+    - Row 1: root, trunk (q trajectory)
+    - Row 2: root, trunk (r trajectory)
+    - Row 3: branch_1 and twigs (q trajectory)
+    - Row 4: branch_1 and twigs (r trajectory)
+    - etc.
 
     Args:
         result: Estimation result containing arms with core_variants
@@ -163,67 +229,87 @@ def plot_generalized_deviance(
     Returns:
         Path to saved file, or None if no data
     """
-    # Get arms (skip all_arms)
-    arms = [a for a in result.arms if a.name != "all_arms"]
-    if not arms:
+    # Get arms in proper order
+    arm_names = [a.name for a in result.arms]
+    ordered_names = get_ordered_arms_for_plotting(arm_names)
+    arms_dict = {a.name: a for a in result.arms}
+
+    if not ordered_names:
         return None
 
-    n_arms = len(arms)
+    # Group arms into rows
+    arm_rows = _group_arms_into_rows(ordered_names)
+    if not arm_rows:
+        return None
 
-    # Create figure: 2 rows x n_arms columns - larger for readability
-    fig_width = max(14, 6 * n_arms)
-    fig_height = max(10, 12)
-    fig, axes = plt.subplots(2, n_arms, figsize=(fig_width, fig_height), squeeze=False, sharey="row")
+    n_arm_rows = len(arm_rows)
+    max_cols = max(len(row) for row in arm_rows)
 
-    for arm_idx, arm in enumerate(arms):
-        estimates = arm.estimates.get(weighting_method, {})
-        core_variants = estimates.get("core_variants", [])
+    # Create figure: 2 plot rows per arm row (q and r trajectories)
+    fig_width = max(12, 4 * max_cols + 2)
+    fig_height = max(8, 3 * n_arm_rows * 2 + 2)
+    fig, axes = plt.subplots(n_arm_rows * 2, max_cols, figsize=(fig_width, fig_height),
+                              squeeze=False)
 
-        if not core_variants:
-            continue
+    for arm_row_idx, row_arms in enumerate(arm_rows):
+        for col_idx in range(max_cols):
+            ax_q = axes[arm_row_idx * 2, col_idx]
+            ax_r = axes[arm_row_idx * 2 + 1, col_idx]
 
-        # Extract data
-        data = []
-        for v in core_variants:
-            q = _parse_param(v["q"])
-            r = _parse_param(v["r"])
-            dev = v.get("deviance_avg", 0.0)
-            name = v["name"]
-            data.append({"q": q, "r": r, "dev": dev, "name": name})
+            if col_idx >= len(row_arms):
+                ax_q.set_visible(False)
+                ax_r.set_visible(False)
+                continue
 
-        # --- Top row: q trajectory (r=1 fixed) ---
-        ax_q = axes[0, arm_idx]
-        q_trajectory = [(d["q"], d["dev"], d["name"]) for d in data if d["r"] == 1.0]
-        _plot_single_trajectory(ax_q, q_trajectory, "q", ARM_COLORS[arm_idx % len(ARM_COLORS)])
-        ax_q.set_title(f"{arm.name.upper()}", fontsize=11, fontweight="bold")
+            arm_name = row_arms[col_idx]
+            arm = arms_dict.get(arm_name)
+            if not arm:
+                ax_q.set_visible(False)
+                ax_r.set_visible(False)
+                continue
 
-        # --- Bottom row: r trajectory (q=1 fixed) ---
-        ax_r = axes[1, arm_idx]
-        r_trajectory = [(d["r"], d["dev"], d["name"]) for d in data if d["q"] == 1.0]
-        _plot_single_trajectory(ax_r, r_trajectory, "r", ARM_COLORS[arm_idx % len(ARM_COLORS)])
+            estimates = arm.estimates.get(weighting_method, {})
+            core_variants = estimates.get("core_variants", [])
 
-    # Y-axis labels
-    axes[0, 0].set_ylabel("E[∂]", fontsize=12)
-    axes[1, 0].set_ylabel("E[∂]", fontsize=12)
+            if not core_variants:
+                ax_q.set_visible(False)
+                ax_r.set_visible(False)
+                continue
 
-    # Row labels - darker color for better visibility
-    fig.text(0.02, 0.72, "q trajectory\n(r = 1)", fontsize=12, fontweight="bold",
-             ha="center", va="center", rotation=90, color="#333")
-    fig.text(0.02, 0.28, "r trajectory\n(q = 1)", fontsize=12, fontweight="bold",
-             ha="center", va="center", rotation=90, color="#333")
+            # Extract data
+            data = []
+            for v in core_variants:
+                q = _parse_param(v["q"])
+                r = _parse_param(v["r"])
+                dev = v.get("deviance_avg", 0.0)
+                name = v["name"]
+                data.append({"q": q, "r": r, "dev": dev, "name": name})
 
-    # Suptitle
+            arm_color = get_arm_color(arm.name)
+
+            # q trajectory (r=1 fixed)
+            q_trajectory = [(d["q"], d["dev"], d["name"]) for d in data if d["r"] == 1.0]
+            _plot_single_trajectory(ax_q, q_trajectory, "q", arm_color)
+            ax_q.set_title(f"{arm.name.upper()}", fontsize=10, fontweight="bold")
+
+            # r trajectory (q=1 fixed)
+            r_trajectory = [(d["r"], d["dev"], d["name"]) for d in data if d["q"] == 1.0]
+            _plot_single_trajectory(ax_r, r_trajectory, "r", arm_color)
+
+            # Y-axis labels on first column only
+            if col_idx == 0:
+                ax_q.set_ylabel("E[∂] (q)", fontsize=9)
+                ax_r.set_ylabel("E[∂] (r)", fontsize=9)
+
+    # Suptitle - position lower to avoid overlap with subplot titles
     fig.suptitle(
         f"Generalized Deviance [{weighting_method}]",
-        fontsize=13, fontweight="bold"
+        fontsize=13, fontweight="bold", y=0.995
     )
 
-    # Save
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.subplots_adjust(left=0.12, top=0.90, hspace=0.35, wspace=0.15)
-    plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
-    plt.close()
-
+    # Save - leave more top margin
+    plt.subplots_adjust(left=0.08, top=0.96, hspace=0.5, wspace=0.2)
+    save_figure(plt.gcf(), output_path)
     return output_path
 
 
@@ -292,10 +378,8 @@ def _plot_single_trajectory(
     ax.set_xticklabels(x_labels, fontsize=11)
     ax.set_xlabel(param_name, fontsize=12)
 
-    # Grid and styling
-    ax.grid(True, alpha=0.3, linestyle=":")
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
+    # Styling
+    style_axis_clean(ax, grid_axis="both")
     ax.tick_params(axis="y", labelsize=10)
 
     # Y limits with padding

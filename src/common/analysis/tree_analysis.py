@@ -7,7 +7,7 @@ trajectories, forks, and nodes.
 from __future__ import annotations
 
 from ..token_tree import TokenTree
-from .builders import build_fork_analysis, build_node_analysis
+from .analysis_builders import build_fork_analysis, build_node_analysis
 from .metrics import TrajectoryAnalysis
 
 

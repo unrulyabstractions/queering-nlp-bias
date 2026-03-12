@@ -22,7 +22,11 @@ from src.inference.generated_trajectory import GeneratedTrajectory
 
 from ..generation_config import GenerationConfig
 from ..generation_method_registry import GenerationMethodParams, register_method
-from ..generation_types import ArmGenerationResult
+from src.common.experiment_types import ArmGenerationResult
+
+from .generation_method_utils import compute_arm_token_lengths
+
+from .logging.gen_logging_utils import log_arm_header
 
 
 @dataclass
@@ -54,24 +58,14 @@ def generate_just_greedy(
         ArmGenerationResult containing one trajectory per arm
     """
     arms = config.get_arms(runner.skip_thinking_prefix)
-    prompt_length = config.compute_prompt_length(runner)
-    trunk_length = config.compute_trunk_length(runner)
+    arm_token_lengths = compute_arm_token_lengths(runner, config, arms)
 
     all_trajectories: list[GeneratedTrajectory] = []
     all_arm_indices: list[int] = []
 
-    for arm in arms:
+    for arm_idx, arm in enumerate(arms):
         if log_fn:
-            if arm.name == "trunk":
-                log_fn("\nTrunk")
-                log_fn(f'  Continuation: "{config.trunk}"')
-            else:
-                branch_idx = arm.arm_index
-                branch_text = (
-                    config.branches[branch_idx - 1] if config.branches else arm.name
-                )
-                log_fn(f"\nBranch: branch_{branch_idx}")
-                log_fn(f'  Continuation: "{config.trunk}{branch_text}"')
+            log_arm_header(arm, log_fn)
             log_fn("\n  Generating greedy trajectory (temperature=0)...")
 
         # Generate single greedy trajectory
@@ -88,7 +82,7 @@ def generate_just_greedy(
         # Free heavy data (full_logits) immediately to reduce peak memory
         traj.pop_heavy()
         all_trajectories.append(traj)
-        all_arm_indices.append(arm.arm_index)
+        all_arm_indices.append(arm_idx)
 
     if log_fn:
         log_fn(f"\n  Summary: {len(all_trajectories)} greedy trajectories generated")
@@ -96,6 +90,6 @@ def generate_just_greedy(
     return ArmGenerationResult(
         trajectories=all_trajectories,
         arm_indices=all_arm_indices,
-        trunk_length=trunk_length,
-        prompt_length=prompt_length,
+        arm_token_lengths=arm_token_lengths,
+        arms=arms,
     )

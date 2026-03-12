@@ -1,108 +1,79 @@
 # Visualization Package
 
-> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
+Generates comprehensive visualizations of experiment results showing structure compliance (cores), deviance metrics, orientation vectors, and trajectory trees.
 
-Visualization tools for experiment results. Generates plots showing:
-1. **Core bar plots** - Structure compliance cores across arms (trunk vs branches)
-2. **Tree plots** - Trajectory branching structure with probabilities and scores
+## Modules
 
-## Directory Structure
+| Module | Purpose |
+|--------|---------|
+| `experiment_visualizer.py` | Main entry point: `visualize_result()` and `visualize_generation_comparison()` |
+| `experiment_core_barplot.py` | Core stacked bar plots and arm comparisons |
+| `experiment_deviance_plot.py` | Deviance trajectories, orientation vectors, and diversity plots |
+| `experiment_variants_plot.py` | Generalized cores (heatmaps) and deviance line plots for (q,r) variants |
+| `experiment_breakdown_plot.py` | Structure breakdown by branch as grouped horizontal bars |
+| `experiment_tree_plot.py` | Trajectory tree visualization with probabilities and structure scores |
+| `viz_plot_utils.py` | Shared utilities: colors, axis styling, figure saving |
 
+## Main Functions
+
+### `visualize_result(result, output_dir=None)`
+Generates all visualizations for an EstimationResult. Creates per-method plots in subdirectories and cross-method comparison plots.
+
+**Output structure:**
 ```
-viz/
-├── experiment_visualizer.py    # Main entry point: visualize_result()
-├── experiment_core_barplot.py  # Bar plots comparing cores across arms
-└── experiment_tree_plot.py     # Tree visualization for trajectories
+out/{method}/{gen_name}/{scoring_name}/viz/
+  - core.png                    # Core bar plot
+  - deviance.png                # E[∂|self] trajectory
+  - excess_deviance.png         # Over-compliance trajectory
+  - deficit_deviance.png        # Under-compliance trajectory
+  - mutual_deviance.png         # Symmetric deviance trajectory
+  - core_diversity.png          # Diversity (D₁) trajectory
+  - orientation_{ref}.png       # Orientation relative to reference arm(s)
+  - generalized_cores.png       # Heatmap of core variants
+  - generalized_deviance.png    # E[∂] line plots as q/r→∞
+  - estimation_comparison.png   # Compare cores across weighting methods
+  - breakdown.png               # Structure breakdown by branch
+  - tree_word.png               # Word-level trajectory tree
+  - tree_phrase.png             # Phrase-level trajectory tree
+
+out/{method}/{gen_name}/{scoring_name}/viz/dynamics/
+  - drift.png                   # Drift trajectories
+  - horizon.png                 # Horizon deviance plots
 ```
 
-## Quick Start
+### `visualize_generation_comparison(results, output_dir=None)`
+Compares trunk cores across multiple generation methods. Creates a single generation_comparison.png showing grouped bars for each arm across methods.
+
+## Plot Descriptions
+
+**Core Plots**: Stacked horizontal bars showing structure compliance (0-1) per arm. One subplot per arm, stacked vertically. Colors represent different structures.
+
+**Deviance Plots**: Line trajectories showing how deviance metrics evolve through conditioning ancestry (root → trunk → branch → twig). Each arm is a separate line.
+
+**Orientation Plots**: Bar plots showing orientation vectors (signed differences) relative to reference arms. Only generated for arms with downstream children.
+
+**Diversity Plots**: Line trajectories showing Hill D₁ diversity evolution through conditioning stages.
+
+**Generalized Cores**: Heatmaps showing cores across different statistical variants (q,r parameter combinations). Organized by arm rows and variant rows.
+
+**Generalized Deviance**: Dual-axis plots showing E[∂] as q→∞ (r=1 fixed) and r→∞ (q=1 fixed) for each arm.
+
+**Breakdown Plots**: Grouped horizontal bars showing per-branch percentages for all structures (both categorical and bundled questions).
+
+**Tree Plots**: DAG visualization of trajectory branching structure. Node colors reflect structure scores. Edge thickness indicates cumulative log probability. Word-level and phrase-level variants available.
+
+## Shared Utilities
 
 ```python
-from src.viz import visualize_result
-from src.estimation.estimation_experiment_types import EstimationResult
-
-# After running an experiment, visualize the result
-result = EstimationResult.from_estimation_file(method_name, paths)
-visualize_result(result)  # Saves to out/viz/
+from src.viz.viz_plot_utils import (
+    STRUCTURE_COLORS,       # 10-color palette for structures
+    get_structure_color,    # Get color by index
+    style_axis_clean,       # Clean axis styling
+    annotate_bar_values,    # Add value labels on bars
+    save_figure,            # Save and close figure
+    lighten_color,          # Lighten hex color for blending
+    add_reference_line,     # Add horizontal reference lines
+)
 ```
 
-## Output Files
-
-For each experiment, the following files are generated in `out/viz/`:
-
-### Core Plots
-| File Pattern | Description |
-|--------------|-------------|
-| `core_{method}_{weighting}.png` | Stacked bar plot (one row per arm) for each weighting method |
-| `core_{method}_comparison.png` | Comparison plot with arms side-by-side (one row per weighting method) |
-
-### Deviance & Orientation Plots
-| File Pattern | Description |
-|--------------|-------------|
-| `deviance_{method}_{weighting}.png` | Line plot showing E[∂\|trunk] → E[∂\|branch] for each branch |
-| `deviance_{method}_delta.png` | Bar plot showing Δ∂ (branch deviance - trunk deviance) |
-| `orientation_{method}_by_branch.png` | Bar plot showing E[θ\|T] per structure for each branch |
-
-### Tree Plots
-| File Pattern | Description |
-|--------------|-------------|
-| `tree_{method}_word.png` | Word-level trajectory tree with curved edges |
-| `tree_{method}_phrase.png` | Collapsed phrase-level trajectory tree |
-
-## Core Bar Plots
-
-Shows structure compliance cores as grouped bars:
-- X-axis: Structure labels (c1, c2, g1, s1, etc.)
-- Y-axis: Core value [0, 1]
-- One bar group per arm (trunk, branch_1, etc.)
-- One plot per weighting method (prob, inv-ppl, uniform)
-
-```python
-from src.viz.experiment_core_barplot import create_core_barplots
-
-files = create_core_barplots(result, structure_labels, output_dir)
-```
-
-## Tree Plots
-
-Visualizes trajectory branching structure:
-- Nodes represent words/phrases in continuations
-- Edge thickness proportional to probability
-- Node colors indicate dominant structure
-- Leaf nodes show structure scores
-
-Two modes:
-- **Word tree**: Every word is a node
-- **Phrase tree**: Single-child chains collapsed into phrases
-
-```python
-from src.viz.experiment_tree_plot import create_tree_plots
-
-files = create_tree_plots(result, output_dir)
-```
-
-## Integration with Experiments
-
-The `visualize_result()` function is automatically called in `run_single_experiment()`:
-
-```python
-# In scripts/run_full_experiment.py
-def run_single_experiment(...) -> EstimationResult:
-    # ... run pipeline ...
-    result = EstimationResult.from_estimation_file(...)
-    visualize_result(result)  # Auto-generates plots
-    return result
-```
-
-## Customization
-
-### Custom Output Directory
-
-```python
-visualize_result(result, output_dir="my_plots/")
-```
-
-### Structure Labels
-
-Labels are automatically loaded from the scoring output. If not available,
-generic labels (s1, s2, ...) are generated based on core vector length.
+Arm colors are provided by `src.estimation.arm_types.get_arm_color(arm_name)`.

@@ -27,8 +27,8 @@ from typing import Literal, Union
 import torch
 
 from ..num_types import Num, Nums, is_tensor
-from .divergence import js_divergence, renyi_divergence
-from .entropy import shannon_entropy
+from .divergence_facade import js_divergence, renyi_divergence
+from .entropy_facade import shannon_entropy
 from .entropy_primitives import _EPS, probs_to_logprobs
 from .escort_distribution import escort_probs
 from .power_mean import weighted_power_mean

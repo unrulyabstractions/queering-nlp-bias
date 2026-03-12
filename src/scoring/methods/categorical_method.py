@@ -7,10 +7,11 @@ using a language model as a judge.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import ClassVar
 
 from src.common.callback_types import LogFn
+from src.common.default_config import JUDGE_MAX_TOKENS
 from src.inference import ModelRunner
 from src.inference.embedding_runner import EmbeddingRunner
 
@@ -19,6 +20,7 @@ from ..scoring_method_registry import (
     register_method,
     score_with_bundling,
 )
+from .logging.scoring_logging_utils import log_parse_failure
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PARAMETERS
@@ -29,7 +31,7 @@ from ..scoring_method_registry import (
 class CategoricalParams(ScoringMethodParams):
     """Parameters for categorical (binary) judgment scoring."""
 
-    max_tokens: int = 10
+    max_tokens: int = field(default_factory=lambda: JUDGE_MAX_TOKENS)
 
     # Registry metadata
     name: ClassVar[str] = "categorical"
@@ -129,6 +131,8 @@ def score_categorical(
             prefilling=runner.skip_thinking_prefix,
         )
         score = parse_categorical_response(response)
+        if score is None and log_fn:
+            log_parse_failure("CATEGORICAL", question, response, log_fn)
         return score, response
 
     return score_with_bundling(items, score_single, params.label_prefix, log_fn)

@@ -9,6 +9,6 @@ from src.common.auto_export import auto_export
 __all__ = auto_export(__file__, __name__, globals())
 
 # Explicit import needed: 'profile' is excluded by auto_export (stdlib collision)
-from .decorators import profile
+from .profiling_decorators import profile
 
 __all__.append("profile")

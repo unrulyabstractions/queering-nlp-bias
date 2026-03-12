@@ -1,8 +1,5 @@
 # Adding a New Weighting Method
 
-> **Note**: This documentation was AI-generated and may contain errors. If something seems off, check the code or open an issue.
-
-
 Adding a weighting method to estimation requires **ONE FILE**.
 
 ## Steps

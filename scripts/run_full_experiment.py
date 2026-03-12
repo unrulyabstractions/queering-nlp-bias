@@ -6,10 +6,14 @@ Orchestrates the three-stage pipeline:
     2. Score trajectories against scoring structures
     3. Estimate normativity from scores
 
+Optional: --dynamics computes drift and horizon dynamics for trajectories,
+showing how deviance evolves through token positions.
+
 Usage:
     python scripts/run_full_experiment.py trials/generation/test.json trials/scoring/test.json
     python scripts/run_full_experiment.py --method forking trials/generation/test.json trials/scoring/test.json
     python scripts/run_full_experiment.py --all trials/generation/test.json trials/scoring/test.json
+    python scripts/run_full_experiment.py --dynamics trials/generation/test.json trials/scoring/test.json
 """
 
 from __future__ import annotations
@@ -39,23 +43,26 @@ from src.common.logging import (
     log_section,
     log_stage,
 )
-from src.common.seed import set_seed
+from src.common.random_seed import set_seed
+from src.estimation.dynamics import compute_dynamics, plot_dynamics
 from src.estimation import EstimationOutput, ScoringData
 from src.estimation.estimation_experiment_types import EstimationResult
 from src.estimation.logging.estimation_comparison_logging import (
     display_comparison,
     log_setup_summary,
 )
+from src.common.experiment_types import OutputPaths
 from src.generation import (
     GenerationConfig,
     GenerationOutput,
-    OutputPaths,
     get_method_name_from_output,
     get_output_name,
     list_output_names,
     run_generation_pipeline,
 )
 from src.generation.methods.logging import log_tree_trajectories
+from src.inference import ModelRunner
+from src.inference.embedding_runner import EmbeddingRunner
 from src.scoring import GenerationOutputData, ScoringConfig, ScoringOutput
 from src.viz import visualize_generation_comparison, visualize_result
 
@@ -72,6 +79,7 @@ class ParsedExperimentArgs:
     scoring_config_path: Path
     methods: list[str]  # Method names from registry
     overrides: dict[str, Any]
+    dynamics: bool  # Whether to compute drift/horizon dynamics
 
 
 def parse_experiment_args() -> ParsedExperimentArgs:
@@ -97,6 +105,11 @@ def parse_experiment_args() -> ParsedExperimentArgs:
         "--all",
         action="store_true",
         help="Run all available methods and compare",
+    )
+    parser.add_argument(
+        "--dynamics",
+        action="store_true",
+        help="Compute drift/horizon dynamics for trajectories",
     )
 
     # Method-specific parameters (apply to whichever method uses them)
@@ -132,6 +145,7 @@ def parse_experiment_args() -> ParsedExperimentArgs:
         scoring_config_path=Path(args.scoring_config),
         methods=methods,
         overrides=overrides,
+        dynamics=args.dynamics,
     )
 
 
@@ -152,7 +166,7 @@ def step_generate(
     runner = load_model(config)
     log_section(f"{output_name.replace('-', ' ').title()}")
     config.get_params(method).print()
-    log_prompt_header(config.prompt, config.trunk, config.branches)
+    log_prompt_header(config.prompt, config.trunk, config.branches, config.twig_variations)
 
     result = run_generation_pipeline(
         runner=runner,
@@ -163,9 +177,9 @@ def step_generate(
 
     log_tree_trajectories(result.result, runner)
 
-    # Save output
+    # Save output (and copy original config)
     output_path = GenerationOutput.compute_output_path(config_path, method=method)
-    result.output.save(output_path)
+    result.output.save(output_path, config_path=config_path)
     log(f"\nSaved: {output_path}")
 
     # Save human-readable summary
@@ -196,6 +210,47 @@ def step_estimate(judgment_path: Path) -> None:
     estimate_normativity(judgment_data, judgment_path)
 
 
+def step_dynamics(
+    result: EstimationResult,
+    scoring_config_path: Path,
+) -> None:
+    """Compute drift and horizon dynamics for trajectories."""
+    log_section("DYNAMICS")
+    log("Computing drift and horizon dynamics...")
+
+    scoring_config = ScoringConfig.load(scoring_config_path)
+
+    # Load scoring models based on what methods need
+    runner: ModelRunner | None = None
+    embedder: EmbeddingRunner | None = None
+
+    if scoring_config.needs_runner():
+        log(f"Loading judge model: {scoring_config.model}")
+        runner = ModelRunner(scoring_config.model)
+
+    if scoring_config.needs_embedder():
+        log(f"Loading embedding model: {scoring_config.embedding_model}")
+        embedder = EmbeddingRunner(scoring_config.embedding_model)
+
+    # Compute dynamics - scores partial text at various lengths
+    # Drift points: automatically at least 2 * n_arms measurements per trajectory
+    dynamics_result = compute_dynamics(
+        estimation_result=result,
+        scoring_config=scoring_config,
+        runner=runner,
+        embedder=embedder,
+        trajs_per_arm=2,  # Analyze 2 representative trajectories per arm
+        log_fn=log,
+    )
+
+    # Generate visualizations in viz/dynamics folder next to estimation.json
+    output_dir = result.paths.estimation.parent / "viz" / "dynamics"
+    saved_paths = plot_dynamics(dynamics_result, output_dir)
+
+    for path in saved_paths:
+        log(f"Saved: {path}")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Path Computation
 # ══════════════════════════════════════════════════════════════════════════════
@@ -223,6 +278,7 @@ def run_single_experiment(
     scoring_config_path: Path,
     method: str,
     overrides: dict[str, Any] | None = None,
+    dynamics: bool = False,
 ) -> EstimationResult:
     """Run a single experiment with one generation method."""
     output_name = get_output_name(method)
@@ -254,6 +310,10 @@ def run_single_experiment(
     # Generate visualizations
     visualize_result(result)
 
+    # Compute dynamics if requested
+    if dynamics:
+        step_dynamics(result, scoring_config_path)
+
     return result
 
 
@@ -269,6 +329,7 @@ def run_all_experiments(args: ParsedExperimentArgs) -> list[EstimationResult]:
             args.scoring_config_path,
             method,
             args.overrides,
+            dynamics=args.dynamics,
         )
         for method in args.methods
     ]

@@ -9,78 +9,50 @@ from __future__ import annotations
 import math
 
 from src.common.logging import fmt_prob, log, log_divider, log_step
-from src.common.viz_utils import preview
+from src.common.viz_utils import escape_newlines, preview
 
 from ..estimation_scoring_data import ScoringData
 from ..estimation_structure import TrajectoryScoringData
 
 
-def _extract_continuation(text: str, prefix: str) -> str:
-    """Extract continuation from full text by removing prefix."""
-    if text.startswith(prefix):
-        return text[len(prefix) :]
-    return text
-
-
-def _extract_branch_prefix(full_prefix: str) -> str:
-    """Extract just the generation prefix from full chat template text.
-
-    Removes chat template markers like <|im_start|>user, <|im_end|>, <think>, etc.
-    Returns just the meaningful text portion.
-    """
-    if "</think>" in full_prefix:
-        after_think = full_prefix.split("</think>")[-1].strip()
-        return after_think
-    return full_prefix
-
-
 def log_continuations_by_branch(data: ScoringData) -> None:
-    """Step 0: Show all continuations organized by branch."""
-    log_step(0, "Continuations by Branch")
+    """Step 0: Show all continuations organized by arm."""
+    log_step(0, "Continuations by Arm")
 
     continuations = data.get_continuations_by_arm()
-    branch_names = data.branches if data.branches else ["trunk"]
-
-    # Build branch index mapping for display
-    branch_display = {"trunk": "trunk"}
-    for i, name in enumerate(branch_names):
-        if name != "trunk":
-            branch_display[name] = f"branch_{i}"
+    arm_names = data.arm_names if data.arm_names else ["trunk"]
 
     # First, show the structure
     if data.arm_texts:
-        trunk_prefix = _extract_branch_prefix(data.arm_texts.get("trunk", ""))
+        trunk_prefix = escape_newlines(data.arm_texts.get("trunk", ""))
         log(f'\n    Trunk prefix: "{trunk_prefix}"')
-        for i, branch in enumerate(branch_names):
-            if branch != "trunk":
-                branch_prefix = _extract_branch_prefix(data.arm_texts.get(branch, ""))
-                # Show what's added for this branch
+        for arm_name in arm_names:
+            if arm_name not in ("root", "trunk"):
+                arm_prefix = escape_newlines(data.arm_texts.get(arm_name, ""))
+                # Show what's added for this arm
                 added = (
-                    branch_prefix[len(trunk_prefix) :]
-                    if branch_prefix.startswith(trunk_prefix)
-                    else branch
+                    arm_prefix[len(trunk_prefix) :]
+                    if arm_prefix.startswith(trunk_prefix)
+                    else arm_name
                 )
-                log(f'    + "{added}" -> branch_{i}')
+                log(f'    + "{added}" -> {arm_name}')
 
-    for i, branch in enumerate(branch_names):
-        items = continuations.get(branch)
+    for arm_name in arm_names:
+        items = continuations.get(arm_name)
         if not items:
             continue
 
-        display_name = branch_display.get(branch, f"branch_{i}")
-        prefix = data.arm_texts.get(branch, "")
-        clean_prefix = _extract_branch_prefix(prefix)
+        prefix = data.arm_texts.get(arm_name, "")
+        clean_prefix = escape_newlines(prefix)
 
-        log(f"\n    {display_name} ({len(items)} trajectories)")
-        log(f'    Full continuation starts with: "{clean_prefix}..."')
+        log(f"\n    {arm_name} ({len(items)} trajectories)")
+        log(f'    Prefill: "{clean_prefix}"')
         log_divider(70, indent_str="    ")
 
         for cont in items:
-            # Extract just the continuation after the full prefix
-            continuation = _extract_continuation(cont.text, prefix)
-            # Show first 100 chars of continuation
-            first_line = continuation[:100].replace("\n", " ")
-            if len(continuation) > 100:
+            # Text is already just the generated portion
+            first_line = cont.text[:100].replace("\n", " ")
+            if len(cont.text) > 100:
                 first_line += "..."
             log(f"      [{cont.traj_idx}] {first_line}")
 
@@ -116,8 +88,7 @@ def log_trajectories_with_scores(data: ScoringData) -> None:
     for i, r in enumerate(data.results):
         idx = r["trajectory_idx"]
         branch = r.get("branch", "trunk")
-        branch_idx = r.get("branch_idx", 0)
-        display_name = "trunk" if branch_idx == 0 else f"branch_{branch_idx}"
+        display_name = branch  # Use actual arm name
 
         # Get compliance values (handles grouping)
         compliance = data.get_structure_scores(r)
@@ -128,14 +99,12 @@ def log_trajectories_with_scores(data: ScoringData) -> None:
             score_parts.append(f"{c:>5.2f}")
         scores_str = "  ".join(score_parts)
 
-        # Extract just the continuation after the prefix
+        # Text is already just the generated_text (not prefill + generated)
         text = data.get_text(idx)
-        prefix = data.arm_texts.get(branch, "")
-        continuation = _extract_continuation(text, prefix)
 
         # Add spacing before each entry (except first)
         log(f"    {idx:>3}  {display_name:<10} {scores_str}", gap=1 if i > 0 else 0)
-        log(f'         "{preview(continuation, 65)}"')
+        log(f'         "{preview(text, 65)}"')
 
 
 def compute_normalized_probs(
@@ -179,47 +148,54 @@ def log_arm_statistics(
     by_branch: dict[str, list[TrajectoryScoringData]],
 ) -> None:
     """Step 2: Log arm statistics with mass breakdown."""
-    all_trajs = [t for trajs in by_branch.values() for t in trajs]
-    branch_names = data.branches if data.branches else ["trunk"]
+    arm_names = data.arm_names if data.arm_names else ["trunk"]
 
-    # Build display name mapping
-    display_names = {"trunk": "trunk"}
-    branch_idx = 1
-    for name in branch_names:
-        if name != "trunk":
-            display_names[name] = f"branch_{branch_idx}"
-            branch_idx += 1
-
-    log_step(2, "Arm Statistics", f"{len(branch_names)} arms")
+    log_step(2, "Arm Statistics", f"{len(arm_names)} arms")
 
     # Show arm definitions
     if data.arm_texts:
         log("    Conditioning text per arm (after prompt):")
-        for name in branch_names:
+        max_name_len = max(len(name) for name in arm_names)
+        for name in arm_names:
             text = data.arm_texts.get(name, "")
-            display = display_names.get(name, name)
-            clean_text = _extract_branch_prefix(text)
-            log(f'      {display}: "{clean_text}"')
+            clean_text = escape_newlines(text)
+            log(f'      {name:<{max_name_len}}: "{clean_text}"')
         log("")
 
     # Show prefix logprobs if available
     if data.prefix_logprobs:
-        log("    Prefix conditional logprobs:")
+        log("    Conditional logprobs:")
+
+        # Build all labels first to find max width
+        cond_labels: list[tuple[str, float]] = []
         trunk_lp = data.prefix_logprobs.get("trunk_given_prompt", 0.0)
-        trunk_p = math.exp(trunk_lp) if trunk_lp > -700 else 0.0
-        log(f"      p(trunk|prompt): {trunk_lp:.2f} (p={fmt_prob(trunk_p)})")
+        cond_labels.append(("p(trunk|prompt)", trunk_lp))
+
         branch_lps = data.prefix_logprobs.get("branch_given_trunk", {})
-        for branch_idx in range(1, len(branch_names)):
-            lp = branch_lps.get(branch_idx) or branch_lps.get(str(branch_idx))
-            if lp is not None:
-                prob = math.exp(lp)
-                log(
-                    f"      p(branch_{branch_idx}|trunk): {lp:.2f} (p={fmt_prob(prob)})"
-                )
+        for arm_name in arm_names:
+            if arm_name.startswith("branch_"):
+                lp = branch_lps.get(arm_name)
+                if lp is not None:
+                    cond_labels.append((f"p({arm_name}|trunk)", lp))
+
+        twig_lps = data.prefix_logprobs.get("twig_given_branch", {})
+        for arm_name in arm_names:
+            if "twig_" in arm_name:
+                lp = twig_lps.get(arm_name)
+                if lp is not None:
+                    parts = arm_name.split("_b")
+                    parent = f"branch_{parts[-1]}" if len(parts) > 1 else "?"
+                    cond_labels.append((f"p({arm_name}|{parent})", lp))
+
+        # Find max label width and print aligned
+        max_cond_len = max(len(label) for label, _ in cond_labels) if cond_labels else 0
+        for label, lp in cond_labels:
+            prob = math.exp(lp) if lp > -700 else 0.0
+            log(f"      {label:<{max_cond_len}}: {lp:>8.2f}  (p={fmt_prob(prob):>12})")
         log("")
 
-    for idx, name in enumerate(branch_names):
-        is_trunk = name == "trunk"
+    for idx, name in enumerate(arm_names):
+        is_baseline = name in ("root", "trunk")
         trajs = by_branch.get(name, [])
 
         # Get log probs conditioned on this arm
@@ -227,15 +203,18 @@ def log_arm_statistics(
         traj_probs = compute_normalized_probs(log_probs)
 
         # Build arm header
-        display = display_names.get(name, name)
-        header = f"<{idx}> {display} ({len(trajs)} trajectories)"
-        if not is_trunk and trajs:
+        header = f"<{idx}> {name} ({len(trajs)} trajectories)"
+        if not is_baseline and trajs:
             t = trajs[0]
             lp_trunk = t.conditional_logprobs.get("trunk", 0.0)
             lp_branch = t.conditional_logprobs.get(name, 0.0)
             if lp_trunk != 0.0 and lp_branch != 0.0:
                 p0 = math.exp(lp_trunk - lp_branch)
-                header += f"  p₀={p0:.1%}"
+                # Use scientific notation for very small probabilities (< 0.1%)
+                if p0 < 0.001:
+                    header += f"  p₀={p0:.2e}"
+                else:
+                    header += f"  p₀={p0:.1%}"
 
         log(f"    {header}")
         log(
