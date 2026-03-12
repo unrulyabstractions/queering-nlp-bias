@@ -8,7 +8,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from src.common.device_utils import get_device
-from src.common.log import log
+from src.common.logging import log
 from src.common.profiler import profile
 
 from .backends import (
@@ -244,7 +244,7 @@ class ModelRunner:
         """Generate tokens from prompt and return trajectory with logprobs.
 
         Applies chat template, generates tokens, and computes logprobs for
-        the full sequence.
+        the full sequence. Also sets continuation_text on the trajectory.
 
         Args:
             prompt: Input prompt text
@@ -257,7 +257,13 @@ class ModelRunner:
         """
         formatted = self.apply_chat_template(prompt) + prefilling
         token_ids = self.encode_ids(formatted, add_special_tokens=True)
-        return self.generate_trajectory(token_ids, max_new_tokens, temperature)
+        traj = self.generate_trajectory(token_ids, max_new_tokens, temperature)
+
+        # Set continuation_text - strip the formatted prefix to get just the continuation
+        full_text = self.decode_ids(traj.token_ids)
+        traj.continuation_text = full_text[len(formatted) :]
+
+        return traj
 
     def apply_chat_template(self, prompt: str) -> str:
         """Apply chat template if model is a chat model."""

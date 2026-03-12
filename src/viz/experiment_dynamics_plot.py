@@ -49,9 +49,11 @@ def plot_dynamics(
     if not structure_labels or len(structure_labels) != n_structures:
         structure_labels = [f"s{i+1}" for i in range(n_structures)]
 
-    # Create figure
+    # Create figure - much larger for better readability
     n_arms = len(arm_order)
-    fig, axes = plt.subplots(3, n_arms, figsize=(4 * n_arms, 9), sharex=True, squeeze=False)
+    fig_width = max(14, 6 * n_arms)
+    fig_height = max(12, 14)
+    fig, axes = plt.subplots(3, n_arms, figsize=(fig_width, fig_height), sharex=True, squeeze=False)
 
     for col_idx, arm_name in enumerate(arm_order):
         if arm_name not in arm_scores:
@@ -61,17 +63,17 @@ def plot_dynamics(
             arm_name, arm_scores[arm_name], structure_labels,
         )
 
-    # Legend outside plot (from first column)
+    # Legend outside plot (from first column) - larger font
     handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper right", bbox_to_anchor=(0.99, 0.95), fontsize=8)
+    fig.legend(handles, labels, loc="upper right", bbox_to_anchor=(0.99, 0.95), fontsize=11)
 
-    # Row labels
+    # Row labels - larger fonts
     for row_idx, (sym, desc) in enumerate([
         ("φ^(x)", "Expected System Compliance"),
         ("φ^(y)", "Cumulative Deviation"),
         ("φ^(z)", "Remaining Deviance"),
     ]):
-        axes[row_idx, 0].set_ylabel(f"{sym}\n{desc}", fontsize=9, fontweight="bold")
+        axes[row_idx, 0].set_ylabel(f"{sym}\n{desc}", fontsize=11, fontweight="bold")
 
     fig.suptitle(
         f"Dynamics — {result.method} [{weighting_method}]",
@@ -79,7 +81,8 @@ def plot_dynamics(
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.tight_layout(rect=[0, 0, 0.88, 0.96])
+    # More left margin for y-axis labels
+    plt.tight_layout(rect=[0.08, 0, 0.88, 0.96])
     plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close()
     return output_path
@@ -155,13 +158,15 @@ def _plot_arm_dynamics(
 
     ax_x.axhline(y=0.5, color="#ccc", linestyle="--", linewidth=1)
     ax_x.set_ylim(-0.1, 1.1)
-    ax_x.set_title(arm_name.upper(), fontsize=11, fontweight="bold")
+    ax_x.set_title(arm_name.upper(), fontsize=13, fontweight="bold")
 
     for ax in [ax_x, ax_y, ax_z]:
         ax.grid(axis="y", alpha=0.3, linestyle=":")
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
+        # Larger tick labels
+        ax.tick_params(axis="both", labelsize=10)
 
     ax_y.axhline(y=0, color="#333", linestyle="-", linewidth=1)
     ax_z.axhline(y=0, color="#333", linestyle="-", linewidth=1)
-    ax_z.set_xlabel("Token Position (k)", fontsize=9)
+    ax_z.set_xlabel("Token Position (k)", fontsize=11)

@@ -47,8 +47,6 @@ def sample_from_arm(
     log_fn: LogFn | None = None,
 ) -> list[GeneratedTrajectory]:
     """Sample N trajectories for a single arm."""
-    formatted_prompt = runner.apply_chat_template(config.prompt) + prefill
-
     trajectories = []
     for i in range(samples_per_arm):
         traj = runner.generate_trajectory_from_prompt(
@@ -59,9 +57,7 @@ def sample_from_arm(
         )
 
         if log_fn:
-            text = runner.decode_ids(traj.token_ids)
-            continuation = text[len(formatted_prompt) :]
-            log_fn(f'    [{i + 1}/{samples_per_arm}] "{preview(continuation, 55)}"')
+            log_fn(f'    [{i + 1}/{samples_per_arm}] "{preview(traj.continuation_text, 55)}"')
 
         # Free heavy data (full_logits) immediately to reduce peak memory
         traj.pop_heavy()

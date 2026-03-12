@@ -24,7 +24,7 @@ from typing import ClassVar
 
 from src.common.base_schema import BaseSchema
 from src.common.callback_types import LogFn
-from src.common.log import log as default_log
+from src.common.logging import log as default_log
 
 
 @dataclass

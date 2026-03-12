@@ -167,6 +167,7 @@ def expand_fork_point(
     analysis: PositionAnalysis,
     candidate: TopKCandidate,
     prompt_ids: list[int],
+    formatted_prompt: str,
     max_new_tokens: int,
     temperature: float,
     samples_per_fork: int,
@@ -198,6 +199,11 @@ def expand_fork_point(
     for _ in range(samples_per_fork):
         traj = runner.generate_trajectory(prefix, remaining, temperature)
         traj.sanitize()
+
+        # Set continuation_text immediately - we know the exact prefix length here
+        text = runner.decode_ids(traj.token_ids)
+        traj.continuation_text = text[len(formatted_prompt) :]
+
         # Free heavy data (full_logits) immediately to reduce peak memory
         traj.pop_heavy()
         continuations.append(traj)
@@ -246,6 +252,11 @@ def generate_forking(
 
         # Step 1: Generate greedy path
         greedy_traj = generate_greedy_path(runner, prompt_ids, config.max_new_tokens)
+
+        # Set continuation_text immediately - we know the exact prefix length here
+        greedy_text = runner.decode_ids(greedy_traj.token_ids)
+        greedy_traj.continuation_text = greedy_text[len(formatted_prompt) :]
+
         # Free heavy data (full_logits) immediately to reduce peak memory
         greedy_traj.pop_heavy()
 
@@ -284,6 +295,7 @@ def generate_forking(
                 analysis=qf.analysis,
                 candidate=qf.candidate,
                 prompt_ids=prompt_ids,
+                formatted_prompt=formatted_prompt,
                 max_new_tokens=config.max_new_tokens,
                 temperature=config.temperature,
                 samples_per_fork=params.samples_per_fork,

@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from src.common.log_utils import oneline
+from src.common.logging import oneline
 from src.common.viz_utils import preview
 
 

@@ -14,8 +14,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from src.common.base_schema import BaseSchema
-from src.common.log import log
-from src.common.log_utils import log_banner, log_sub_banner
+from src.common.logging import log, log_banner, log_sub_banner
 from src.common.token_tree import TokenTree
 
 from .generation_config import GenerationConfig

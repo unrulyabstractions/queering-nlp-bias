@@ -20,8 +20,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.common.log import log
-from src.common.log_utils import log_pipeline_header, log_step
+from src.common.logging import log, log_pipeline_header, log_step
 from src.estimation import (
     EstimationOutput,
     ScoringData,

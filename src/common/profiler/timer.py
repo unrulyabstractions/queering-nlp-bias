@@ -31,7 +31,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Optional
 
-from ..log import log
+from src.common.logging import log
 
 
 @dataclass

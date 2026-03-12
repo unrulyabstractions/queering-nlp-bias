@@ -61,8 +61,6 @@ def generate_just_greedy(
     all_arm_indices: list[int] = []
 
     for arm in arms:
-        formatted_prompt = runner.apply_chat_template(config.prompt) + arm.prefill
-
         if log_fn:
             if arm.name == "trunk":
                 log_fn("\nTrunk")
@@ -85,9 +83,7 @@ def generate_just_greedy(
         )
 
         if log_fn:
-            text = runner.decode_ids(traj.token_ids)
-            continuation = text[len(formatted_prompt) :]
-            log_fn(f'    "{preview(continuation, 70)}"')
+            log_fn(f'    "{preview(traj.continuation_text, 70)}"')
 
         # Free heavy data (full_logits) immediately to reduce peak memory
         traj.pop_heavy()

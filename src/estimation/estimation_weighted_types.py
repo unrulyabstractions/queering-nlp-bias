@@ -47,6 +47,18 @@ class WeightedEstimate(BaseSchema):
     # Distance between this arm's core and trunk core: ||E[θ|trunk]||
     orientation_norm: float = 0.0
 
+    # Excess deviance: E[∂⁺] - how much samples over-comply
+    excess_deviance_avg: float = 0.0
+
+    # Deficit deviance: E[∂⁻] - how much samples under-comply
+    deficit_deviance_avg: float = 0.0
+
+    # Mutual deviance: E[∂_M] - symmetric deviance using JS divergence
+    mutual_deviance_avg: float = 0.0
+
+    # Core diversity: effective number of structures (Hill number D_1)
+    core_diversity: float = 0.0
+
     # All (q, r) variants for this weighting scheme
     core_variants: list[CoreVariant] = field(default_factory=list)
 

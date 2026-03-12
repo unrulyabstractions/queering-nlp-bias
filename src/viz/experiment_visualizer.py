@@ -3,16 +3,23 @@
 Generates all visualizations for an EstimationResult organized as:
 
 {output_dir}/{gen_method}/{est_method}/
-  - core.png
-  - deviance.png
-  - dynamics.png
-  - orientation.png
+  - core.png                 Core bar plot per arm
+  - deviance.png             Deviance trunk->branch lines
+  - excess_deviance.png      Excess deviance (over-compliance) trunk->branch
+  - deficit_deviance.png     Deficit deviance (under-compliance) trunk->branch
+  - mutual_deviance.png      Mutual deviance (symmetric, JS divergence) trunk->branch
+  - core_diversity.png       Core diversity (Hill D_1) per arm
+  - dynamics.png             Trajectory dynamics over positions
+  - orientation.png          Orientation vectors per branch
+  - generalized_cores.png    Generalized cores heatmap (all arms, q/r variants)
+  - generalized_deviance.png E[∂] as q→∞ and r→∞ line plots
 
 {output_dir}/{gen_method}/
-  - estimation_comparison.png
-  - trunk_vs_all.png
-  - tree_word.png
-  - tree_phrase.png
+  - estimation_comparison.png  Compare cores across weighting methods
+  - trunk_vs_all.png           Trunk vs all_arms comparison
+  - bundled_structures.png     Individual questions in bundled structures
+  - tree_word.png              Token tree (word level)
+  - tree_phrase.png            Token tree (phrase level)
 """
 
 from __future__ import annotations
@@ -21,17 +28,26 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from src.common.default_config import DEFAULT_WEIGHTING_METHOD
-from src.common.log import log
+from src.common.logging import log
 
+from .experiment_breakdown_plot import plot_bundled_structures
 from .experiment_core_barplot import (
     plot_cores_barplot,
     plot_cores_comparison,
     plot_generation_comparison,
     plot_trunk_vs_all_arms,
 )
-from .experiment_deviance_plot import plot_deviance_by_arm, plot_orientation_by_branch
+from .experiment_deviance_plot import (
+    plot_core_diversity_by_arm,
+    plot_deficit_deviance_by_arm,
+    plot_deviance_by_arm,
+    plot_excess_deviance_by_arm,
+    plot_mutual_deviance_by_arm,
+    plot_orientation_by_branch,
+)
 from .experiment_dynamics_plot import plot_dynamics
 from .experiment_tree_plot import create_tree_plots, load_structure_labels
+from .experiment_variants_plot import plot_generalized_cores, plot_generalized_deviance
 
 if TYPE_CHECKING:
     from src.estimation.estimation_experiment_types import EstimationResult
@@ -104,6 +120,26 @@ def _create_est_method_plots(
     if saved:
         created.append(saved)
 
+    # Excess deviance
+    saved = plot_excess_deviance_by_arm(result, method, est_dir / "excess_deviance.png")
+    if saved:
+        created.append(saved)
+
+    # Deficit deviance
+    saved = plot_deficit_deviance_by_arm(result, method, est_dir / "deficit_deviance.png")
+    if saved:
+        created.append(saved)
+
+    # Mutual deviance
+    saved = plot_mutual_deviance_by_arm(result, method, est_dir / "mutual_deviance.png")
+    if saved:
+        created.append(saved)
+
+    # Core diversity
+    saved = plot_core_diversity_by_arm(result, method, est_dir / "core_diversity.png")
+    if saved:
+        created.append(saved)
+
     # Dynamics
     saved = plot_dynamics(result, method, structure_labels, est_dir / "dynamics.png")
     if saved:
@@ -111,6 +147,18 @@ def _create_est_method_plots(
 
     # Orientation
     saved = plot_orientation_by_branch(result, method, structure_labels, est_dir / "orientation.png")
+    if saved:
+        created.append(saved)
+
+    # Generalized cores heatmap (all arms in one figure)
+    saved = plot_generalized_cores(
+        result, method, structure_labels, est_dir / "generalized_cores.png"
+    )
+    if saved:
+        created.append(saved)
+
+    # Generalized deviance line plots
+    saved = plot_generalized_deviance(result, method, est_dir / "generalized_deviance.png")
     if saved:
         created.append(saved)
 
@@ -136,6 +184,13 @@ def _create_cross_method_plots(
     # Trunk vs all_arms
     saved = plot_trunk_vs_all_arms(
         result, weighting_methods, structure_labels, gen_dir / "trunk_vs_all.png"
+    )
+    if saved:
+        created.append(saved)
+
+    # Bundled structures breakdown (individual questions)
+    saved = plot_bundled_structures(
+        result.arm_scoring, result.structure_info, gen_dir / "bundled_structures.png"
     )
     if saved:
         created.append(saved)

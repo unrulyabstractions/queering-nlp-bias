@@ -3,6 +3,7 @@
 Provides native/numpy/torch implementations of:
 - _kl_divergence: Kullback-Leibler divergence
 - _renyi_divergence: Rényi divergence
+- _js_divergence: Jensen-Shannon divergence
 """
 
 from __future__ import annotations
@@ -222,3 +223,82 @@ def _renyi_divergence_torch(
     if total < _EPS:
         return torch.tensor(float("inf"), device=p.device)
     return total.log() / (alpha - 1)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# JENSEN-SHANNON DIVERGENCE
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def _js_divergence_native(p: Sequence[float], q: Sequence[float]) -> float:
+    """Jensen-Shannon divergence JSD(p || q) (pure Python).
+
+    JSD(p || q) = 0.5 * KL(p || m) + 0.5 * KL(q || m)
+    where m = 0.5 * (p + q)
+
+    Assumes p and q are already normalized probability distributions.
+    """
+    # Compute mixture m = 0.5 * (p + q)
+    m = [0.5 * (pi + qi) for pi, qi in zip(p, q)]
+
+    # JSD = 0.5 * KL(p || m) + 0.5 * KL(q || m)
+    kl_pm = 0.0
+    kl_qm = 0.0
+    for pi, qi, mi in zip(p, q, m):
+        if mi > _EPS:
+            if pi > _EPS:
+                kl_pm += pi * math.log(pi / mi)
+            if qi > _EPS:
+                kl_qm += qi * math.log(qi / mi)
+
+    return 0.5 * kl_pm + 0.5 * kl_qm
+
+
+def _js_divergence_numpy(p: np.ndarray, q: np.ndarray) -> np.floating:
+    """Jensen-Shannon divergence JSD(p || q) (NumPy).
+
+    Assumes p and q are already normalized probability distributions.
+    """
+    # Compute mixture m = 0.5 * (p + q)
+    m = 0.5 * (p + q)
+
+    # KL(p || m) where p > 0
+    p_mask = p > _EPS
+    m_safe_p = np.clip(m[p_mask], _EPS, None)
+    kl_pm = (p[p_mask] * np.log(p[p_mask] / m_safe_p)).sum() if p_mask.any() else 0.0
+
+    # KL(q || m) where q > 0
+    q_mask = q > _EPS
+    m_safe_q = np.clip(m[q_mask], _EPS, None)
+    kl_qm = (q[q_mask] * np.log(q[q_mask] / m_safe_q)).sum() if q_mask.any() else 0.0
+
+    return np.float64(0.5 * kl_pm + 0.5 * kl_qm)
+
+
+def _js_divergence_torch(p: torch.Tensor, q: torch.Tensor) -> torch.Tensor:
+    """Jensen-Shannon divergence JSD(p || q) (PyTorch).
+
+    Assumes p and q are already normalized probability distributions.
+    """
+    # Compute mixture m = 0.5 * (p + q)
+    m = 0.5 * (p + q)
+
+    # KL(p || m) where p > 0
+    p_mask = p > _EPS
+    if p_mask.any():
+        p_safe = p[p_mask]
+        m_safe_p = m[p_mask].clamp(min=_EPS)
+        kl_pm = (p_safe * (p_safe / m_safe_p).log()).sum()
+    else:
+        kl_pm = torch.tensor(0.0, device=p.device)
+
+    # KL(q || m) where q > 0
+    q_mask = q > _EPS
+    if q_mask.any():
+        q_safe = q[q_mask]
+        m_safe_q = m[q_mask].clamp(min=_EPS)
+        kl_qm = (q_safe * (q_safe / m_safe_q).log()).sum()
+    else:
+        kl_qm = torch.tensor(0.0, device=q.device)
+
+    return 0.5 * kl_pm + 0.5 * kl_qm

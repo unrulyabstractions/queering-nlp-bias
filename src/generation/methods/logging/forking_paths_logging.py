@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import math
 
-from src.common.log import log
-from src.common.log_utils import log_divider, log_step
+from src.common.logging import log, log_divider, log_step
 from src.inference import ModelRunner
 from src.inference.generated_trajectory import GeneratedTrajectory
 
@@ -114,7 +113,7 @@ def log_position_analyses(
     log("")
     log("  Entropy distribution (response tokens):")
     log("  Range        Count  Distribution")
-    log_divider(50, indent="  ")
+    log_divider(50, indent_str="  ")
     _log_entropy_histogram(entropies, params.min_entropy)
 
     # Show ASCII viz of entropy across positions
@@ -130,7 +129,7 @@ def log_position_analyses(
     # Show qualifying forks
     log("")
     log(f"  Qualifying forks ({len(qualifying)} total):")
-    log_divider(60, indent="  ")
+    log_divider(60, indent_str="  ")
 
     if not qualifying:
         log("    None found")
@@ -138,7 +137,7 @@ def log_position_analyses(
         log(
             f"   {'pos':>4}  {'entropy':>7}  {'greedy':>12}  {'alt':>12}  {'p(alt)':>8}"
         )
-        log_divider(55, indent="   ")
+        log_divider(55, indent_str="   ")
 
         for qf in qualifying[:10]:  # Show first 10
             greedy_tok = runner.decode_ids([qf.analysis.greedy_token_id])

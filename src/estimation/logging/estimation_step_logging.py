@@ -8,8 +8,7 @@ from __future__ import annotations
 
 import math
 
-from src.common.log import log
-from src.common.log_utils import fmt_prob, log_divider, log_step
+from src.common.logging import fmt_prob, log, log_divider, log_step
 from src.common.viz_utils import preview
 
 from ..estimation_scoring_data import ScoringData
@@ -74,7 +73,7 @@ def log_continuations_by_branch(data: ScoringData) -> None:
 
         log(f"\n    {display_name} ({len(items)} trajectories)")
         log(f'    Full continuation starts with: "{clean_prefix}..."')
-        log_divider(70, indent="    ")
+        log_divider(70, indent_str="    ")
 
         for cont in items:
             # Extract just the continuation after the full prefix
@@ -112,7 +111,7 @@ def log_trajectories_with_scores(data: ScoringData) -> None:
     labels = [s.label for s in structures]
     header = f"    {'#':>3}  {'arm':<10} " + "  ".join(f"{l:>5}" for l in labels)
     log(header)
-    log_divider(18 + 7 * len(labels), indent="    ")
+    log_divider(18 + 7 * len(labels), indent_str="    ")
 
     for i, r in enumerate(data.results):
         idx = r["trajectory_idx"]
@@ -242,7 +241,7 @@ def log_arm_statistics(
         log(
             f"    {'#':>3}  {'logp':>6}  {'p':>10}  {'p_norm':>7}  {'ppl':>5}  {'inv_ppl_n':>9}"
         )
-        log_divider(55, indent="    ")
+        log_divider(55, indent_str="    ")
 
         # Build lookup for trajectory data
         traj_lookup = {t.traj_idx: t for t in trajs}

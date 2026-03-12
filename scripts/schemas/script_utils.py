@@ -11,10 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from src.common.log import log, log_params, log_section
-from src.common.log_utils import (
-    HEADER_WIDTH,
-)
+from src.common.logging import HEADER_WIDTH, log, log_params, log_section
 from src.common.seed import set_seed
 from src.generation import (
     GenerationConfig,

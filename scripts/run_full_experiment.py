@@ -31,11 +31,12 @@ from schemas.script_utils import (
 )
 from score_trajectories import score_trajectories
 
-from src.common.log import log, log_section
-from src.common.log_utils import (
+from src.common.logging import (
     STAGE_GAP,
+    log,
     log_header,
     log_major,
+    log_section,
     log_stage,
 )
 from src.common.seed import set_seed

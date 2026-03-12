@@ -9,9 +9,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from src.common.log import log
-from src.common.log_utils import (
+from src.common.logging import (
     fmt_core,
+    log,
     log_divider,
     log_major,
     log_section_title,

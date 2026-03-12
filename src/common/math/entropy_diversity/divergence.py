@@ -3,6 +3,7 @@
 Provides:
 - kl_divergence: Kullback-Leibler divergence D_KL(p || q)
 - renyi_divergence: Rényi divergence of order α
+- js_divergence: Jensen-Shannon divergence JSD(p || q)
 
 Key distinction:
 - Entropy H_q(p): measures uncertainty in a single distribution
@@ -16,6 +17,9 @@ import numpy as np
 from ..num_types import Num, Nums, is_numpy, is_tensor
 from .core_impl import _EPS
 from .divergence_impl import (
+    _js_divergence_native,
+    _js_divergence_numpy,
+    _js_divergence_torch,
     _kl_divergence_native,
     _kl_divergence_numpy,
     _kl_divergence_torch,
@@ -141,3 +145,59 @@ def renyi_divergence(
             q_list = [x / q_sum for x in q_list]
 
     return _renyi_divergence_native(p_list, q_list, alpha)
+
+
+def js_divergence(
+    p: Nums,
+    q: Nums,
+    normalize: bool = True,
+) -> Num:
+    """Jensen-Shannon divergence JSD(p || q).
+
+    JSD(p || q) = 0.5 * KL(p || m) + 0.5 * KL(q || m)
+    where m = 0.5 * (p + q)
+
+    Properties:
+    - Symmetric: JSD(p || q) = JSD(q || p)
+    - Bounded: 0 ≤ JSD ≤ log(2) ≈ 0.693
+    - Always finite (unlike KL divergence)
+    - sqrt(JSD) is a proper metric
+
+    Args:
+        p: First distribution
+        q: Second distribution
+        normalize: If True, normalize p and q to sum to 1
+
+    Returns:
+        Jensen-Shannon divergence value in [0, log(2)]
+    """
+    if is_tensor(p) and is_tensor(q):
+        if p.shape != q.shape:
+            raise ValueError("p and q must have same shape")
+        if normalize:
+            p = p / p.sum().clamp(min=_EPS)
+            q = q / q.sum().clamp(min=_EPS)
+        return _js_divergence_torch(p, q)
+
+    if is_numpy(p) and is_numpy(q):
+        if p.shape != q.shape:
+            raise ValueError("p and q must have same shape")
+        if normalize:
+            p = p / np.clip(p.sum(), _EPS, None)
+            q = q / np.clip(q.sum(), _EPS, None)
+        return _js_divergence_numpy(p, q)
+
+    p_list = list(p)
+    q_list = list(q)
+    if len(p_list) != len(q_list):
+        raise ValueError("p and q must have same length")
+
+    if normalize:
+        p_sum = sum(p_list)
+        q_sum = sum(q_list)
+        if p_sum > _EPS:
+            p_list = [x / p_sum for x in p_list]
+        if q_sum > _EPS:
+            q_list = [x / q_sum for x in q_list]
+
+    return _js_divergence_native(p_list, q_list)

@@ -24,7 +24,7 @@ from schemas.script_utils import (
     parse_generation_args,
 )
 
-from src.common.log import log, log_section
+from src.common.logging import log, log_section
 from src.generation import (
     EntropySeekingParams,
     GenerationConfig,

@@ -10,7 +10,7 @@ import numpy as np
 from numpy.typing import NDArray
 from sentence_transformers import SentenceTransformer
 
-from src.common.log import log
+from src.common.logging import log
 
 
 @contextlib.contextmanager

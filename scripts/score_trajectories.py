@@ -15,8 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.common.log import log, log_section
-from src.common.log_utils import log_items, log_kv, log_step
+from src.common.logging import log, log_items, log_kv, log_section, log_step
 from src.scoring import (
     GenerationOutputData,
     ScoringOutput,

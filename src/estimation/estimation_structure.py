@@ -130,3 +130,23 @@ class ArmEstimate(BaseSchema):
         if variant:
             return variant.core
         return self.get_core(method)
+
+    def get_excess_deviance_avg(self, method: str = "prob") -> float:
+        """Get expected excess deviance E[∂⁺] for a specific weighting method."""
+        est = self.estimates.get(method)
+        return est.excess_deviance_avg if est else 0.0
+
+    def get_deficit_deviance_avg(self, method: str = "prob") -> float:
+        """Get expected deficit deviance E[∂⁻] for a specific weighting method."""
+        est = self.estimates.get(method)
+        return est.deficit_deviance_avg if est else 0.0
+
+    def get_mutual_deviance_avg(self, method: str = "prob") -> float:
+        """Get expected mutual deviance E[∂_M] for a specific weighting method."""
+        est = self.estimates.get(method)
+        return est.mutual_deviance_avg if est else 0.0
+
+    def get_core_diversity(self, method: str = "prob") -> float:
+        """Get core diversity (Hill D_1) for a specific weighting method."""
+        est = self.estimates.get(method)
+        return est.core_diversity if est else 0.0

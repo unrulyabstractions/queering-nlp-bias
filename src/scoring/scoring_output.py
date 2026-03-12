@@ -13,8 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from src.common.base_schema import BaseSchema
-from src.common.log import log
-from src.common.log_utils import log_banner, log_sub_banner
+from src.common.logging import log, log_banner, log_sub_banner
 from src.common.viz_utils import preview
 
 from .scoring_data import TrajectoryData

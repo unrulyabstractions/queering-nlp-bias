@@ -95,6 +95,21 @@ def fmt_prob(p: float, width: int = 10) -> str:
     return f"{p:>{width}.4f}"
 
 
+def fmt_core(core: list[float]) -> str:
+    """Format core vector for display (full, no truncation).
+
+    Args:
+        core: List of float values
+
+    Returns:
+        Formatted string like "[0.123, 0.456, 0.789]"
+    """
+    if not core:
+        return "[]"
+    items = ", ".join(f"{c:.3f}" for c in core)
+    return f"[{items}]"
+
+
 def oneline(text: str) -> str:
     """Collapse whitespace to single spaces for display.
 

@@ -129,16 +129,21 @@ class TokenTree(BaseSchema):
     def decode_texts(self, runner) -> None:
         """Decode trunk_text and continuation_text for all trajectories.
 
+        Skips trajectories that already have continuation_text set (e.g., from
+        generation methods that set it with the correct per-arm prefix).
+
         Args:
             runner: ModelRunner with decode_ids method
         """
         trunk_length = self.trunk_length or 0
 
-        if self.trajs and trunk_length > 0:
+        if self.trajs and trunk_length > 0 and not self.trunk_text:
             self.trunk_text = runner.decode_ids(self.trajs[0].token_ids[:trunk_length])
 
         for traj in self.trajs:
-            traj.continuation_text = runner.decode_ids(traj.token_ids[trunk_length:])
+            # Skip if already set (generation method set it with correct prefix)
+            if traj.continuation_text is None:
+                traj.continuation_text = runner.decode_ids(traj.token_ids[trunk_length:])
 
     @classmethod
     def from_dict(cls, d: dict) -> TokenTree:

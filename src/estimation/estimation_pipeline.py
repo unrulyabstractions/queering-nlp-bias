@@ -13,9 +13,13 @@ import math
 from dataclasses import dataclass
 
 from src.common.math.entropy_diversity.structure_aware import (
+    core_diversity,
     deviance,
     deviance_variance,
+    expected_deficit_deviance,
     expected_deviance,
+    expected_excess_deviance,
+    expected_mutual_deviance,
     expected_orientation,
     generalized_system_core,
     orientation,
@@ -131,6 +135,18 @@ def compute_weighted_estimate(
     # E[Δd] = E[d|branch] - E[d|trunk]
     dev_delta = dev_avg - dev_avg_trunk
 
+    # E[∂⁺] - excess deviance (over-compliance)
+    excess_dev = expected_excess_deviance(structure_scores_list, core, weights=weights)
+
+    # E[∂⁻] - deficit deviance (under-compliance)
+    deficit_dev = expected_deficit_deviance(structure_scores_list, core, weights=weights)
+
+    # E[∂_M] - mutual deviance (symmetric, uses JS divergence)
+    mutual_dev = expected_mutual_deviance(structure_scores_list, core, weights=weights)
+
+    # Core diversity (effective number of structures)
+    core_div = core_diversity(core) if core else 0.0
+
     # Compute all named core variants
     core_variants = compute_core_variants(structure_scores_list, weights)
 
@@ -143,6 +159,10 @@ def compute_weighted_estimate(
         deviance_delta=dev_delta,
         orientation_avg=orient_avg,
         orientation_norm=orient_norm,
+        excess_deviance_avg=excess_dev,
+        deficit_deviance_avg=deficit_dev,
+        mutual_deviance_avg=mutual_dev,
+        core_diversity=core_div,
         core_variants=core_variants,
     )
 

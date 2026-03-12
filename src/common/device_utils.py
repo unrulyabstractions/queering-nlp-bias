@@ -9,7 +9,7 @@ import sys
 import psutil
 import torch
 
-from src.common.log import log
+from src.common.logging import log
 
 # Track memory across iterations for leak detection
 _memory_history: list[dict] = []

@@ -5,8 +5,7 @@ This module provides logging functions for trajectory generation output.
 
 from __future__ import annotations
 
-from src.common.log import log, log_section
-from src.common.log_utils import fmt_prob
+from src.common.logging import fmt_prob, log, log_section
 from src.common.viz_utils import preview
 from src.generation.generation_types import ArmGenerationResult
 from src.inference import ModelRunner

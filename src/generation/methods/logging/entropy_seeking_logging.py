@@ -6,8 +6,7 @@ including tree initialization, expansion rounds, and path visualization.
 
 from __future__ import annotations
 
-from src.common.log import log
-from src.common.log_utils import log_step
+from src.common.logging import log, log_step
 from src.inference import ModelRunner
 
 from ..entropy_seeking_types import TreePath

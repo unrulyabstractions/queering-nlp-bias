@@ -8,8 +8,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from src.common.log import log
-from src.common.log_utils import log_divider
+from src.common.logging import log, log_divider
 
 from ..estimation_core_types import NUM_DISPLAYED_VARIANTS, CoreVariant
 from ..weighting_method_registry import get_method_description, iter_methods
@@ -37,7 +36,7 @@ def log_core_variants_table(
     log(f"\n    Core variants ({label}):")
     header_labels = "  ".join(f"{l:>6}" for l in struct_labels)
     log(f"    {'name':<14}  {'q':>4}  {'r':>4}    {header_labels}  {'E[∂]':>8}")
-    log_divider(32 + 8 * len(struct_labels) + 10, indent="    ")
+    log_divider(32 + 8 * len(struct_labels) + 10, indent_str="    ")
     for v in variants[:NUM_DISPLAYED_VARIANTS]:
         q_str = format_qr_parameter(v.q)
         r_str = format_qr_parameter(v.r)
@@ -104,7 +103,7 @@ def log_compliance_rates(
                 f"{get_branch_header(br):>8}" for br in arm_scoring
             )
             log(f"    {'Question':<50}  {branch_headers}")
-            log_divider(52 + 10 * len(arm_scoring), indent="    ")
+            log_divider(52 + 10 * len(arm_scoring), indent_str="    ")
 
             for q in questions:
                 rates_row = "  ".join(
@@ -134,7 +133,7 @@ def log_arm_cores(
         log(
             f"\n    {'weighting':<25}  {header_labels}  {'E[∂]':>8}  {'Var[∂]':>10}"
         )
-        log_divider(31 + 8 * len(labels) + 20, indent="    ")
+        log_divider(31 + 8 * len(labels) + 20, indent_str="    ")
 
         # Iterate over registered weighting methods
         for method_name, _, _ in iter_methods():

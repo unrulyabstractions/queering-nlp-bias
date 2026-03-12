@@ -6,7 +6,7 @@ This module provides logging functions for detailed scoring output.
 from __future__ import annotations
 
 from src.common.callback_types import LogFn
-from src.common.log_utils import oneline
+from src.common.logging import oneline
 from src.common.viz_utils import preview
 from src.scoring.scoring_data import TrajectoryData
 

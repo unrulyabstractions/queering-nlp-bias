@@ -27,8 +27,7 @@ from src.common.default_config import (
     ENTROPY_NUM_EXPANSION_ROUNDS,
     ENTROPY_SAMPLES_PER_EXPANSION,
 )
-from src.common.log import log
-from src.common.log_utils import log_step
+from src.common.logging import log, log_step
 from src.inference import ModelRunner
 from src.inference.generated_trajectory import GeneratedTrajectory
 
@@ -163,6 +162,9 @@ def initialize_tree(
         text = runner.decode_ids(traj.token_ids)
         continuation = text[len(formatted_prompt) :]
 
+        # Set continuation_text immediately - we know the exact prefix length here
+        traj.continuation_text = continuation
+
         path = TreePath(
             trajectory=traj.sanitize(),
             path_id=i,
@@ -243,6 +245,9 @@ def expand_tree(
 
             text = runner.decode_ids(traj.token_ids)
             continuation = text[len(formatted_prompt) :]
+
+            # Set continuation_text immediately - we know the exact prefix length here
+            traj.continuation_text = continuation
 
             path = TreePath(
                 trajectory=traj.sanitize(),

@@ -27,7 +27,7 @@ from typing import Literal, Union
 import torch
 
 from ..num_types import Num, Nums, is_tensor
-from .divergence import renyi_divergence
+from .divergence import js_divergence, renyi_divergence
 from .entropy import shannon_entropy
 from .entropy_primitives import _EPS, probs_to_logprobs
 from .escort_distribution import escort_probs
@@ -444,6 +444,39 @@ def deficit_deviance(
     return math.exp(h) if math.isfinite(h) else float("inf")
 
 
+def mutual_deviance(
+    compliance: SystemCompliance,
+    core: SystemCore,
+) -> float:
+    """Mutual deviance: symmetric measure of non-normativity.
+
+    ∂_M = exp(JSD(Λ_norm(y) || ⟨Λ_norm⟩))
+
+    Unlike excess_deviance (D_α(compliance || core)) and deficit_deviance
+    (D_α(core || compliance)), mutual_deviance uses Jensen-Shannon divergence
+    which is symmetric. It captures both over-compliance and under-compliance
+    simultaneously.
+
+    Properties:
+    - Symmetric: same result regardless of argument order
+    - Bounded: JSD ∈ [0, log(2)], so mutual_deviance ∈ [1, 2]
+    - Always finite (unlike KL-based measures)
+    - sqrt(JSD) is a proper metric
+
+    Args:
+        compliance: System compliance Λ_n(y) (will be normalized)
+        core: System core ⟨Λ_n⟩ (will be normalized)
+
+    Returns:
+        Mutual deviance ∈ [1, 2]. Value of 1 means compliance matches core.
+    """
+    c_list = list(compliance) if not is_tensor(compliance) else compliance.tolist()
+    core_list = list(core) if not is_tensor(core) else core.tolist()
+    # js_divergence normalizes both inputs by default
+    h = js_divergence(c_list, core_list, normalize=True)
+    return math.exp(h) if math.isfinite(h) else float("inf")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # AGGREGATE DEVIANCE STATISTICS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -581,3 +614,130 @@ def expected_orientation(
             result[i] += w * theta_list[i]
 
     return result
+
+
+def expected_excess_deviance(
+    compliances: Sequence[SystemCompliance],
+    core: SystemCore,
+    weights: Sequence[float] | None = None,
+    alpha: float = 1.0,
+) -> float:
+    """Expected excess deviance E[∂⁺_α] over a set of samples.
+
+    Computes probability-weighted mean of excess deviances.
+    Excess deviance measures how much samples over-comply with certain structures.
+
+    Args:
+        compliances: List of system compliances Λ_n(y) for each sample
+        core: System core ⟨Λ_n⟩
+        weights: Optional probability weights (uniform if None)
+        alpha: Divergence order (1.0 = KL divergence)
+
+    Returns:
+        Expected excess deviance E[∂⁺_α]
+    """
+    if not compliances:
+        return 1.0  # No samples means no excess (neutral value)
+
+    n = len(compliances)
+    if weights is None:
+        weights = [1.0 / n] * n
+    else:
+        total = sum(weights)
+        if total < _EPS:
+            weights = [1.0 / n] * n
+        else:
+            weights = [w / total for w in weights]
+
+    total_excess = 0.0
+    for compliance, w in zip(compliances, weights):
+        d = excess_deviance(compliance, core, alpha)
+        total_excess += w * d
+
+    return total_excess
+
+
+def expected_deficit_deviance(
+    compliances: Sequence[SystemCompliance],
+    core: SystemCore,
+    weights: Sequence[float] | None = None,
+    alpha: float = 1.0,
+) -> float:
+    """Expected deficit deviance E[∂⁻_α] over a set of samples.
+
+    Computes probability-weighted mean of deficit deviances.
+    Deficit deviance measures how much samples under-comply with certain structures.
+
+    Args:
+        compliances: List of system compliances Λ_n(y) for each sample
+        core: System core ⟨Λ_n⟩
+        weights: Optional probability weights (uniform if None)
+        alpha: Divergence order (1.0 = KL divergence)
+
+    Returns:
+        Expected deficit deviance E[∂⁻_α]
+    """
+    if not compliances:
+        return 1.0  # No samples means no deficit (neutral value)
+
+    n = len(compliances)
+    if weights is None:
+        weights = [1.0 / n] * n
+    else:
+        total = sum(weights)
+        if total < _EPS:
+            weights = [1.0 / n] * n
+        else:
+            weights = [w / total for w in weights]
+
+    total_deficit = 0.0
+    for compliance, w in zip(compliances, weights):
+        d = deficit_deviance(compliance, core, alpha)
+        total_deficit += w * d
+
+    return total_deficit
+
+
+def expected_mutual_deviance(
+    compliances: Sequence[SystemCompliance],
+    core: SystemCore,
+    weights: Sequence[float] | None = None,
+) -> float:
+    """Expected mutual deviance E[∂_M] over a set of samples.
+
+    Computes probability-weighted mean of mutual deviances.
+    Mutual deviance uses Jensen-Shannon divergence which is symmetric,
+    capturing both over-compliance and under-compliance simultaneously.
+
+    Properties:
+    - Always finite (unlike KL-based measures)
+    - Bounded output: E[∂_M] ∈ [1, 2]
+    - Symmetric: doesn't distinguish direction of deviation
+
+    Args:
+        compliances: List of system compliances Λ_n(y) for each sample
+        core: System core ⟨Λ_n⟩
+        weights: Optional probability weights (uniform if None)
+
+    Returns:
+        Expected mutual deviance E[∂_M] ∈ [1, 2]
+    """
+    if not compliances:
+        return 1.0  # No samples means no deviance (neutral value)
+
+    n = len(compliances)
+    if weights is None:
+        weights = [1.0 / n] * n
+    else:
+        total = sum(weights)
+        if total < _EPS:
+            weights = [1.0 / n] * n
+        else:
+            weights = [w / total for w in weights]
+
+    total_mutual = 0.0
+    for compliance, w in zip(compliances, weights):
+        d = mutual_deviance(compliance, core)
+        total_mutual += w * d
+
+    return total_mutual

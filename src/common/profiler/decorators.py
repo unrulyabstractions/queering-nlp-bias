@@ -7,7 +7,7 @@ from typing import Callable, TypeVar, Union, overload
 
 from .timer import P
 from ..device_utils import log_memory
-from ..log import log
+from src.common.logging import log
 
 F = TypeVar("F", bound=Callable)
 
