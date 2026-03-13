@@ -16,25 +16,9 @@ from typing import Any
 from src.common.base_schema import BaseSchema
 from src.common.default_config import MAX_NEW_TOKENS, TEMPERATURE
 from src.common.experiment_types import GenerationArm
+from src.common.method_params_override import MethodParamsOverride
 
 from .generation_method_registry import GenerationMethodParams, get_default_params
-
-
-@dataclass
-class MethodParamsOverride(BaseSchema):
-    """Override values for a generation method's parameters.
-
-    Wraps a flat dict of parameter overrides. Used to avoid nested dicts
-    in GenerationConfig while maintaining JSON compatibility.
-    """
-
-    overrides: dict[str, Any] = field(default_factory=dict)
-
-    def apply_to(self, params: GenerationMethodParams) -> None:
-        """Apply these overrides to a params instance."""
-        for key, value in self.overrides.items():
-            if hasattr(params, key):
-                setattr(params, key, value)
 
 
 @dataclass

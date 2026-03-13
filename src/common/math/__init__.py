@@ -19,7 +19,6 @@ Usage:
     from src.common.math import AggregationMethod, aggregate
     from src.common.math import perplexity, q_diversity, shannon_entropy
     from src.common.math import orientation, deviance, core_entropy
-    from src.common.analysis import XenoStructure, XenoSystem, XenoTrajectory
 """
 
 from src.common.auto_export import auto_export

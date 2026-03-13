@@ -157,7 +157,7 @@ Answer with just a number between 0.0 and 1.0:
    gen_data = GenerationOutputData.load("out/simple-sampling/example/generation.json")
    ```
    This extracts `TrajectoryData` objects containing:
-   - `trajectory_idx`: Index in the generation batch
+   - `traj_idx`: Index in the generation batch
    - `arm_name`: Which arm the trajectory came from (e.g., "trunk", "branch_1")
    - `generated_text`: The full generated text
    - `continuation_text`: Generated text only (excluding prefill)
@@ -202,12 +202,12 @@ For each trajectory:
 **Per-trajectory** (`ScoringResult`):
 ```python
 {
-    "trajectory_idx": 0,
-    "branch": "trunk",
-    "branch_idx": 0,
+    "traj_idx": 0,
+    "arm": "trunk",
+    "arm_idx": 0,
     "text": "...",
     "conditional_logprobs": {"trunk": -5.2, "branch_1": -8.1},
-    "n_continuation_tokens": 45,
+    "n_generated_tokens": 45,
     "method_scores": {
         "categorical": [1, 0, 1],
         "graded": [0.75],

@@ -9,11 +9,12 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
+from src.common.base_schema import BaseSchema
 from src.inference.generated_trajectory import GeneratedTrajectory
 
 
 @dataclass
-class BestPosition:
+class BestPosition(BaseSchema):
     """Result of finding the best unused position in a path."""
 
     position: int | None
@@ -21,7 +22,7 @@ class BestPosition:
 
 
 @dataclass
-class TreePath:
+class TreePath(BaseSchema):
     """A path in the entropy-seeking tree with precomputed entropies.
 
     Represents a single trajectory with its entropy values at each position,
@@ -67,7 +68,7 @@ class TreePath:
 
 
 @dataclass
-class ExpansionPoint:
+class ExpansionPoint(BaseSchema):
     """The best expansion point across all paths."""
 
     path: TreePath | None

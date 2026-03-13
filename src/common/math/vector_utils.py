@@ -9,6 +9,36 @@ from __future__ import annotations
 import math
 
 
+def l2_norm(v: list[float]) -> float:
+    """Compute L2 (Euclidean) norm of a vector.
+
+    Args:
+        v: Input vector
+
+    Returns:
+        ||v||_2 = sqrt(sum(v_i^2))
+    """
+    return math.sqrt(sum(x * x for x in v))
+
+
+def l2_distance(a: list[float], b: list[float]) -> float:
+    """Compute L2 (Euclidean) distance between two vectors.
+
+    Args:
+        a: First vector
+        b: Second vector
+
+    Returns:
+        ||a - b||_2
+
+    Raises:
+        ValueError: If vectors have different lengths
+    """
+    if len(a) != len(b):
+        raise ValueError(f"Vector length mismatch: {len(a)} vs {len(b)}")
+    return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
+
+
 def compute_orientation_vector(
     source_core: list[float],
     reference_core: list[float] | None,

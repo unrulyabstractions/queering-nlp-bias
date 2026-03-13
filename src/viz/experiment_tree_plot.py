@@ -18,6 +18,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.path import Path as MplPath
 
+from src.common.continuation_text import get_continuation_text
+
 from .viz_plot_utils import STRUCTURE_COLORS, lighten_color
 
 # Suppress matplotlib glyph warnings (emojis, special unicode)
@@ -133,19 +135,6 @@ def load_trajectory_scores(estimation_path: Path) -> dict[int, list[float]]:
     return scores_by_traj
 
 
-def get_traj_continuation_text(traj: dict) -> str:
-    """Get continuation text from trajectory dict.
-
-    Computes from prefill_text + generated_text if continuation_text not stored.
-    """
-    stored = traj.get("continuation_text")
-    if stored:
-        return stored
-    prefill = traj.get("prefill_text") or ""
-    generated = traj.get("generated_text") or ""
-    return prefill + generated
-
-
 def extract_trajectories_from_gen_data(gen_data: dict) -> list[dict]:
     """Extract trajectory list from generation data."""
     # Try tree.trajs first (forking-paths, seeking-entropy)
@@ -154,7 +143,7 @@ def extract_trajectories_from_gen_data(gen_data: dict) -> list[dict]:
         trajs = tree["trajs"]
         return [
             {
-                "text": get_traj_continuation_text(t),
+                "text": get_continuation_text(t),
                 "traj_idx": t.get("traj_idx", i),
                 "probability": 1.0,
                 "log_probability": sum(t.get("logprobs", [0.0])),

@@ -34,6 +34,11 @@ uv run python scripts/run_full_experiment.py --all \
 uv run python scripts/run_full_experiment.py --dynamics \
     trials/generation/example.json \
     trials/scoring/example.json
+
+# Profile performance (shows timing breakdown)
+uv run python scripts/run_full_experiment.py --profile \
+    trials/generation/example.json \
+    trials/scoring/example.json
 ```
 
 ## Available Scripts
@@ -121,6 +126,8 @@ All outputs are saved to `out/<method>/`:
 | `<method>/score_<gen>_<scoring>.json` | Scoring results |
 | `<method>/est_<gen>_<scoring>.json` | Estimation results |
 | `<method>/summary_*` | Human-readable summaries |
+| `<method>/dynamics.json` | Dynamics data (with `--dynamics`) |
+| `<method>/viz/dynamics/` | Dynamics plots (with `--dynamics`) |
 
 ## Directory Structure
 

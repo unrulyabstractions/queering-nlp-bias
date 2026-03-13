@@ -42,7 +42,7 @@ out/{method}/{gen_name}/{scoring_name}/viz/dynamics/
 ```
 
 ### `visualize_generation_comparison(results, output_dir=None)`
-Compares trunk cores across multiple generation methods. Creates a single generation_comparison.png showing grouped bars for each arm across methods.
+Compares trunk cores across multiple generation methods. Creates a comparison plot showing grouped bars for each arm across methods. Output is saved to `out/generation_comparisons/{gen_name}/{scoring_name}.png` to prevent overwrites from different experiment configurations.
 
 ## Plot Descriptions
 

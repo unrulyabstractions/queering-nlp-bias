@@ -96,8 +96,8 @@ class StructureInfo(BaseSchema):
 class ArmScoring(BaseSchema):
     """Per-structure compliance scores for an arm."""
 
-    branch: str
-    branch_idx: int
+    arm: str
+    arm_idx: int
     trajectory_count: int
     simple_scoring: dict[str, float] = field(default_factory=dict)  # label -> score
     bundled_scoring: dict[str, BundledScoreResult] = field(default_factory=dict)
@@ -105,15 +105,15 @@ class ArmScoring(BaseSchema):
     @classmethod
     def from_scores_result(
         cls,
-        branch: str,
-        branch_idx: int,
+        arm: str,
+        arm_idx: int,
         trajectory_count: int,
         scores: StructureScoresResult,
     ) -> ArmScoring:
         """Create from a StructureScoresResult."""
         return cls(
-            branch=branch,
-            branch_idx=branch_idx,
+            arm=arm,
+            arm_idx=arm_idx,
             trajectory_count=trajectory_count,
             simple_scoring=scores.simple_scoring,
             bundled_scoring=scores.bundled_scoring,

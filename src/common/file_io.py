@@ -132,9 +132,12 @@ def _restore_text_fields(obj):
 
 
 def load_json(path: Path) -> dict:
-    """Load JSON file. Robust to trailing commas."""
+    """Load JSON file. Robust to trailing commas and double commas."""
     with open(path) as f:
         s = f.read()
+    # Remove double/multiple commas (e.g., "a",, "b" -> "a", "b")
+    s = re.sub(r",(\s*,)+", ",", s)
+    # Remove trailing commas before ] or }
     s = re.sub(r",\s*([}\]])", r"\1", s)
     data = json.loads(s)
     return _restore_text_fields(data)

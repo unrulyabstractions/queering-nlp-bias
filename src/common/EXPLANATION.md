@@ -135,7 +135,7 @@ A single token sequence with log-probabilities and metadata:
 **Metadata:**
 - `arm_token_lengths`: token count (prompt + prefill) for each arm
 - `arm_text_lengths`: character count for each arm's prefill
-- `arm_index`: which groups this trajectory belongs to
+- `arm_idx`: which groups this trajectory belongs to
 - `nodes_idx`: indices of BranchingNodes this trajectory passes through
 - `traj_idx`: index in parent tree
 
@@ -168,7 +168,7 @@ Pairwise comparison between two branches:
 **Core fields:**
 - `next_token_ids`: tuple of (token_a, token_b)
 - `next_token_logprobs`: tuple of (logprob_a, logprob_b)
-- `arm_index`: tuple of (group_a, group_b) for the two branches
+- `arm_idx`: tuple of (group_a, group_b) for the two branches
 - `fork_idx`: index in parent tree
 
 ## Experiment Types
@@ -207,15 +207,14 @@ Container for output paths throughout the experiment pipeline:
 GPU/CPU/MPS detection and memory management:
 - `get_device()` - return best available device (cuda, mps, or cpu)
 - `get_memory_usage()` - dict with cuda/mps/ram memory stats
-- `log_memory()` - print and track memory at a stage
-- `check_memory_trend()` - detect memory leaks
+- `log_memory()` - print memory usage at a stage
 - `clear_gpu_memory()` - empty GPU caches
 
 ### file_io.py
 
 JSON utilities with robustness to formatting:
 - `save_json()` - pretty-print JSON (converts multiline text to arrays)
-- `load_json()` - load JSON (restores multiline text, tolerates trailing commas)
+- `load_json()` - load JSON (restores multiline text, tolerates trailing commas and double commas)
 - `parse_file_path()` - flexible path parsing (simple name, filename, or full path)
 - `ensure_dir()` - create directory if needed
 - `get_timestamp()` - current timestamp string
@@ -237,6 +236,7 @@ Single source of truth for all default parameter values:
 - **Scoring**: JUDGE_MAX_TOKENS, STRING_SELECTION
 - **Embedding**: EMBEDDING_MODEL
 - **Estimation**: DEFAULT_STATISTIC, DEFAULT_WEIGHTING_METHOD
+- **Dynamics**: DYNAMICS_STEP, DYNAMICS_TRAJS_PER_ARM, DYNAMICS_ARMS
 
 ### viz_utils.py
 
@@ -251,15 +251,6 @@ Text formatting and visualization for console output:
 **Float utilities:**
 - `sanitize_float()` - replace inf/nan with finite values
 - `sanitize_floats()` - apply to list
-
-**Statistics:**
-- `compute_stats()` - min, max, mean, std, count
-- `compute_percentiles()` - compute percentiles of list
-
-**Visualization:**
-- `format_histogram_vertical()` - vertical histogram with Unicode bars
-- `format_sequence_plot()` - horizontal sequence plot (values over positions) using Unicode blocks
-- `print_lines()` - print list of lines with optional log function
 
 ## Design Principles
 

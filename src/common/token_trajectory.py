@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import TypeVar
 
 import torch
 
@@ -39,8 +39,7 @@ class TokenTrajectory(BaseSchema):
 
     traj_idx: int | None = None  # Index in parent tree's trajs tuple
     nodes_idx: tuple[int, ...] | None = None
-    arm_index: tuple[int, ...] | None = None
-    analysis: Any | None = None
+    arm_idx: tuple[int, ...] | None = None
     prefill_length: int | None = None  # Token position where generated content starts
 
     @property

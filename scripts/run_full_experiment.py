@@ -35,6 +35,7 @@ from schemas.script_utils import (
 )
 from score_trajectories import score_trajectories
 
+from src.common.default_config import DYNAMICS_ARMS, DYNAMICS_STEP, DYNAMICS_TRAJS_PER_ARM
 from src.common.logging import (
     STAGE_GAP,
     log,
@@ -43,8 +44,9 @@ from src.common.logging import (
     log_section,
     log_stage,
 )
+from src.common.profiler import P, profile
 from src.common.random_seed import set_seed
-from src.estimation.dynamics import compute_dynamics, plot_dynamics
+from src.dynamics import compute_dynamics, plot_dynamics, save_dynamics_json
 from src.estimation import EstimationOutput, ScoringData
 from src.estimation.estimation_experiment_types import EstimationResult
 from src.estimation.logging.estimation_comparison_logging import (
@@ -62,8 +64,8 @@ from src.generation import (
 )
 from src.generation.methods.logging import log_tree_trajectories
 from src.inference import ModelRunner
-from src.inference.embedding_runner import EmbeddingRunner
 from src.scoring import GenerationOutputData, ScoringConfig, ScoringOutput
+from src.scoring.scorer import Scorer
 from src.viz import visualize_generation_comparison, visualize_result
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -80,6 +82,7 @@ class ParsedExperimentArgs:
     methods: list[str]  # Method names from registry
     overrides: dict[str, Any]
     dynamics: bool  # Whether to compute drift/horizon dynamics
+    profile: bool  # Whether to enable profiling
 
 
 def parse_experiment_args() -> ParsedExperimentArgs:
@@ -110,6 +113,11 @@ def parse_experiment_args() -> ParsedExperimentArgs:
         "--dynamics",
         action="store_true",
         help="Compute drift/horizon dynamics for trajectories",
+    )
+    parser.add_argument(
+        "--profile",
+        action="store_true",
+        help="Enable profiling and print timing report",
     )
 
     # Method-specific parameters (apply to whichever method uses them)
@@ -146,6 +154,7 @@ def parse_experiment_args() -> ParsedExperimentArgs:
         methods=methods,
         overrides=overrides,
         dynamics=args.dynamics,
+        profile=args.profile,
     )
 
 
@@ -154,6 +163,7 @@ def parse_experiment_args() -> ParsedExperimentArgs:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+@profile
 def step_generate(
     config: GenerationConfig,
     config_path: Path,
@@ -190,6 +200,7 @@ def step_generate(
     return result.output
 
 
+@profile
 def step_score(
     scoring_path: Path,
     gen_output_path: Path,
@@ -202,6 +213,7 @@ def step_score(
     score_trajectories(scoring_cfg, scoring_path, gen_data, gen_output_path)
 
 
+@profile
 def step_estimate(judgment_path: Path) -> None:
     """Estimate normativity from judgments."""
     log_stage(3, 3, "ESTIMATE")
@@ -210,38 +222,80 @@ def step_estimate(judgment_path: Path) -> None:
     estimate_normativity(judgment_data, judgment_path)
 
 
-def step_dynamics(
-    result: EstimationResult,
-    scoring_config_path: Path,
-) -> None:
+def _apply_string_selection(text: str) -> str:
+    """Apply default string selection (strip thinking blocks)."""
+    from src.common.default_config import STRING_SELECTION
+
+    if STRING_SELECTION == "NonThinkingContinuation":
+        from src.common.text import strip_thinking_blocks
+        return strip_thinking_blocks(text)
+    return text
+
+
+def _select_extremal_trajectories(all_trajs: list) -> list[tuple[int, str, str, int]]:
+    """Select N most extremal trajectories per arm (alternating low/high inv_ppl)."""
+    import math
+    from itertools import groupby
+
+    from src.estimation.arm_types import classify_arm
+
+    def inv_ppl(t) -> float:
+        lp = t.conditional_logprobs.get(t.arm, -1000.0)
+        return math.exp(lp / t.n_generated_tokens) if t.n_generated_tokens > 0 else 0.0
+
+    def pick_extremal(trajs: list, n: int) -> list:
+        """Pick n most extremal from sorted list, alternating from ends."""
+        result = []
+        lo, hi = 0, len(trajs) - 1
+        while len(result) < n and lo <= hi:
+            result.append(trajs[lo])
+            lo += 1
+            if len(result) < n and lo <= hi:
+                result.append(trajs[hi])
+                hi -= 1
+        return result
+
+    # Filter to configured arm types
+    filtered = [t for t in all_trajs if classify_arm(t.arm).value in DYNAMICS_ARMS]
+
+    selected = []
+    for _, group in groupby(sorted(filtered, key=lambda t: t.arm), key=lambda t: t.arm):
+        by_ppl = sorted(group, key=inv_ppl)
+        for t in pick_extremal(by_ppl, DYNAMICS_TRAJS_PER_ARM):
+            # Apply string selection (e.g., strip thinking blocks)
+            text = _apply_string_selection(t.text)
+            selected.append((t.traj_idx, t.arm, text, t.n_generated_tokens))
+
+    return selected
+
+
+@profile
+def step_dynamics(result: EstimationResult, scoring_config_path: Path) -> None:
     """Compute drift and horizon dynamics for trajectories."""
     log_section("DYNAMICS")
-    log("Computing drift and horizon dynamics...")
+    log("Computing dynamics (pull, drift, horizon)...")
 
-    scoring_config = ScoringConfig.load(scoring_config_path)
+    scorer = Scorer.load(scoring_config_path)
+    log(f"Loaded scorer: {scorer.num_structures} structures")
 
-    # Load scoring models based on what methods need
-    runner: ModelRunner | None = None
-    embedder: EmbeddingRunner | None = None
+    # Load trajectories from scoring data
+    scoring_data = ScoringData.load(result.paths.judgment)
+    all_trajs = scoring_data.get_all_trajectories()
 
-    if scoring_config.needs_runner():
-        log(f"Loading judge model: {scoring_config.model}")
-        runner = ModelRunner(scoring_config.model)
+    # Select extremal trajectories (highest and lowest inv_ppl per arm)
+    trajectories = _select_extremal_trajectories(all_trajs)
 
-    if scoring_config.needs_embedder():
-        log(f"Loading embedding model: {scoring_config.embedding_model}")
-        embedder = EmbeddingRunner(scoring_config.embedding_model)
+    log(f"Selected {len(trajectories)} trajectories (extremal inv_ppl per arm)")
+    for traj_idx, arm, _, n_tokens in trajectories:
+        log(f"  [{traj_idx}] {arm} ({n_tokens} tokens)")
 
-    # Compute dynamics - scores partial text at various lengths
-    # Drift points: automatically at least 2 * n_arms measurements per trajectory
-    dynamics_result = compute_dynamics(
-        estimation_result=result,
-        scoring_config=scoring_config,
-        runner=runner,
-        embedder=embedder,
-        trajs_per_arm=2,  # Analyze 2 representative trajectories per arm
-        log_fn=log,
-    )
+    # Compute dynamics
+    dynamics_result = compute_dynamics(trajectories, scorer, step=DYNAMICS_STEP, log_fn=log)
+
+    # Save dynamics data as JSON
+    dynamics_json_path = result.paths.estimation.parent / "dynamics.json"
+    save_dynamics_json(dynamics_result, dynamics_json_path)
+    log(f"Saved: {dynamics_json_path}")
 
     # Generate visualizations in viz/dynamics folder next to estimation.json
     output_dir = result.paths.estimation.parent / "viz" / "dynamics"
@@ -351,7 +405,18 @@ def run_all_experiments(args: ParsedExperimentArgs) -> list[EstimationResult]:
 def main() -> None:
     """Entry point."""
     args = parse_experiment_args()
+
+    # Enable/disable profiling
+    if args.profile:
+        P.enable()
+    else:
+        P.disable()
+
     run_all_experiments(args)
+
+    # Print profiling report if enabled
+    if args.profile:
+        P.report()
 
 
 if __name__ == "__main__":

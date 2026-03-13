@@ -25,7 +25,7 @@ from src.scoring import (
     get_params_class,
 )
 from src.scoring.methods.logging.scoring_logging_utils import log_trajectory_header
-from src.scoring.scoring_pipeline import get_text_for_scoring
+from src.scoring.scorer import get_text_for_scoring
 
 
 def score_trajectories(

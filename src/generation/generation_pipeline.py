@@ -13,6 +13,7 @@ from dataclasses import dataclass
 
 from src.common.callback_types import LogFn, ProgressFn
 from src.common.experiment_types import ArmGenerationResult
+from src.common.profiler import profile
 from src.common.token_tree import TokenTree
 from src.inference import ModelRunner
 
@@ -30,6 +31,7 @@ class GenerationPipelineResult:
     output: GenerationOutput
 
 
+@profile
 def run_generation_pipeline(
     runner: ModelRunner,
     config: GenerationConfig,
@@ -59,9 +61,9 @@ def run_generation_pipeline(
     # Run generation via method function
     result = generate_fn(runner, config, params, log_fn)
 
-    # Set arm_index on each trajectory and build tree
-    for traj, arm_idx in zip(result.trajectories, result.arm_indices):
-        traj.arm_index = (arm_idx,)
+    # Set arm_idx on each trajectory and build tree
+    for traj, arm_idx_val in zip(result.trajectories, result.arm_indices):
+        traj.arm_idx = (arm_idx_val,)
 
     # Build token tree from trajectories
     tree = TokenTree.from_trajectories(

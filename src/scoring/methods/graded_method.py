@@ -20,6 +20,7 @@ from ..scoring_method_registry import (
     register_method,
     score_with_bundling,
 )
+from .llm_response_parsing import strip_thinking_content
 from .logging.scoring_logging_utils import log_parse_failure
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -66,10 +67,7 @@ Answer with just a number between 0.0000 and 1.0000. Give 4 significant digits o
 
 def parse_graded_response(response: str) -> float | None:
     """Parse a 0-1 graded judgment from model response."""
-    text = response
-    if "</think>" in text:
-        text = text.split("</think>")[-1]
-    text = text.strip()
+    text = strip_thinking_content(response)
 
     match = re.search(r"\b(0(?:\.\d+)?|1(?:\.0+)?|\.\d+)\b", text)
     if match:
@@ -115,6 +113,8 @@ def score_graded(
     """
     if runner is None:
         raise ValueError("Graded scoring requires a model runner")
+
+    print(f"score_graded(): {text}")
 
     def score_single(question: str) -> tuple[float | None, str]:
         prompt = build_graded_prompt(text, question)

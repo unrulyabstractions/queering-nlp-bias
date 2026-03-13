@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 from .base_schema import BaseSchema
 
@@ -28,7 +27,6 @@ class BranchingNode(BaseSchema):
     traj_idx: list[int] | None = None
     vocab_logits: list[list[float]] | None = None
     forks_idx: list[int] | None = None
-    analysis: Any | None = None
 
     def _to_dict_hook(self, result: dict) -> dict:
         """Customize serialization to summarize vocab_logits."""

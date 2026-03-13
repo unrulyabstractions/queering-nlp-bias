@@ -1,7 +1,7 @@
-"""Output classes for estimation results.
+"""Official output format for estimation results.
 
-This module defines the main output data structures for estimation results,
-including both machine-readable and human-readable summary formats.
+EstimationOutput is the canonical, versioned output format for estimation.
+All fields are organized into clear sections for machine and human consumption.
 """
 
 from __future__ import annotations
@@ -10,234 +10,273 @@ import json
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from src.common.base_schema import BaseSchema
-from src.common.logging import log, log_banner, log_divider
 
-from .estimation_auxiliary_types import (
-    ArmSummary,
-    ContinuationsByArm,
-    EstimationSummary,
-    TrajectoryGrouping,
-)
-from .estimation_scoring_data import ScoringItem
 from .estimation_scoring_result import ArmScoring, StructureInfo
 from .estimation_structure import ArmEstimate
-from .logging.estimation_display_utils import (
-    log_arm_cores,
-    log_compliance_rates,
-    log_structures,
-)
-from .weighting_method_registry import get_method_description, iter_methods
+
+# ══════════════════════════════════════════════════════════════════════════════
+# METADATA
+# ══════════════════════════════════════════════════════════════════════════════
 
 
 @dataclass
-class EstimationSummaryOutput(BaseSchema):
-    """Human-readable summary output saved separately."""
+class EstimationMetadata(BaseSchema):
+    """Metadata about the estimation run."""
 
+    version: str  # Output format version
+    estimated_at: str  # ISO timestamp
+
+    # Source files
     generation_file: str
     scoring_file: str
     judgment_file: str
+
+    # Models used
     judge_model: str
     embedding_model: str
-    estimated_at: str
-    structures: list[dict[str, Any]]  # [{label, description, is_bundled, questions}]
-    arm_scoring: list[
-        dict[str, Any]
-    ]  # [{branch, rates: {label: rate}, question_rates}]
-    branch_cores: list[
-        dict[str, Any]
-    ]  # [{branch, prob_weighted: {label: val}, inv_ppl: {label: val}}]
-    continuations_by_arm: dict[str, list[dict[str, Any]]]  # {branch: [{idx, text}]}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# OUTPUT CLASS
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+OUTPUT_VERSION = "2.0"
 
 
 @dataclass
 class EstimationOutput(BaseSchema):
-    """Output from normativity estimation."""
+    """Official output format for estimation results.
 
-    summary: EstimationSummary
-    scoring_data: dict[str, list[ScoringItem]]  # Generic storage for all methods
-    arms: list[ArmEstimate]  # trunk + branches
-    judgment_file: str
-    estimated_at: str
+    Sections:
+        metadata: Run metadata (version, timestamp, source files, models)
+        structures: Structure definitions (labels, descriptions, bundling)
+        arms: Per-arm estimates (cores, deviance, orientation)
+        arm_scoring: Per-arm compliance rates (aggregate scores)
 
-    # Additional metadata for summary
-    generation_file: str = ""
-    scoring_file: str = ""
-    judge_model: str = ""
-    embedding_model: str = ""
-    structure_info: list[StructureInfo] = field(default_factory=list)
+    Output path: out/<method>/<gen_name>/<scoring_name>/estimation.json
+    """
+
+    # === METADATA ===
+    metadata: EstimationMetadata
+
+    # === STRUCTURE DEFINITIONS ===
+    structures: list[StructureInfo]
+
+    # === CORE RESULTS ===
+    arms: list[ArmEstimate]
+
+    # === COMPLIANCE RATES ===
     arm_scoring: list[ArmScoring] = field(default_factory=list)
-    continuations_by_arm: ContinuationsByArm = field(default_factory=ContinuationsByArm)
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Factory
+    # ──────────────────────────────────────────────────────────────────────────
 
     @classmethod
     def create(
         cls,
+        *,
         judgment_file: str,
-        scoring_data: dict[str, list[ScoringItem]],
-        arms: list[ArmEstimate],
-        texts: dict[int, str],
         generation_file: str,
         scoring_file: str,
         judge_model: str,
         embedding_model: str,
-        structure_info: list[StructureInfo],
+        structures: list[StructureInfo],
+        arms: list[ArmEstimate],
         arm_scoring: list[ArmScoring],
-        continuations_by_arm: ContinuationsByArm,
     ) -> EstimationOutput:
-        """Create estimation output with auto-generated summary."""
-        # Build trajectory -> arms mapping
-        traj_to_arms: dict[int, list[int]] = {}
-        for arm in arms:
-            for traj in arm.trajectories:
-                traj_to_arms.setdefault(traj.traj_idx, []).append(arm.arm_idx)
-
-        def get_text_or_raise(idx: int) -> str:
-            if idx not in texts:
-                raise KeyError(
-                    f"Missing continuation text for trajectory {idx}. "
-                    f"Available indices: {sorted(texts.keys())[:10]}..."
-                )
-            return texts[idx]
-
-        summary = EstimationSummary(
-            trajectories=[
-                TrajectoryGrouping(
-                    traj_idx=idx, arm_idxs=aids, traj_text=get_text_or_raise(idx)
-                )
-                for idx, aids in sorted(traj_to_arms.items())
-            ],
-            arms=[ArmSummary(a.arm_idx, a.name, len(a.trajectories)) for a in arms],
-        )
-
-        return cls(
-            summary=summary,
-            scoring_data=scoring_data,
-            arms=arms,
-            judgment_file=judgment_file,
+        """Create estimation output with metadata auto-populated."""
+        metadata = EstimationMetadata(
+            version=OUTPUT_VERSION,
             estimated_at=datetime.now().isoformat(),
             generation_file=generation_file,
             scoring_file=scoring_file,
+            judgment_file=judgment_file,
             judge_model=judge_model,
             embedding_model=embedding_model,
-            structure_info=structure_info,
-            arm_scoring=arm_scoring,
-            continuations_by_arm=continuations_by_arm,
         )
 
+        return cls(
+            metadata=metadata,
+            structures=structures,
+            arms=arms,
+            arm_scoring=arm_scoring,
+        )
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Accessors
+    # ──────────────────────────────────────────────────────────────────────────
+
+    @property
+    def structure_labels(self) -> list[str]:
+        """Get structure labels in order."""
+        return [s.label for s in self.structures]
+
+    @property
+    def arm_names(self) -> list[str]:
+        """Get arm names in order."""
+        return [a.name for a in self.arms]
+
+    def get_arm(self, name: str) -> ArmEstimate | None:
+        """Get arm by name."""
+        for arm in self.arms:
+            if arm.name == name:
+                return arm
+        return None
+
+    def get_structure(self, label: str) -> StructureInfo | None:
+        """Get structure by label."""
+        for s in self.structures:
+            if s.label == label:
+                return s
+        return None
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Persistence
+    # ──────────────────────────────────────────────────────────────────────────
+
     def save(self, path: str | Path) -> Path:
-        """Save output to JSON file."""
+        """Save to JSON file."""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
             json.dump(self.to_dict(), f, indent=2)
         return path
 
+    @classmethod
+    def load(cls, path: str | Path) -> EstimationOutput:
+        """Load from JSON file."""
+        with open(path) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Path Computation
+    # ──────────────────────────────────────────────────────────────────────────
+
     @staticmethod
     def compute_output_path(judgment_path: Path) -> Path:
-        """Compute the output path for estimation results.
+        """Compute output path from judgment path.
 
-        Output structure: out/<method>/<gen_name>/<scoring_name>/estimation.json
-        judgment_path is out/<method>/<gen_name>/<scoring_name>/scoring.json
+        Pattern: out/<method>/<gen_name>/<scoring_name>/estimation.json
         """
         return judgment_path.parent / "estimation.json"
 
     @staticmethod
     def compute_summary_path(judgment_path: Path) -> Path:
-        """Compute the output path for summary results.
+        """Compute summary text file path.
 
-        Output structure: out/<method>/<gen_name>/<scoring_name>/est_summary.txt
+        Pattern: out/<method>/<gen_name>/<scoring_name>/summary_estimation.txt
         """
-        return judgment_path.parent / "est_summary.txt"
+        return judgment_path.parent / "summary_estimation.txt"
 
-    def get_structure_labels(self) -> list[str]:
-        """Get structure labels from structure_info."""
-        return [s.label for s in self.structure_info]
+    # ──────────────────────────────────────────────────────────────────────────
+    # Summary (convenience methods delegating to standalone functions)
+    # ──────────────────────────────────────────────────────────────────────────
 
     def save_summary(self, path: str | Path) -> Path:
         """Save human-readable summary to text file."""
-        path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
+        return save_estimation_summary(self, path)
 
-        labels = self.get_structure_labels()
-        lines = []
+    def summarize(self) -> None:
+        """Print summary to console."""
+        print_estimation_summary(self)
 
-        # Header
-        lines.append("=" * 76)
-        lines.append("  ESTIMATION SUMMARY")
-        lines.append("=" * 76)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SUMMARY GENERATION (separated from output class)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def save_estimation_summary(output: EstimationOutput, path: str | Path) -> Path:
+    """Save human-readable summary to text file."""
+    from .weighting_method_registry import get_method_description, iter_methods
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    labels = output.structure_labels
+    col_w = 8
+    lines = []
+
+    # Header
+    lines.append("=" * 76)
+    lines.append("  ESTIMATION SUMMARY")
+    lines.append("=" * 76)
+    lines.append("")
+
+    # Metadata
+    lines.append(f"  Version:   {output.metadata.version}")
+    lines.append(f"  Generated: {output.metadata.estimated_at}")
+    lines.append(f"  Judge:     {output.metadata.judge_model}")
+    lines.append(f"  Embed:     {output.metadata.embedding_model}")
+    lines.append("")
+
+    # Structures
+    lines.append("-" * 76)
+    lines.append("  STRUCTURES")
+    lines.append("-" * 76)
+    for s in output.structures:
+        if s.is_bundled:
+            lines.append(f"  {s.label}: [BUNDLED]")
+            for q in s.questions:
+                lines.append(f"      - {q}")
+        else:
+            lines.append(f"  {s.label}: {s.description}")
+    lines.append("")
+
+    # Results by weighting method
+    lines.append("-" * 76)
+    lines.append("  CORES BY WEIGHTING METHOD")
+    lines.append("-" * 76)
+
+    for method_name, _, _ in iter_methods():
+        desc = get_method_description(method_name)
+        lines.append(f"  [{desc}]")
+
+        header = "".join(f"{label:^{col_w}}" for label in labels)
+        lines.append(f"  {'Arm':<14} {'N':>4}  {'E[d]':>7}  {header}")
+        lines.append("  " + "-" * 70)
+
+        for arm in output.arms:
+            est = arm.estimates.get(method_name)
+            if est and est.core:
+                core_str = "".join(f"{c:^{col_w}.3f}" for c in est.core)
+                lines.append(
+                    f"  {arm.name:<14} {len(arm.trajectories):>4}  "
+                    f"{est.deviance_avg:>7.4f}  {core_str}"
+                )
         lines.append("")
 
-        # Metadata
-        lines.append(f"  Generated: {self.estimated_at}")
-        lines.append(f"  Judge:     {self.judge_model}")
-        lines.append(f"  Embed:     {self.embedding_model}")
-        lines.append("")
+    lines.append("=" * 76)
 
-        # Structures
-        lines.append("-" * 76)
-        lines.append("  STRUCTURES")
-        lines.append("-" * 76)
-        for s in self.structure_info:
-            if s.is_bundled:
-                lines.append(f"  {s.label}: [BUNDLED]")
-                for q in s.questions:
-                    lines.append(f"      • {q}")
-            else:
-                lines.append(f"  {s.label}: {s.description}")
-        lines.append("")
+    with open(path, "w") as f:
+        f.write("\n".join(lines))
+    return path
 
-        # Results table
-        col_w = 8
-        header = "  " + "".join(f"{l:^{col_w}}" for l in labels)
 
-        lines.append("-" * 76)
-        lines.append("  RESULTS")
-        lines.append("-" * 76)
+def print_estimation_summary(output: EstimationOutput) -> None:
+    """Print summary to console."""
+    from src.common.logging import log_banner
 
-        # Iterate over all registered weighting methods
-        for method_name, _, _ in iter_methods():
-            desc = get_method_description(method_name)
-            lines.append(f"  [{desc}]")
-            lines.append(f"  {'Arm':<14} {'N':>4}  {'E[∂]':>7}  {header.strip()}")
-            lines.append("  " + "-" * 70)
+    from .logging.estimation_display_utils import (
+        log_arm_cores,
+        log_compliance_rates,
+        log_structures,
+    )
 
-            for arm in self.arms:
-                est = arm.estimates.get(method_name)
-                if est and est.core:
-                    core_str = "".join(f"{c:^{col_w}.3f}" for c in est.core)
-                    lines.append(
-                        f"  {arm.name:<14} {len(arm.trajectories):>4}  {est.deviance_avg:>7.4f}  {core_str}"
-                    )
-            lines.append("")
+    labels = output.structure_labels
 
-        lines.append("=" * 76)
+    log_banner("STRUCTURES")
+    log_structures(output.structures)
 
-        with open(path, "w") as f:
-            f.write("\n".join(lines))
-        return path
+    log_banner("SCORES BY ARM")
+    log_compliance_rates(output.arm_scoring, labels)
 
-    def summarize(self, show_variants: bool = True) -> None:
-        """Print summary statistics."""
-        labels = self.get_structure_labels()
+    log_banner("CORES BY ARM")
+    log_arm_cores(output.arms, labels, show_variants=True)
 
-        # Show structure legend
-        log_banner("STRUCTURES")
-        log_structures(self.structure_info)
-
-        # Show per-branch rates
-        log_banner("SCORES BY ARM")
-        log_compliance_rates(self.arm_scoring, labels)
-
-        # Show cores with labels
-        log_banner("CORES BY ARM")
-        log_arm_cores(self.arms, labels, show_variants)
-
-        # Trajectory counts by branch
-        if self.continuations_by_arm:
-            log_banner("TRAJECTORY COUNTS BY BRANCH")
-            for branch, items in self.continuations_by_arm.items():
-                log(f"  {branch}: {len(items)} trajectories")
-
-        log_banner("")
+    log_banner("")

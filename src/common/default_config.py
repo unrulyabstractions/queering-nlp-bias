@@ -12,10 +12,10 @@ Params classes import their defaults from here.
 TEMPERATURE = 1.0
 
 # Max tokens to generate per trajectory
-MAX_NEW_TOKENS = 128
+MAX_NEW_TOKENS = 258
 
 # Simple sampling: trajectories per arm (trunk + each branch)
-SAMPLING_SAMPLES_PER_ARM = 10
+SAMPLING_SAMPLES_PER_ARM = 100
 
 # Forking paths: max alternate tokens to consider at each position
 FORKING_MAX_ALTERNATES = 5
@@ -64,3 +64,17 @@ DEFAULT_STATISTIC = "standard"
 
 # Default weighting method for estimation (prob = probability-weighted)
 DEFAULT_WEIGHTING_METHOD = "prob"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Dynamics Defaults
+# ══════════════════════════════════════════════════════════════════════════════
+
+# Measure scores every N tokens
+DYNAMICS_STEP = 4
+
+# Number of most extremal trajectories to analyze per arm
+DYNAMICS_TRAJS_PER_ARM = 2
+
+# Which arm types to analyze: "root", "trunk", "branch", "twig"
+DYNAMICS_ARMS: list[str] = ["branch"]

@@ -165,6 +165,7 @@ All backends inherit from `Backend` (abstract class in `model_backend.py`).
 - Uses `tiktoken` with `cl100k_base` encoding (approximation)
 - **Critical**: No logprobs provided; all logprob values are 0.0
 - Suitable only for text generation and categorical judgments
+- Uses `generate()` directly (no forward passes)
 
 ---
 

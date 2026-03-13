@@ -86,9 +86,9 @@ def log_trajectories_with_scores(data: ScoringData) -> None:
     log_divider(18 + 7 * len(labels), indent_str="    ")
 
     for i, r in enumerate(data.results):
-        idx = r["trajectory_idx"]
-        branch = r.get("branch", "trunk")
-        display_name = branch  # Use actual arm name
+        idx = r["traj_idx"]
+        arm = r.get("arm", "trunk")
+        display_name = arm  # Use actual arm name
 
         # Get compliance values (handles grouping)
         compliance = data.get_structure_scores(r)
@@ -137,7 +137,7 @@ def get_arm_log_probs(
     for t in trajs:
         lp = t.conditional_logprobs.get(arm_name, 0.0)
         # Skip trajectories not in this arm (logprob = 0.0 marker)
-        if arm_name != "trunk" and lp == 0.0 and t.branch != arm_name:
+        if arm_name != "trunk" and lp == 0.0 and t.arm != arm_name:
             continue
         result.append((t.traj_idx, lp))
     return result
@@ -231,7 +231,7 @@ def log_arm_statistics(
         for traj_idx, _ in traj_probs:
             logp = log_prob_dict.get(traj_idx, 0.0)
             traj = traj_lookup.get(traj_idx)
-            n_tokens = traj.n_continuation_tokens if traj else 0
+            n_tokens = traj.n_generated_tokens if traj else 0
             if n_tokens > 0 and logp > -700:
                 avg_logp = logp / n_tokens
                 inv_ppls[traj_idx] = math.exp(avg_logp)  # 1/ppl = exp(avg_logp)
@@ -251,7 +251,7 @@ def log_arm_statistics(
             p = math.exp(logp) if logp > -700 else 0.0
 
             traj = traj_lookup.get(traj_idx)
-            n_tokens = traj.n_continuation_tokens if traj else 0
+            n_tokens = traj.n_generated_tokens if traj else 0
             if n_tokens > 0 and logp > -700:
                 avg_logp = logp / n_tokens
                 ppl = math.exp(-avg_logp)

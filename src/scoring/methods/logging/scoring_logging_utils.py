@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from src.common.callback_types import LogFn
 from src.common.logging import oneline
-from src.common.viz_utils import preview
+from src.common.viz_utils import preview, truncate
 from src.scoring.scoring_data import TrajectoryData
 
 
@@ -60,7 +60,6 @@ def log_parse_failure(
     log_fn("  +----------------------------------------------------------------+")
     log_fn(f"  |  WARNING: {method_name} SCORE PARSE FAILURE - DEFAULTING TO 0.0")
     log_fn("  +----------------------------------------------------------------+")
-    question_preview = question[:60] + "..." if len(question) > 60 else question
-    log_fn(f"  Question: {question_preview}")
+    log_fn(f"  Question: {truncate(question, 60)}")
     log_fn(f"  Raw response: {repr(raw_response)}")
     log_fn("")

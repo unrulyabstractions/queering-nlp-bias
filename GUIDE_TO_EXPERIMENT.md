@@ -223,8 +223,13 @@ ENTROPY_NUM_EXPANSION_ROUNDS = 3
 
 # Scoring
 JUDGE_MAX_TOKENS = 10
-STRING_SELECTION = "WholeContinuation"
+STRING_SELECTION = "NonThinkingContinuation"  # Strips <think>...</think> blocks
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+
+# Dynamics
+DYNAMICS_STEP = 4              # Measure every N tokens
+DYNAMICS_TRAJS_PER_ARM = 2     # Extremal trajectories per arm
+DYNAMICS_ARMS = ["branch"]     # Arm types: "root", "trunk", "branch", "twig"
 ```
 
 ### Changing Defaults
@@ -294,6 +299,31 @@ uv run python scripts/run_full_experiment.py --method seeking-entropy gen.json s
 
 # All methods (compare results)
 uv run python scripts/run_full_experiment.py --all gen.json scoring.json
+
+# With dynamics analysis (tracks score evolution over token positions)
+uv run python scripts/run_full_experiment.py --dynamics gen.json scoring.json
+
+# With profiling (shows timing breakdown)
+uv run python scripts/run_full_experiment.py --profile gen.json scoring.json
+```
+
+### Dynamics Analysis
+
+The `--dynamics` flag adds trajectory evolution analysis:
+- **Pull**: L2 norm of scores at each token position (normative strength)
+- **Drift**: Deviance from initial scores (how far from start)
+- **Horizon**: Deviance from final scores (how far to end state)
+
+Dynamics analyzes extremal trajectories (highest/lowest inverse perplexity per arm) and outputs to:
+```
+out/<method>/<gen_name>/<scoring_name>/
+    dynamics.json                    # Raw data
+    viz/dynamics/
+        all/                         # Individual trajectory plots
+            traj_0_trunk.png
+            traj_1_branch_1.png
+        dynamics_branch_1.png        # Aggregate per arm (3-column layout)
+        dynamics_branch_2.png
 ```
 
 ### Individual Steps
@@ -562,7 +592,7 @@ All outputs go to `out/<method>/`.
   "branches": ["trunk", "branch_1", "branch_2"],
   "results": [
     {
-      "trajectory_idx": 0,
+      "traj_idx": 0,
       "branch": "branch_1",
       "branch_idx": 1,
       "scores": [1, 1, 0],

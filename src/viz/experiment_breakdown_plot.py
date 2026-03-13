@@ -39,9 +39,9 @@ def plot_structure_breakdown(
     if not structure_info:
         return None
 
-    # Get branch names
-    branch_names = [arm["branch"] for arm in arm_scoring]
-    n_branches = len(branch_names)
+    # Get arm names
+    arm_names = [arm["arm"] for arm in arm_scoring]
+    n_arms = len(arm_names)
 
     # Collect all questions grouped by structure
     # Each entry: (label, [(question_text, is_simple)])
@@ -92,7 +92,7 @@ def plot_structure_breakdown(
         structure_spans.append((start_pos, end_pos, label))
 
     y_positions = np.array(y_positions)
-    bar_height = 0.75 / n_branches
+    bar_height = 0.75 / n_arms
 
     # Plot bars for each branch
     for branch_idx, arm in enumerate(arm_scoring):
@@ -114,14 +114,14 @@ def plot_structure_breakdown(
                 values.append(val * 100)
                 q_idx += 1
 
-        offset = (branch_idx - n_branches / 2 + 0.5) * bar_height
-        color = get_arm_color(arm["branch"])
+        offset = (branch_idx - n_arms / 2 + 0.5) * bar_height
+        color = get_arm_color(arm["arm"])
 
         bars = ax.barh(
             y_positions + offset,
             values,
             height=bar_height,
-            label=arm["branch"],
+            label=arm["arm"],
             color=color,
             edgecolor="black",
             linewidth=0.5,
@@ -200,7 +200,7 @@ def plot_structure_breakdown(
     ax.legend(
         loc="upper center",
         bbox_to_anchor=(0.5, -0.04),
-        ncol=min(n_branches, 4),
+        ncol=min(n_arms, 4),
         fontsize=7,
         framealpha=0.9,
         handlelength=0.8,

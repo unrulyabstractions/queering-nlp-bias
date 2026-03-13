@@ -18,6 +18,7 @@ from src.common.logging import (
     log_table_header,
 )
 from src.common.experiment_types import OutputPaths
+from src.common.viz_utils import truncate
 
 from src.scoring.scoring_method_registry import iter_methods as iter_scoring_methods
 
@@ -97,10 +98,7 @@ def log_setup_summary(paths: OutputPaths) -> None:
 
     # Structures - use scoring registry to discover methods
     log("  Structures:")
-    scoring_data = judge_data.get("scoring_data", {})
-
-    def truncate(s: str, max_len: int = 55) -> str:
-        return s[: max_len - 3] + "..." if len(s) > max_len else s
+    scoring_data = judge_data.get("scoring_items", {})
 
     # Build structure labels by iterating through registered methods
     labels: list[str] = []
@@ -117,9 +115,9 @@ def log_setup_summary(paths: OutputPaths) -> None:
             if isinstance(item, list):
                 log(f"    {label}: [bundled: {len(item)}]")
                 for sub in item:
-                    log(f"        * {truncate(sub)}")
+                    log(f"        * {truncate(sub, 55)}")
             else:
-                log(f"    {label}: {truncate(item)}")
+                log(f"    {label}: {truncate(item, 55)}")
 
     log("")
 

@@ -1,7 +1,7 @@
-"""Output dataclass for trajectory generation.
+"""Official output format for generation results.
 
-This module defines the GenerationOutput class which holds the results
-of trajectory generation including the token tree structure.
+GenerationOutput is the canonical, versioned output format for trajectory generation.
+All fields are organized into clear sections for machine and human consumption.
 """
 
 from __future__ import annotations
@@ -16,10 +16,26 @@ from src.common.base_schema import BaseSchema
 from src.common.token_tree import TokenTree
 
 from .generation_config import GenerationConfig
-from .generation_helpers import (
-    print_generation_summary,
-    save_generation_summary,
-)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# METADATA
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+OUTPUT_VERSION = "2.0"
+
+
+@dataclass
+class GenerationMetadata(BaseSchema):
+    """Metadata about the generation run."""
+
+    version: str  # Output format version
+    generated_at: str  # ISO timestamp
+    model: str  # Model name
+    method: str  # Generation method: simple-sampling, forking-paths, etc.
+    num_trajectories: int  # Number of trajectories generated
+    eos_token: str | None  # EOS token from model (for finished detection)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # OUTPUT CLASS
@@ -28,23 +44,37 @@ from .generation_helpers import (
 
 @dataclass
 class GenerationOutput(BaseSchema):
-    """Output from trajectory generation, including tree structure."""
+    """Official output format for generation results.
 
-    config: dict[str, Any]  # GenerationConfig.to_dict()
-    model: str
-    method: str  # Generation method: simple-sampling, forking-paths, seeking-entropy
-    generated_at: str
-    num_trajectories: int
-    tree: dict[str, Any] | None = None  # TokenTree.to_dict() output
-    eos_token: str | None = None  # EOS token from model (for finished detection)
+    Sections:
+        metadata: Run metadata (version, timestamp, model, method)
+        config: Generation configuration (prompt, arms, params)
+        tree: Token tree with trajectories and branching structure
+
+    Output path: out/<method>/<gen_name>/generation.json
+    """
+
+    # === METADATA ===
+    metadata: GenerationMetadata
+
+    # === CONFIGURATION ===
+    config: dict[str, Any]  # GenerationConfig.to_dict() with arms
+
+    # === TREE DATA ===
+    tree: dict[str, Any] | None = None  # TokenTree.to_dict()
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Factory
+    # ──────────────────────────────────────────────────────────────────────────
 
     @classmethod
     def from_tree(
         cls,
+        *,
         config: GenerationConfig,
         model: str,
         tree: TokenTree,
-        arms: list,  # list[GenerationArm] - piped from generation
+        arms: list,  # list[GenerationArm]
         method: str = "simple-sampling",
         eos_token: str | None = None,
         arm_token_lengths: list[int] | None = None,
@@ -57,17 +87,17 @@ class GenerationOutput(BaseSchema):
             tree: TokenTree with trajectories
             arms: Arm objects from generation (with correct prefills)
             method: Generation method name
-            eos_token: EOS token from the model (for finished detection)
-            arm_token_lengths: Token lengths for each arm (from generation)
+            eos_token: EOS token from the model
+            arm_token_lengths: Token lengths for each arm
         """
         # Pop heavy data before serializing (full_logits tensors)
         tree.pop_heavy()
 
-        # Build config dict with arm info stored as structured data
+        # Build config dict with arm info
         config_dict = config.to_dict()
         config_dict["arms"] = [arm.to_dict() for arm in arms]
 
-        # Compute arm lengths (token and text)
+        # Compute arm lengths
         arm_text_lengths = [len(arm.prefill) for arm in arms]
         if arm_token_lengths:
             for i, length in enumerate(arm_token_lengths):
@@ -77,44 +107,33 @@ class GenerationOutput(BaseSchema):
             if i < len(config_dict["arms"]):
                 config_dict["arms"][i]["text_length"] = length
 
-        # Set arm lengths on each trajectory for text_after_arm() slicing
+        # Set arm lengths on each trajectory
         for traj in tree.trajs:
             traj.arm_token_lengths = arm_token_lengths
             traj.arm_text_lengths = arm_text_lengths
 
-        return cls(
-            config=config_dict,
+        # Create metadata
+        metadata = GenerationMetadata(
+            version=OUTPUT_VERSION,
+            generated_at=datetime.now().isoformat(),
             model=model,
             method=method,
-            generated_at=datetime.now().isoformat(),
             num_trajectories=len(tree.trajs),
-            tree=tree.to_dict(max_list_length=10000),
             eos_token=eos_token,
         )
 
-    @staticmethod
-    def compute_output_path(config_path: Path, method: str = "sampling") -> Path:
-        """Compute the output path for generation results.
+        return cls(
+            metadata=metadata,
+            config=config_dict,
+            tree=tree.to_dict(),
+        )
 
-        Output structure: out/<method>/<gen_name>/generation.json
-        """
-        return Path("out") / method / config_path.stem / "generation.json"
-
-    @staticmethod
-    def compute_summary_path(config_path: Path, method: str = "sampling") -> Path:
-        """Compute the output path for generation summary.
-
-        Output structure: out/<method>/<gen_name>/gen_summary.txt
-        """
-        return Path("out") / method / config_path.stem / "gen_summary.txt"
+    # ──────────────────────────────────────────────────────────────────────────
+    # Persistence
+    # ──────────────────────────────────────────────────────────────────────────
 
     def save(self, path: str | Path, config_path: str | Path | None = None) -> Path:
-        """Save output to JSON file.
-
-        Args:
-            path: Output path for generation.json
-            config_path: Original config file to copy as generation_cfg.json
-        """
+        """Save to JSON file."""
         path = Path(path)
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
@@ -123,32 +142,68 @@ class GenerationOutput(BaseSchema):
         # Copy original config if provided
         if config_path:
             import shutil
+
             cfg_dest = path.parent / "generation_cfg.json"
             shutil.copy(config_path, cfg_dest)
 
         return path
 
+    @classmethod
+    def load(cls, path: str | Path) -> GenerationOutput:
+        """Load from JSON file."""
+        with open(path) as f:
+            data = json.load(f)
+        return cls.from_dict(data)
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Path Computation
+    # ──────────────────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def compute_output_path(config_path: Path, method: str = "sampling") -> Path:
+        """Compute output path from config path.
+
+        Pattern: out/<method>/<gen_name>/generation.json
+        """
+        return Path("out") / method / config_path.stem / "generation.json"
+
+    @staticmethod
+    def compute_summary_path(config_path: Path, method: str = "sampling") -> Path:
+        """Compute summary text file path.
+
+        Pattern: out/<method>/<gen_name>/summary_generation.txt
+        """
+        return Path("out") / method / config_path.stem / "summary_generation.txt"
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # Summary (convenience methods delegating to standalone functions)
+    # ──────────────────────────────────────────────────────────────────────────
+
     def save_summary(self, path: str | Path) -> Path:
         """Save human-readable summary to text file."""
+        from .generation_helpers import save_generation_summary
+
         return save_generation_summary(
             path,
-            self.model,
-            self.method,
-            self.generated_at,
-            self.num_trajectories,
+            self.metadata.model,
+            self.metadata.method,
+            self.metadata.generated_at,
+            self.metadata.num_trajectories,
             self.config,
             self.tree,
-            self.eos_token,
+            self.metadata.eos_token,
         )
 
     def summarize(self) -> None:
-        """Print a clean summary of generation results."""
+        """Print summary to console."""
+        from .generation_helpers import print_generation_summary
+
         print_generation_summary(
-            self.model,
-            self.method,
-            self.generated_at,
-            self.num_trajectories,
+            self.metadata.model,
+            self.metadata.method,
+            self.metadata.generated_at,
+            self.metadata.num_trajectories,
             self.config,
             self.tree,
-            self.eos_token,
+            self.metadata.eos_token,
         )

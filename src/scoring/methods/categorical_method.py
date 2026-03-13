@@ -20,6 +20,7 @@ from ..scoring_method_registry import (
     register_method,
     score_with_bundling,
 )
+from .llm_response_parsing import strip_thinking_content
 from .logging.scoring_logging_utils import log_parse_failure
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -64,10 +65,7 @@ Answer with just 0 or 1:"""
 
 def parse_categorical_response(response: str) -> int | None:
     """Parse a 0 or 1 judgment from model response."""
-    text = response
-    if "</think>" in text:
-        text = text.split("</think>")[-1]
-    text = text.strip()
+    text = strip_thinking_content(response)
 
     if text in ("0", "1"):
         return int(text)

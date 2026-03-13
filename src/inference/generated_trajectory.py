@@ -164,7 +164,6 @@ class GeneratedTrajectory(TokenTrajectory):
             logits=trajectory.logits,
             full_logits=trajectory.full_logits,
             nodes_idx=trajectory.nodes_idx,
-            analysis=trajectory.analysis,
             internals=internals or {},
         )
 

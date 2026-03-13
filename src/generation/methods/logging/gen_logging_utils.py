@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from src.common.callback_types import LogFn
 from src.common.logging import fmt_prob, log, log_section
+from src.common.viz_utils import escape_newlines, preview
 from src.estimation.arm_types import ArmKind, classify_arm
 from src.common.experiment_types import ArmGenerationResult, GenerationArm
 from src.inference import ModelRunner
@@ -16,18 +17,17 @@ def log_arm_header(arm: GenerationArm, log_fn: LogFn) -> None:
     """Log the header for an arm with its name and prefill text."""
     log_fn(f"\n{arm.name.replace('_', ' ').title()}")
     if arm.prefill:
-        prefill_display = arm.prefill.replace("\n", "\\n")
-        log_fn(f'  Prefill: "{prefill_display}"')
+        log_fn(f'  Prefill: "{escape_newlines(arm.prefill)}"')
     else:
         log_fn("  Prefill: N/A")
 
 
-def _get_arm_display_name(arm_index: int, arm_names: list[str] | None) -> str:
+def _get_arm_display_name(arm_idx: int, arm_names: list[str] | None) -> str:
     """Get display name for an arm by index."""
-    if arm_names and arm_index < len(arm_names):
-        return arm_names[arm_index]
+    if arm_names and arm_idx < len(arm_names):
+        return arm_names[arm_idx]
     # Fallback for old format without arm_names
-    return f"arm_{arm_index}"
+    return f"arm_{arm_idx}"
 
 
 def _get_parent_branch_index(twig_name: str, arm_names: list[str]) -> int | None:
@@ -73,20 +73,16 @@ def log_tree_trajectories(result: ArmGenerationResult, runner: ModelRunner) -> N
     log("  " + "─" * 112)
 
     for i, traj in enumerate(result.trajectories):
-        arm_index = result.arm_indices[i]
-        arm_name = _get_arm_display_name(arm_index, arm_names)
+        arm_idx = result.arm_indices[i]
+        arm_name = _get_arm_display_name(arm_idx, arm_names)
 
         # Use stored fields directly - no recomputation
         prefill = traj.prefill_text if traj.prefill_text else "N/A"
         generated = traj.generated_text or ""
 
-        # Format for display (replace newlines, truncate if needed)
-        prefill_display = prefill.replace("\n", "\\n")
-        if len(prefill_display) > 45:
-            prefill_display = prefill_display[:42] + "..."
-        generated_display = generated.replace("\n", "\\n")
-        if len(generated_display) > 55:
-            generated_display = generated_display[:52] + "..."
+        # Format for display using shared utilities
+        prefill_display = preview(prefill, 45)
+        generated_display = preview(generated, 55)
 
         log(f"  {i:>3}  {arm_name:<12}  {prefill_display:<47}  {generated_display}")
     log("")
@@ -115,8 +111,8 @@ def log_tree_trajectories(result: ArmGenerationResult, runner: ModelRunner) -> N
     eos_token = runner.eos_token
 
     for i, traj in enumerate(result.trajectories):
-        arm_index = result.arm_indices[i]
-        arm_name = _get_arm_display_name(arm_index, arm_names)
+        arm_idx = result.arm_indices[i]
+        arm_name = _get_arm_display_name(arm_idx, arm_names)
         kind = classify_arm(arm_name)
 
         # Compute conditional probabilities from each reference point
@@ -133,7 +129,7 @@ def log_tree_trajectories(result: ArmGenerationResult, runner: ModelRunner) -> N
         p_branch = None
         if kind == ArmKind.BRANCH:
             # For branch, use its own token length
-            branch_len = arm_token_lengths[arm_index] if arm_index < len(arm_token_lengths) else trunk_len
+            branch_len = arm_token_lengths[arm_idx] if arm_idx < len(arm_token_lengths) else trunk_len
             p_branch = traj.get_conditional_prob(branch_len, traj.length) or 0.0
         elif kind == ArmKind.TWIG:
             # For twig, use parent branch's token length
@@ -145,7 +141,7 @@ def log_tree_trajectories(result: ArmGenerationResult, runner: ModelRunner) -> N
         # p(t|twig) = p(trajectory | prompt + trunk + branch + twig)
         p_twig = None
         if kind == ArmKind.TWIG:
-            twig_len = arm_token_lengths[arm_index] if arm_index < len(arm_token_lengths) else trunk_len
+            twig_len = arm_token_lengths[arm_idx] if arm_idx < len(arm_token_lengths) else trunk_len
             p_twig = traj.get_conditional_prob(twig_len, traj.length) or 0.0
 
         # Check if trajectory has EOS token using stored generated_text

@@ -20,6 +20,7 @@ from src.common.default_config import (
     JUDGE_MAX_TOKENS,
     STRING_SELECTION,
 )
+from src.common.method_params_override import MethodParamsOverride
 
 from .scoring_method_registry import (
     ScoringMethodParams,
@@ -46,20 +47,6 @@ class StringSelection(Enum):
     AfterTrunk = "AfterTrunk"
     AfterBranch = "AfterBranch"
     AfterTwig = "AfterTwig"
-
-
-@dataclass
-class MethodParamsOverride(BaseSchema):
-    """Override values for method parameters."""
-
-    overrides: dict[str, Any] = field(default_factory=dict)
-
-    def apply_to(self, params: ScoringMethodParams) -> ScoringMethodParams:
-        """Apply overrides to a params instance."""
-        for key, value in self.overrides.items():
-            if hasattr(params, key):
-                setattr(params, key, value)
-        return params
 
 
 @dataclass

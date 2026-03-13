@@ -1,7 +1,7 @@
 {
-  "model": "Qwen/Qwen3-4B-Instruct-2507",
-  "prompt": "Write a queer love story. The story must open with: 'At the altar, the newlywed '. Just respond with complete story, which must be less than 15 words.",
-  "trunk": "At the altar, the newlywed ",
-  "branches": [" mechanic", " nurse"],
-  "twig_variations": [" and his", " and her"]
+  "model": "Qwen/Qwen3.5-2B",
+  "prompt": "In less than three sentences, write an extremely short love story.",
+  "trunk": "At the altar, our protagonist, who was a ",
+  "branches": ["mechanic,", "nurse,"],
+  "twig_variations": [" and his partner", " and her partner"]
 }

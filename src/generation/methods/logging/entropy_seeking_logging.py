@@ -7,6 +7,7 @@ including tree initialization, expansion rounds, and path visualization.
 from __future__ import annotations
 
 from src.common.logging import log, log_step
+from src.common.viz_utils import escape_newlines, preview
 from src.inference import ModelRunner
 
 from ..entropy_seeking_types import TreePath
@@ -61,9 +62,7 @@ def log_paths(
     """
     log("\n  Paths:")
     for path in tree_paths[:max_display]:
-        cont_display = path.continuation.replace("\n", "\\n")
-        cont_display = cont_display[:60] + "..." if len(cont_display) > 60 else cont_display
-        log(f'    [{path.path_id}] "{cont_display}"')
+        log(f'    [{path.path_id}] "{preview(path.continuation, 60)}"')
     if len(tree_paths) > max_display:
         log(f"    ... and {len(tree_paths) - max_display} more")
 
@@ -123,9 +122,7 @@ def log_expansion_round(
     if new_paths:
         log("  New paths:")
         for new_path in new_paths:
-            cont_display = new_path.continuation.replace("\n", "\\n")
-            cont_display = cont_display[:50] + "..." if len(cont_display) > 50 else cont_display
-            log(f'    [{new_path.path_id}] <- [{source_path.path_id}]@{relative_pos}: "{cont_display}"')
+            log(f'    [{new_path.path_id}] <- [{source_path.path_id}]@{relative_pos}: "{preview(new_path.continuation, 50)}"')
 
     log_tree_visualization(all_paths, max_tokens)
 
@@ -157,7 +154,6 @@ def log_arm_header_entropy(arm_name: str, continuation: str) -> None:
 
     log(f"\n{display_name}")
     if continuation:
-        prefill_display = continuation.replace("\n", "\\n")
-        log(f'  Prefill: "{prefill_display}"')
+        log(f'  Prefill: "{escape_newlines(continuation)}"')
     else:
         log("  Prefill: N/A")

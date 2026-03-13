@@ -175,7 +175,7 @@ Scoring outputs are saved to `out/<method>/score_<gen>_<scoring>.json`:
   "branches": ["trunk", "branch_1", "branch_2"],
   "results": [
     {
-      "trajectory_idx": 0,
+      "traj_idx": 0,
       "branch": "trunk",
       "branch_idx": 0,
       "text": "...",

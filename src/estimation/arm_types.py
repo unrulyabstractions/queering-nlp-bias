@@ -251,26 +251,26 @@ def get_arm_sort_key(name: str) -> tuple[int, int, int, str]:
         return (2, branch_idx, 0, name)  # Branches have twig_idx=0 to come first
 
 
-def get_arm_name_from_index(arm_index: int) -> str:
+def get_arm_name_from_index(arm_idx: int) -> str:
     """Convert an arm index to its canonical string name.
 
     Arm index convention (used during generation):
     - 0 = root (prompt only, no trunk)
     - 1 = trunk (prompt + trunk text)
-    - 2+ = branch_N (where N = arm_index - 1)
+    - 2+ = branch_N (where N = arm_idx - 1)
 
     Args:
-        arm_index: Integer index from trajectory generation
+        arm_idx: Integer index from trajectory generation
 
     Returns:
         Canonical arm name ("root", "trunk", "branch_1", etc.)
     """
-    if arm_index == 0:
+    if arm_idx == 0:
         return "root"
-    elif arm_index == 1:
+    elif arm_idx == 1:
         return "trunk"
     else:
-        return f"branch_{arm_index - 1}"
+        return f"branch_{arm_idx - 1}"
 
 
 def get_display_name(name: str) -> str:

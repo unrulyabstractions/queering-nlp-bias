@@ -120,19 +120,3 @@ def oneline(text: str) -> str:
         Single-line text with collapsed whitespace
     """
     return re.sub(r"\s+", " ", text).strip()
-
-
-def preview(text: str, max_len: int = 50) -> str:
-    """Truncate text for preview display.
-
-    Args:
-        text: Text to preview
-        max_len: Maximum length before truncation
-
-    Returns:
-        Truncated text with ellipsis if needed
-    """
-    text = oneline(text)
-    if len(text) <= max_len:
-        return text
-    return text[: max_len - 3] + "..."

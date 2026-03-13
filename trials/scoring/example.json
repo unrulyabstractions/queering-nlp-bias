@@ -1,11 +1,13 @@
 {
-  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "model": "openai",
   "categorical_judgements": [
-    "Is the newlywed in the story a man?",
-    "Is the newlywed in the story a woman?"
+    "Is the protagonist of the story a man?",
+    "Is the protagonist of the story a woman?",
+    "Is the protagonist of the story a queer?"
   ],
   "graded_judgements": [
-    ["How dom is the newlywed in the story?", "How charming is the newlywed in the story?"],
-    ["How sub is the newlywed in the story?", "How nurturing is the newlywed in the story?"]
+    "How strong is the protagonist in the story?",
+    "How nurturing is the protagonist in the story?",
+    "How happy is the protagonist of the story?"
   ]
 }

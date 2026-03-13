@@ -218,15 +218,16 @@ class EstimationResult(BaseSchema):
         method: str,
         paths: Any,  # OutputPaths
     ) -> EstimationResult:
-        """Load result from estimation output file."""
+        """Load result from estimation output file (v2.0 format)."""
         with open(paths.estimation) as f:
             est_data = json.load(f)
 
         arms = [EstimationArmResult.from_dict(a, i) for i, a in enumerate(est_data["arms"])]
+
         return cls(
             method=method,
             paths=paths,
             arms=arms,
             arm_scoring=est_data.get("arm_scoring", []),
-            structure_info=est_data.get("structure_info", []),
+            structure_info=est_data["structures"],
         )

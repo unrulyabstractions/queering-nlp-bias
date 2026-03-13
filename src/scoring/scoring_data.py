@@ -22,7 +22,7 @@ class TrajectoryData:
     traj: TokenTrajectory
     arm_name: str
     arm_idx: int
-    n_continuation_tokens: int
+    n_generated_tokens: int
     conditional_logprobs: dict[str, float] = field(default_factory=dict)
 
     # Precomputed text selections (piped from arm structure, not parsed)
@@ -82,12 +82,13 @@ class GenerationOutputData:
 
     @classmethod
     def load(cls, path: str | Path) -> GenerationOutputData:
-        """Load generation output from JSON file."""
+        """Load generation output from JSON file (v2.0 format)."""
         path = Path(path)
         with open(path, encoding="utf-8") as f:
             data = json.load(f)
 
-        config = data.get("config", {})
+        config = data["config"]
+        eos_token = data["metadata"].get("eos_token")
         tree = TokenTree.from_dict(data["tree"]) if data.get("tree") else None
 
         # Load arms from structured data
@@ -101,7 +102,7 @@ class GenerationOutputData:
         if tree:
             for i, traj in enumerate(tree.trajs):
                 traj.traj_idx = i
-                arm_idx = traj.arm_index[0] if traj.arm_index else 0
+                arm_idx = traj.arm_idx[0] if traj.arm_idx else 0
                 if arm_idx >= len(arms):
                     continue
                 arm = arms[arm_idx]
@@ -129,7 +130,7 @@ class GenerationOutputData:
                         traj=traj,
                         arm_name=arm.name,
                         arm_idx=arm_idx,
-                        n_continuation_tokens=n_cont,
+                        n_generated_tokens=n_cont,
                         conditional_logprobs=cond_logprobs,
                         text_after_trunk=text_after_trunk,
                         text_after_branch=text_after_branch,

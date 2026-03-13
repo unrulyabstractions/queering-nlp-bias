@@ -165,10 +165,11 @@ def score_with_bundling(
     score_fn: Callable[[str], tuple[Any, str]],
     label_prefix: str,
     log_fn: LogFn | None = None,
-) -> tuple[list[Any], list[str]]:
+) -> tuple[list[Any], list[str | list[str]]]:
     """Shared loop for bundled item scoring.
 
     Handles both single items and bundled items (lists of items).
+    Preserves structure: bundled items return nested lists.
 
     Args:
         items: List of items (can be strings or lists of strings for bundles)
@@ -177,24 +178,29 @@ def score_with_bundling(
         log_fn: Optional logging callback
 
     Returns:
-        Tuple of (flat_scores, flat_raw_responses) for all items
+        Tuple of (scores, raw_responses) preserving bundle structure
     """
     scores: list[Any] = []
-    raw_responses: list[str] = []
+    raw_responses: list[str | list[str]] = []
 
     for struct_idx, item in enumerate(items):
         if isinstance(item, list):
-            # Bundled items - score each individually
+            # Bundled items - score each individually, preserve as nested list
             if log_fn:
                 log_fn(f"[{label_prefix}{struct_idx + 1}] Bundled ({len(item)} items)")
 
+            bundle_scores: list[Any] = []
+            bundle_raws: list[str] = []
             for sub_item in item:
                 score, raw = score_fn(sub_item)
-                scores.append(score)
-                raw_responses.append(raw)
+                bundle_scores.append(score)
+                bundle_raws.append(raw)
 
                 if log_fn:
                     _log_score(log_fn, sub_item, score, indent=True)
+
+            scores.append(bundle_scores)
+            raw_responses.append(bundle_raws)
         else:
             # Single item
             score, raw = score_fn(item)

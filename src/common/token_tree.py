@@ -8,7 +8,6 @@ from __future__ import annotations
 import gc
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any
 
 import torch
 
@@ -31,7 +30,6 @@ class TokenTree(BaseSchema):
     trunk_length: int | None = None  # Length of shared trunk (prompt + trunk tokens)
     prompt_length: int | None = None  # Length of just the prompt (no trunk)
     trunk_text: str | None = None  # Decoded text from trunk tokens
-    analysis: Any | None = None  # Set by analyze_token_tree
 
     @classmethod
     def from_trajectories(
@@ -71,18 +69,18 @@ class TokenTree(BaseSchema):
         return None
 
     def add_trajectory(
-        self, traj: TokenTrajectory, arm_index: Sequence[int]
+        self, traj: TokenTrajectory, arm_idx: Sequence[int]
     ) -> TokenTree:
         """Add a trajectory and return a new tree.
 
         Args:
             traj: New trajectory to add
-            arm_index: Which groups this trajectory belongs to
+            arm_idx: Which groups this trajectory belongs to
 
         Returns:
             New TokenTree with the trajectory added, nodes/forks recalculated
         """
-        return add_trajectory_to_tree(self, traj, arm_index)
+        return add_trajectory_to_tree(self, traj, arm_idx)
 
     def add_fork_between_groups(self, fork_arm: tuple[int, int]) -> TokenTree:
         """Add a fork relationship between two groups and return a new tree.
@@ -100,8 +98,8 @@ class TokenTree(BaseSchema):
         """All unique group indices in this tree, sorted."""
         all_groups: set[int] = set()
         for traj in self.trajs:
-            if traj.arm_index:
-                all_groups.update(traj.arm_index)
+            if traj.arm_idx:
+                all_groups.update(traj.arm_idx)
         return tuple(sorted(all_groups))
 
     @property
@@ -140,7 +138,7 @@ class TokenTree(BaseSchema):
         # Decode trunk_text from a non-root trajectory
         if self.trajs and trunk_length > 0 and not self.trunk_text:
             for traj in self.trajs:
-                if traj.arm_index and traj.arm_index[0] >= 1:
+                if traj.arm_idx and traj.arm_idx[0] >= 1:
                     self.trunk_text = runner.decode_ids(traj.token_ids[:trunk_length])
                     break
 
@@ -183,7 +181,6 @@ class TokenTree(BaseSchema):
             trunk_length=d.get("trunk_length"),
             prompt_length=d.get("prompt_length"),
             trunk_text=d.get("trunk_text"),
-            analysis=d.get("analysis"),
         )
 
 
@@ -276,9 +273,9 @@ def parse_tree_from_trajs(
         # Determine fork_arms (no forks if not specified)
         resolved_fork_arms = list(fork_arms) if fork_arms else []
 
-    # Set arm_index on each trajectory
+    # Set arm_idx on each trajectory
     for traj, groups in zip(trajs_list, traj_to_groups):
-        traj.arm_index = groups
+        traj.arm_idx = groups
 
     acc = _TreeAccumulator(
         trajs=trajs_list,
@@ -310,21 +307,21 @@ def parse_tree_from_trajs(
 def add_trajectory_to_tree(
     tree: TokenTree,
     traj: TokenTrajectory,
-    arm_index: Sequence[int],
+    arm_idx: Sequence[int],
 ) -> TokenTree:
     """Add a trajectory to an existing tree.
 
     Args:
         tree: Existing TokenTree
         traj: New trajectory to add
-        arm_index: Which groups this trajectory belongs to
+        arm_idx: Which groups this trajectory belongs to
 
     Returns:
         New TokenTree with the trajectory added, nodes/forks recalculated
     """
     # Collect existing trajectories and their groups
     existing_trajs = list(tree.trajs)
-    groups_per_traj: list[tuple[int, ...]] = [t.arm_index or () for t in existing_trajs]
+    groups_per_traj: list[tuple[int, ...]] = [t.arm_idx or () for t in existing_trajs]
 
     # Find existing groups
     existing_groups: set[int] = set()
@@ -332,7 +329,7 @@ def add_trajectory_to_tree(
         existing_groups.update(groups)
 
     # Add new trajectory
-    new_groups = tuple(arm_index)
+    new_groups = tuple(arm_idx)
     existing_trajs.append(traj)
     groups_per_traj.append(new_groups)
 
@@ -366,7 +363,7 @@ def add_fork_between_groups(
     """
     # Collect existing data
     trajs = list(tree.trajs)
-    groups_per_traj = [t.arm_index or () for t in trajs]
+    groups_per_traj = [t.arm_idx or () for t in trajs]
 
     # Add new fork_arm
     existing_arms = list(tree.fork_arms) if tree.fork_arms else []
@@ -561,7 +558,6 @@ def _create_forks_for_arms(acc: _TreeAccumulator) -> None:
                 traj_idx=node.traj_idx,
                 vocab_logits=node.vocab_logits,
                 forks_idx=fork_indices,
-                analysis=node.analysis,
             )
 
 
@@ -645,7 +641,7 @@ def _create_forks_for_node(
                     BinaryFork(
                         next_token_ids=(b_i.token_id, b_j.token_id),
                         next_token_logprobs=(b_i.token_logprob, b_j.token_logprob),
-                        arm_index=(g_i, g_j),
+                        arm_idx=(g_i, g_j),
                     )
                 )
                 fork_indices.append(fork_idx)

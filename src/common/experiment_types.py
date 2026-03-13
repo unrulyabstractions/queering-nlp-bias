@@ -55,7 +55,7 @@ class ArmGenerationResult:
     """Result from generating trajectories across all branches."""
 
     trajectories: list[GeneratedTrajectory]
-    arm_indices: list[int]  # arm_index for each trajectory
+    arm_indices: list[int]  # arm_idx for each trajectory
     arm_token_lengths: list[int]  # Total tokens (prompt + prefill) for each arm
     arms: list[GenerationArm]  # Full arm objects with prefills
 

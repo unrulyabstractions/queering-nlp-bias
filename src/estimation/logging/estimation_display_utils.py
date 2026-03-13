@@ -81,20 +81,20 @@ def log_compliance_rates(
                 return br.simple_scoring[label]
             if label in br.bundled_scoring:
                 return br.bundled_scoring[label].aggregate
-            raise KeyError(f"Label '{label}' not found in arm '{br.branch}' scoring")
+            raise KeyError(f"Label '{label}' not found in arm '{br.arm}' scoring")
 
         rates_str = "  ".join(f"{get_rate(l) * 100:>5.1f}%" for l in labels)
         # Use arm name directly if available, otherwise construct from branch_idx
         display_name = getattr(br, "name", None)
         if display_name is None:
-            display_name = "trunk" if br.branch_idx == 0 else f"branch_{br.branch_idx}"
+            display_name = "trunk" if br.arm_idx == 0 else f"branch_{br.arm_idx}"
         log(f"  {display_name:<12} {br.trajectory_count:>4}  {rates_str}")
 
     # Helper to get branch header name
     def get_branch_header(br: ArmScoring) -> str:
         name = getattr(br, "name", None)
         if name is None:
-            name = "trunk" if br.branch_idx == 0 else f"branch_{br.branch_idx}"
+            name = "trunk" if br.arm_idx == 0 else f"branch_{br.arm_idx}"
         return get_short_display_name(name)
 
     # Show categorical (non-bundled) questions breakdown
@@ -148,7 +148,7 @@ def log_compliance_rates(
             for q in questions:
                 def get_item_rate(br: ArmScoring, lbl: str, question: str) -> float:
                     if lbl not in br.bundled_scoring:
-                        raise KeyError(f"Label '{lbl}' not in bundled_scoring for '{br.branch}'")
+                        raise KeyError(f"Label '{lbl}' not in bundled_scoring for '{br.arm}'")
                     items = br.bundled_scoring[lbl].items
                     if question not in items:
                         raise KeyError(f"Question '{question}' not in items for '{lbl}'")

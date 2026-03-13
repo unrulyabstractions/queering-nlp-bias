@@ -10,9 +10,6 @@ import torch
 
 from src.common.logging import log
 
-# Track memory across iterations for leak detection
-_memory_history: list[dict] = []
-
 
 def get_device() -> str:
     """Return the best available device: cuda, mps, or cpu."""
@@ -45,35 +42,22 @@ def get_memory_usage() -> dict:
     return stats
 
 
-def log_memory(stage: str, iteration: int = -1, verbose: bool = False) -> None:
-    """Print memory usage at a given stage and track history."""
+def log_memory(stage: str, verbose: bool = False) -> None:
+    """Print memory usage at a given stage (verbose mode only)."""
     mem = get_memory_usage()
-    if mem:
+    if mem and verbose:
         mem_str = ", ".join(f"{k}={v:.2f}" for k, v in mem.items())
-        if verbose:
-            log(f"  [Memory @ {stage}] {mem_str}")
-
-        # Track for leak detection
-        if iteration >= 0:
-            _memory_history.append({"iteration": iteration, "stage": stage, **mem})
+        log(f"  [Memory @ {stage}] {mem_str}")
 
 
-def check_memory_trend() -> None:
-    """Print memory trend analysis to detect leaks."""
-    if len(_memory_history) < 2:
-        return
-
-    # Compare first and last entries
-    first = _memory_history[0]
-    last = _memory_history[-1]
-
-    log("\n  [Memory Trend Analysis]")
-    for key in ["ram_gb", "mps_alloc_gb", "cuda_alloc_gb"]:
-        if key in first and key in last:
-            delta = last[key] - first[key]
-            if abs(delta) > 0.1:  # Only report if > 100MB change
-                log(f"    {key}: {first[key]:.2f} -> {last[key]:.2f} (delta: {delta:+.2f} GB)")
-    log()
+def log_mem(label: str) -> None:
+    """Log current memory usage with a label (always prints)."""
+    mem = get_memory_usage()
+    ram = mem.get("ram_gb", 0)
+    mps = mem.get("mps_alloc_gb", 0)
+    cuda = mem.get("cuda_alloc_gb", 0)
+    accel = mps if mps > 0 else cuda
+    log(f"  [{label}] RAM: {ram:.2f}GB, Accelerator: {accel:.2f}GB")
 
 
 def clear_gpu_memory() -> None:

@@ -195,12 +195,13 @@ def visualize_generation_comparison(
 ) -> list[Path]:
     """Generate comparison visualization across generation methods.
 
-    Creates a generation_comparison.png in the output_dir root that
-    compares trunk cores across different generation methods.
+    Creates a comparison plot that compares trunk cores across different
+    generation methods. Output path includes gen_name and scoring_name
+    to prevent overwrites from different experiment configurations.
 
     Args:
         results: List of EstimationResults from different generation methods
-        output_dir: Output directory (default: out/viz for cross-method comparisons)
+        output_dir: Output directory (default: out/generation_comparisons/{gen_name}/)
 
     Returns:
         List of created file paths
@@ -208,12 +209,19 @@ def visualize_generation_comparison(
     if len(results) < 2:
         return []
 
+    # Extract gen_name and scoring_name from estimation path
+    # Path structure: out/{method}/{gen_name}/{scoring_name}/estimation.json
+    estimation_path = Path(results[0].paths.estimation)
+    scoring_name = estimation_path.parent.name
+    gen_name = estimation_path.parent.parent.name
+
     if output_dir is None:
-        # Cross-method comparisons go to out/viz/
-        output_dir = Path("out/viz")
+        output_dir = Path("out/generation_comparisons") / gen_name
     else:
         output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    output_filename = f"{scoring_name}.png"
 
     created_files: list[Path] = []
 
@@ -234,11 +242,11 @@ def visualize_generation_comparison(
     # Create generation comparison plot
     saved = plot_generation_comparison(
         results, weighting_methods, structure_labels,
-        output_dir / "generation_comparison.png",
+        output_dir / output_filename,
         default_method=DEFAULT_WEIGHTING_METHOD,
     )
     if saved:
         created_files.append(saved)
-        log(f"  [viz] Generation comparison: 1 plot -> {output_dir}/")
+        log(f"  [viz] Generation comparison: {output_dir / output_filename}")
 
     return created_files

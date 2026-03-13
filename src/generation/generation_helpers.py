@@ -9,6 +9,7 @@ import math
 from pathlib import Path
 from typing import Any, Callable
 
+from src.common.continuation_text import get_continuation_text
 from src.common.default_config import MAX_NEW_TOKENS
 from src.common.logging import log, log_banner, log_sub_banner
 from src.common.viz_utils import escape_newlines
@@ -33,26 +34,13 @@ def group_trajectories_by_branch(
     """Group trajectories by branch index."""
     by_branch: dict[int, list[dict[str, Any]]] = {}
     for traj in trajs:
-        arm_index = traj.get("arm_index", [0])
-        if isinstance(arm_index, list):
-            branch_idx = arm_index[0] if arm_index else 0
+        arm_idx = traj.get("arm_idx", [0])
+        if isinstance(arm_idx, list):
+            branch_idx = arm_idx[0] if arm_idx else 0
         else:
-            branch_idx = arm_index
+            branch_idx = arm_idx
         by_branch.setdefault(branch_idx, []).append(traj)
     return by_branch
-
-
-def get_continuation_text(traj: dict[str, Any]) -> str:
-    """Get continuation text from trajectory dict.
-
-    Computes from prefill_text + generated_text if continuation_text is not stored.
-    """
-    stored = traj.get("continuation_text")
-    if stored:
-        return stored
-    prefill = traj.get("prefill_text") or ""
-    generated = traj.get("generated_text") or ""
-    return prefill + generated
 
 
 def count_finished(trajs: list[dict[str, Any]], eos_markers: list[str]) -> int:
@@ -125,6 +113,7 @@ def write_config(
     prompt = config.get("prompt", "")
     trunk = config.get("trunk", "")
     branches = config.get("branches", [])
+    twig_variations = config.get("twig_variations", [])
     real_branches = [b for b in branches if b != "trunk"]
 
     if truncate and len(prompt) > 70:
@@ -138,6 +127,10 @@ def write_config(
         out(
             f"{prefix}Branches: {', '.join(f'{chr(34)}{b}{chr(34)}' for b in real_branches)}"
         )
+    if twig_variations:
+        out(
+            f"{prefix}Twigs: {', '.join(f'{chr(34)}{t}{chr(34)}' for t in twig_variations)}"
+        )
     out(f"{prefix}Temperature: {config.get('temperature', 1.0)}")
     out(f"{prefix}Max tokens:  {config.get('max_new_tokens', MAX_NEW_TOKENS)}")
 
@@ -150,6 +143,7 @@ def write_trajectories_by_branch(
     prefix: str = "  ",
     max_trajs: int = 3,
     max_text_len: int = 60,
+    add_spacing: bool = False,
 ) -> None:
     """Write trajectories grouped by arm (root, trunk, branches, twigs)."""
     if not tree:
@@ -161,33 +155,25 @@ def write_trajectories_by_branch(
 
     # Get arm names from config if available, otherwise use indices
     arms = config.get("arms", [])
-    if arms:
-        # Use arm names from config (includes root, trunk, branches, twigs)
-        arm_indices = sorted(by_branch.keys())
-        for arm_idx in arm_indices:
-            trajs_in_branch = by_branch.get(arm_idx, [])
-            # Get arm name from config arms list
-            if arm_idx < len(arms):
-                display_name = arms[arm_idx].get("name", get_arm_name_from_index(arm_idx))
-            else:
-                display_name = get_arm_name_from_index(arm_idx)
-            header, _ = format_branch_stats(trajs_in_branch, eos_markers, display_name)
+    arm_indices = sorted(by_branch.keys())
 
-            out(f"\n{prefix}{header}:")
-            for i, traj in enumerate(trajs_in_branch[:max_trajs]):
-                text = escape_newlines(get_continuation_text(traj)[:max_text_len])
-                out(f"{prefix}  [{traj.get('idx', i)}] {text}")
-    else:
-        # Fallback: iterate over all arm indices found in data
-        for arm_idx in sorted(by_branch.keys()):
-            trajs_in_branch = by_branch[arm_idx]
+    for arm_idx in arm_indices:
+        trajs_in_branch = by_branch.get(arm_idx, [])
+        # Get arm name from config arms list
+        if arms and arm_idx < len(arms):
+            display_name = arms[arm_idx].get("name", get_arm_name_from_index(arm_idx))
+        else:
             display_name = get_arm_name_from_index(arm_idx)
-            header, _ = format_branch_stats(trajs_in_branch, eos_markers, display_name)
+        header, _ = format_branch_stats(trajs_in_branch, eos_markers, display_name)
 
-            out(f"\n{prefix}{header}:")
-            for i, traj in enumerate(trajs_in_branch[:max_trajs]):
-                text = escape_newlines(get_continuation_text(traj)[:max_text_len])
-                out(f"{prefix}  [{traj.get('idx', i)}] {text}")
+        out(f"\n{prefix}{header}:")
+        for i, traj in enumerate(trajs_in_branch[:max_trajs]):
+            # Use traj_idx for absolute index, fallback to relative index i
+            traj_idx = traj.get("traj_idx", i)
+            text = escape_newlines(get_continuation_text(traj)[:max_text_len])
+            out(f"{prefix}  [{traj_idx}] {text}")
+            if add_spacing:
+                out("")  # Add blank line between trajectories
 
         if len(trajs_in_branch) > max_trajs:
             out(f"{prefix}  ... and {len(trajs_in_branch) - max_trajs} more")
@@ -284,7 +270,8 @@ def save_generation_summary(
         add_line("  TRAJECTORIES")
         add_line("-" * 76)
         write_trajectories_by_branch(
-            add_line, tree, config, eos_token, max_trajs=999999, max_text_len=999999
+            add_line, tree, config, eos_token,
+            max_trajs=999999, max_text_len=999999, add_spacing=True
         )
 
     add_line()

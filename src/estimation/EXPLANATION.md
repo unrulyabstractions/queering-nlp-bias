@@ -353,7 +353,7 @@ Each plot shows three curves:
 ### Example Usage
 
 ```python
-from src.estimation.dynamics import compute_dynamics, plot_dynamics
+from src.dynamics import compute_dynamics, plot_dynamics
 
 # Given an EstimationResult and ScoringConfig
 dynamics_result = compute_dynamics(
@@ -392,7 +392,7 @@ def compute_arm_estimate(arm_idx, name, trajectories, reference_cores=None):
     # Extract data
     structure_scores_list = [t.structure_scores for t in trajectories]
     log_probs = [t.conditional_logprobs.get(name, 0.0) for t in trajectories]
-    n_tokens = [t.n_continuation_tokens for t in trajectories]
+    n_tokens = [t.n_generated_tokens for t in trajectories]
 
     estimates = {}
     for method_name in iter_methods():

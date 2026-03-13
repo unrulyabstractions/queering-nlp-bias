@@ -14,7 +14,13 @@ python scripts/generate_by_simple_sampling.py trials/generation/example.json
 
 ## Critical Rules (NEVER violate these)
 
-1. **ALL `__init__.py` files MUST use auto-export.** Every `__init__.py` automatically exports all public symbols from its submodules. No manual export lists. Use a pattern like:
+1. **BEFORE creating ANY function, EXHAUSTIVELY search for existing implementations.** Search `src/common/` and related modules for similar functionality. Only create a new function if you can justify why existing code cannot be reused. Common places to check:
+   - `src/common/math/` - vector operations, norms, distances, entropy, probability
+   - `src/common/text/` - string processing, EOS handling
+   - `src/common/file_io.py` - JSON loading, path utilities
+   - `src/common/device_utils.py` - memory, GPU/MPS operations
+
+2. **ALL `__init__.py` files MUST use auto-export.** Every `__init__.py` automatically exports all public symbols from its submodules. No manual export lists. Use a pattern like:
    ```python
    # Auto-export all public symbols from submodules
    import importlib
@@ -26,17 +32,17 @@ python scripts/generate_by_simple_sampling.py trials/generation/example.json
            globals()[_attr] = getattr(_module, _attr)
    ```
 
-2. **ALL imports go at the top of every file.** No inline imports, no imports inside functions, no imports inside `if` blocks. The only exception is circular dependency resolution — and even then, prefer restructuring the code to eliminate the cycle.
+3. **ALL imports go at the top of every file.** No inline imports, no imports inside functions, no imports inside `if` blocks. The only exception is circular dependency resolution — and even then, prefer restructuring the code to eliminate the cycle.
 
-3. **NO legacy code. NO backwards compatibility.** Remove all deprecated functions, shims, compatibility layers, and dead code paths. If something is replaced, delete the old version entirely.
+4. **NO legacy code. NO backwards compatibility.** Remove all deprecated functions, shims, compatibility layers, and dead code paths. If something is replaced, delete the old version entirely.
 
-4. **NO two `.py` files in the entire repo may share the same filename.** Every `.py` file must have a unique name across all directories.
+5. **NO two `.py` files in the entire repo may share the same filename.** Every `.py` file must have a unique name across all directories.
 
-5. **No single-word `.py` filenames.** Every `.py` file (except `__init__.py`) must be at least two words or a descriptive compound name. Bad: `base.py`, `utils.py`, `helpers.py`, `config.py`. Good: `generation_method_base.py`, `string_utils.py`, `scoring_config_loader.py`, `network_request_helpers.py`.
+6. **No single-word `.py` filenames.** Every `.py` file (except `__init__.py`) must be at least two words or a descriptive compound name. Bad: `base.py`, `utils.py`, `helpers.py`, `config.py`. Good: `generation_method_base.py`, `string_utils.py`, `scoring_config_loader.py`, `network_request_helpers.py`.
 
-6. **No deep nesting in function signatures.** Nothing deeper than a 1D `dict` or `list` should be accepted as an argument or returned from a function. If you need nested structures, define a proper `BaseSchema` subclass instead.
+7. **No deep nesting in function signatures.** Nothing deeper than a 1D `dict` or `list` should be accepted as an argument or returned from a function. If you need nested structures, define a proper `BaseSchema` subclass instead.
 
-7. **Always update documentation when modifying code.** When you modify `.py` files in a folder, update the corresponding `.md` files in that same folder (e.g., `README.md`, `EXPLANATION.md`). Keep documentation in sync with the code it describes.
+8. **Always update documentation when modifying code.** When you modify `.py` files in a folder, update the corresponding `.md` files in that same folder (e.g., `README.md`, `EXPLANATION.md`). Keep documentation in sync with the code it describes.
 
 ## Code Quality Standards
 
@@ -84,11 +90,12 @@ python scripts/generate_by_simple_sampling.py trials/generation/example.json
 
 ## What to Do When Refactoring
 
-1. **Check all `__init__.py` files** — ensure they use auto-export
-2. **Check all imports** — move any inline/conditional imports to the top of the file
-3. **Check for duplicate filenames** — rename any `.py` files that share a name with another file anywhere in the repo
-4. **Check for single-word filenames** — rename them to be descriptive and multi-word
-5. **Check for nested dict/list args** — replace with `BaseSchema` subclasses
-6. **Remove all legacy/compat code** — delete deprecated functions, old API shims, backwards compatibility wrappers
-7. **Extract repeated logic** — find duplicated code and move it into shared utilities
-8. **Break up large files** — split any file over ~150 lines into smaller, focused modules
+1. **Search for existing utilities FIRST** — before writing any new function, grep `src/common/` for similar functionality
+2. **Check all `__init__.py` files** — ensure they use auto-export
+3. **Check all imports** — move any inline/conditional imports to the top of the file
+4. **Check for duplicate filenames** — rename any `.py` files that share a name with another file anywhere in the repo
+5. **Check for single-word filenames** — rename them to be descriptive and multi-word
+6. **Check for nested dict/list args** — replace with `BaseSchema` subclasses
+7. **Remove all legacy/compat code** — delete deprecated functions, old API shims, backwards compatibility wrappers
+8. **Extract repeated logic** — find duplicated code and move it into shared utilities
+9. **Break up large files** — split any file over ~150 lines into smaller, focused modules

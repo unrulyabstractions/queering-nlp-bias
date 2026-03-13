@@ -153,7 +153,7 @@ GenerationConfig
        |
        +---> get_arms() -> list[Arm]
        |         |
-       |         +---> Arm(prefill, name, arm_index)
+       |         +---> Arm(prefill, name, arm_idx)
        |
        +---> fork_arms -> list[tuple[int, int]]  # branch index pairs
        |
@@ -169,7 +169,7 @@ GenerationConfig
 class GenerationArm:
     prefill: str    # Full prefill: skip_prefix + trunk + branch
     name: str       # "trunk" or "branch_N"
-    arm_index: int  # 0 for trunk, N for branch_N
+    arm_idx: int  # 0 for trunk, N for branch_N
 ```
 
 Fork arms are represented as `tuple[int, int]` (left branch index, right branch index).
@@ -272,7 +272,7 @@ For each arm in [trunk, branch_1, ..., branch_N]:
     1. Construct formatted prompt with arm prefill
     2. For i in range(samples_per_arm):
          a. Generate trajectory using temperature sampling
-         b. Store trajectory with arm's arm_index
+         b. Store trajectory with arm's arm_idx
     3. Return all trajectories
 ```
 
@@ -504,7 +504,7 @@ class EntropySeekingParams(GenerationMethodParams):
 ```
 For each arm:
     1. Generate one trajectory with temperature=0
-    2. Return single trajectory with arm's arm_index
+    2. Return single trajectory with arm's arm_idx
 ```
 
 This is the simplest method, useful for baseline comparisons.

@@ -25,18 +25,18 @@ class TrajectoryScoringData(BaseSchema):
 
     Attributes:
         traj_idx: Index of this trajectory
-        branch: Display name of the branch ("trunk", "branch_1", etc.)
+        arm: Name of the arm ("root", "trunk", "branch_1", "twig_1_b1", etc.)
         structure_scores: List of structure scores for each structure
         conditional_logprobs: Log prob of trajectory conditioned on each arm
-        n_continuation_tokens: Number of tokens in the continuation
+        n_generated_tokens: Number of tokens in the continuation
         text: The continuation text (used for dynamics analysis)
     """
 
     traj_idx: int
-    branch: str
+    arm: str
     structure_scores: list[float]
     conditional_logprobs: dict[str, float]
-    n_continuation_tokens: int = 0
+    n_generated_tokens: int = 0
     text: str = ""
 
 

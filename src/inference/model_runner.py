@@ -178,8 +178,8 @@ class ModelRunner:
         """Generate text from prompt, preserving special tokens like EOS."""
         formatted = self.apply_chat_template(prompt) + prefilling
 
-        # For API-based backends (OpenAI), use the backend's generate directly
-        if self._backend_type == ModelBackend.OPENAI:
+        # For API-based backends, use the backend's generate directly
+        if self._backend_type in (ModelBackend.OPENAI, ModelBackend.ANTHROPIC):
             return self._backend.generate(formatted, max_new_tokens, temperature)
 
         # For local backends, generate token by token to preserve EOS

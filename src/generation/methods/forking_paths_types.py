@@ -8,11 +8,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from src.common.base_schema import BaseSchema
 from src.inference.generated_trajectory import GeneratedTrajectory
 
 
 @dataclass
-class TopKCandidate:
+class TopKCandidate(BaseSchema):
     """A candidate token at a position with probability info."""
 
     token_id: int
@@ -21,7 +22,7 @@ class TopKCandidate:
 
 
 @dataclass
-class PositionAnalysis:
+class PositionAnalysis(BaseSchema):
     """Analysis of a single position in the greedy path.
 
     Contains entropy at the position and top-K candidate tokens.
@@ -34,7 +35,7 @@ class PositionAnalysis:
 
 
 @dataclass
-class QualifyingFork:
+class QualifyingFork(BaseSchema):
     """A position/candidate pair that qualifies for forking.
 
     Represents a specific alternate token at a high-entropy position
@@ -46,7 +47,7 @@ class QualifyingFork:
 
 
 @dataclass
-class ForkPoint:
+class ForkPoint(BaseSchema):
     """A position where we fork from the greedy path.
 
     Contains the fork position, the alternate token chosen,

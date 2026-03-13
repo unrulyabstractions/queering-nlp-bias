@@ -9,6 +9,7 @@ from __future__ import annotations
 import math
 
 from src.common.logging import log, log_divider, log_step
+from src.common.viz_utils import preview
 from src.inference import ModelRunner
 from src.inference.generated_trajectory import GeneratedTrajectory
 
@@ -32,13 +33,8 @@ def log_greedy_path(
     """
     log_step(1, "Generate greedy path")
     greedy_text = runner.decode_ids(greedy_traj.token_ids[prompt_len:])
-    greedy_display = greedy_text.replace("\n", "\\n")
     log(f"    Arm: {arm_name}")
-    log(
-        f'    Greedy: "{greedy_display[:80]}..."'
-        if len(greedy_display) > 80
-        else f'    Greedy: "{greedy_display}"'
-    )
+    log(f'    Greedy: "{preview(greedy_text, 80)}"')
     log(f"    Tokens: {greedy_traj.length - prompt_len}")
 
 
@@ -66,22 +62,12 @@ def log_position_analyses(
     if greedy_traj is not None and prompt_len > 0:
         log(f"  Prompt ({prompt_len} tokens):")
         prompt_text = runner.decode_ids(greedy_traj.token_ids[:prompt_len])
-        prompt_display = prompt_text.replace("\n", "\\n")
-        # Show first 80 chars and last 40 chars
-        if len(prompt_display) > 120:
-            log(f"    {prompt_display[:80]}")
-            log(f"    ...{prompt_display[-40:]}")
-        else:
-            log(f"    {prompt_display}")
+        log(f"    {preview(prompt_text, 120)}")
 
         response_len = greedy_traj.length - prompt_len
         log(f"\n  Response ({response_len} tokens):")
         response_text = runner.decode_ids(greedy_traj.token_ids[prompt_len:])
-        response_display = response_text.replace("\n", "\\n")
-        if len(response_display) > 80:
-            log(f"    {response_display[:80]}...")
-        else:
-            log(f"    {response_display}")
+        log(f"    {preview(response_text, 80)}")
         log("")
 
     # Compute entropy statistics
@@ -316,10 +302,7 @@ def log_fork_expansion(
         # Show samples
         for j, traj in enumerate(fp.continuations):
             cont_text = runner.decode_ids(traj.token_ids[prompt_len:])
-            cont_display = cont_text.replace("\n", "\\n")
-            if len(cont_display) > 60:
-                cont_display = cont_display[:60] + "..."
-            log(f'      Sample {j + 1}: "{cont_display}"')
+            log(f'      Sample {j + 1}: "{preview(cont_text, 60)}"')
 
     if len(fork_points) > 5:
         log(f"\n    ... and {len(fork_points) - 5} more fork points")

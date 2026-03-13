@@ -75,7 +75,7 @@ def normalize_indexed_log_probs(
 ) -> list[tuple[int, float]]:
     """Normalize indexed log probabilities and optionally sort.
 
-    Useful when working with (trajectory_idx, log_prob) pairs.
+    Useful when working with (traj_idx, log_prob) pairs.
 
     Args:
         indexed_log_probs: Sequence of (index, log_probability) tuples

@@ -31,32 +31,56 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Optional
 
+from src.common.device_utils import get_memory_usage
 from src.common.logging import log
 
 
 @dataclass
 class TimingEntry:
-    """Single timing entry."""
+    """Single timing entry with memory tracking."""
 
     name: str
     total: float = 0.0
     count: int = 0
     children: list[str] = field(default_factory=list)
     parent: Optional[str] = None
+    # Memory tracking (in GB)
+    mem_start_ram: float = 0.0
+    mem_end_ram: float = 0.0
+    mem_peak_ram: float = 0.0
+    mem_start_accel: float = 0.0
+    mem_end_accel: float = 0.0
+    mem_peak_accel: float = 0.0
 
     @property
     def avg(self) -> float:
         return self.total / self.count if self.count else 0.0
 
+    @property
+    def mem_delta_ram(self) -> float:
+        return self.mem_end_ram - self.mem_start_ram
+
+    @property
+    def mem_delta_accel(self) -> float:
+        return self.mem_end_accel - self.mem_start_accel
+
 
 class Profiler:
-    """Simple profiler with hierarchical timing."""
+    """Simple profiler with hierarchical timing and memory tracking."""
 
     def __init__(self):
         self._entries: dict[str, TimingEntry] = {}
         self._starts: dict[str, float] = {}
+        self._mem_starts: dict[str, tuple[float, float]] = {}  # (ram, accel)
         self._stack: list[str] = []
         self._enabled: bool = True
+
+    def _get_mem(self) -> tuple[float, float]:
+        """Get current memory as (ram_gb, accel_gb)."""
+        mem = get_memory_usage()
+        ram = mem.get("ram_gb", 0.0)
+        accel = mem.get("mps_alloc_gb", 0.0) or mem.get("cuda_alloc_gb", 0.0)
+        return ram, accel
 
     def enable(self) -> None:
         """Enable profiling."""
@@ -70,6 +94,7 @@ class Profiler:
         """Clear all timing data."""
         self._entries.clear()
         self._starts.clear()
+        self._mem_starts.clear()
         self._stack.clear()
 
     def start(self, name: str) -> None:
@@ -77,6 +102,7 @@ class Profiler:
         if not self._enabled:
             return
         self._starts[name] = time.perf_counter()
+        self._mem_starts[name] = self._get_mem()
 
         # Track parent-child relationship
         if name not in self._entries:
@@ -84,6 +110,13 @@ class Profiler:
             self._entries[name] = TimingEntry(name=name, parent=parent)
             if parent and name not in self._entries[parent].children:
                 self._entries[parent].children.append(name)
+
+        # Record starting memory
+        ram, accel = self._mem_starts[name]
+        self._entries[name].mem_start_ram = ram
+        self._entries[name].mem_start_accel = accel
+        self._entries[name].mem_peak_ram = ram
+        self._entries[name].mem_peak_accel = accel
 
         self._stack.append(name)
 
@@ -93,10 +126,16 @@ class Profiler:
             return 0.0
 
         elapsed = time.perf_counter() - self._starts.get(name, time.perf_counter())
+        ram, accel = self._get_mem()
 
         if name in self._entries:
-            self._entries[name].total += elapsed
-            self._entries[name].count += 1
+            entry = self._entries[name]
+            entry.total += elapsed
+            entry.count += 1
+            entry.mem_end_ram = ram
+            entry.mem_end_accel = accel
+            entry.mem_peak_ram = max(entry.mem_peak_ram, ram)
+            entry.mem_peak_accel = max(entry.mem_peak_accel, accel)
 
         if self._stack and self._stack[-1] == name:
             self._stack.pop()
@@ -117,7 +156,7 @@ class Profiler:
         return self(name)
 
     def report(self, min_ms: float = 0.1) -> None:
-        """Print timing report."""
+        """Print timing and memory report."""
         if not self._entries:
             log("No timing data.")
             return
@@ -125,9 +164,9 @@ class Profiler:
         # Find root entries (no parent)
         roots = [e for e in self._entries.values() if e.parent is None]
 
-        log("\n" + "=" * 50)
+        log("\n" + "=" * 70)
         log("PROFILER REPORT")
-        log("=" * 50)
+        log("=" * 70)
 
         def log_entry(entry: TimingEntry, indent: int = 0):
             ms = entry.total * 1000
@@ -135,10 +174,23 @@ class Profiler:
                 return
             prefix = "  " * indent
             avg_ms = entry.avg * 1000
+
+            # Time info
             if entry.count > 1:
-                log(f"{prefix}{entry.name}: {ms:.1f}ms ({entry.count}x, avg {avg_ms:.1f}ms)")
+                time_str = f"{ms:.1f}ms ({entry.count}x, avg {avg_ms:.1f}ms)"
             else:
-                log(f"{prefix}{entry.name}: {ms:.1f}ms")
+                time_str = f"{ms:.1f}ms"
+
+            # Memory info (only for root entries to avoid clutter)
+            if indent == 0:
+                delta_ram = entry.mem_delta_ram
+                delta_accel = entry.mem_delta_accel
+                mem_str = f"  | RAM: {entry.mem_end_ram:.2f}GB (Δ{delta_ram:+.2f})"
+                if entry.mem_end_accel > 0 or entry.mem_peak_accel > 0:
+                    mem_str += f", Accel: {entry.mem_end_accel:.2f}GB (Δ{delta_accel:+.2f})"
+                log(f"{prefix}{entry.name}: {time_str}{mem_str}")
+            else:
+                log(f"{prefix}{entry.name}: {time_str}")
 
             for child_name in entry.children:
                 if child_name in self._entries:
@@ -148,9 +200,13 @@ class Profiler:
             log_entry(root)
 
         total = sum(e.total for e in roots)
-        log("-" * 50)
+        log("-" * 70)
         log(f"Total: {total * 1000:.1f}ms")
-        log("=" * 50 + "\n")
+
+        # Final memory state
+        final_ram, final_accel = self._get_mem()
+        log(f"Final memory: RAM {final_ram:.2f}GB, Accelerator {final_accel:.2f}GB")
+        log("=" * 70 + "\n")
 
     def summary(self) -> dict[str, float]:
         """Return timing summary as dict (name -> total_ms)."""

@@ -7,7 +7,6 @@ Shared utilities, data structures, and infrastructure used across the codebase.
 ```
 common/
 ├── math/               # Mathematical utilities (entropy, diversity, probability)
-├── analysis/           # Tree analysis and metrics computation
 ├── logging/            # Structured logging utilities
 ├── profiler/           # Performance timing utilities
 ├── text/               # Text processing (thinking blocks, display)
@@ -79,7 +78,7 @@ A single token sequence with probabilities:
 - `logprobs`: log-probability of each token
 - `full_logits`: full vocabulary logits (optional, cleared before serialization)
 - Text fields: `prefill_text`, `generated_text`, `continuation_text`
-- Arm-specific fields: `arm_token_lengths`, `arm_text_lengths`, `arm_index`
+- Arm-specific fields: `arm_token_lengths`, `arm_text_lengths`, `arm_idx`
 
 ### BranchingNode (`branching_node.py`)
 
@@ -94,7 +93,7 @@ Divergence point where trajectories split:
 Pairwise comparison between two branches:
 - `next_token_ids`: tuple of (token_a, token_b)
 - `next_token_logprobs`: tuple of (logprob_a, logprob_b)
-- `arm_index`: tuple of (group_a, group_b)
+- `arm_idx`: tuple of (group_a, group_b)
 
 ## Experiment Types
 
@@ -116,7 +115,7 @@ Result from generating trajectories across all branches:
 ## Utilities
 
 ### device_utils.py
-GPU/CPU/MPS detection, memory tracking (CUDA, MPS, RAM), leak detection via `log_memory()` and `check_memory_trend()`.
+GPU/CPU/MPS detection, memory tracking (CUDA, MPS, RAM), memory logging via `log_memory()`.
 
 ### file_io.py
 JSON utilities: `save_json()`, `load_json()` (tolerates trailing commas), `ensure_dir()`, path parsing.
@@ -131,11 +130,9 @@ Reproducibility: `set_seed()` initializes random, numpy, and torch.
 Single source of truth for all default parameter values across generation, scoring, and estimation.
 
 ### viz_utils.py
-Text formatting and visualization:
+Text formatting:
 - Text: `truncate()`, `preview()`, `wrap_text()`, `escape_newlines()`
 - Floats: `sanitize_float()`, `sanitize_floats()`
-- Statistics: `compute_stats()`, `compute_percentiles()`
-- Plots: `format_histogram_vertical()`, `format_sequence_plot()` (Unicode block chars)
 
 ## Usage
 
