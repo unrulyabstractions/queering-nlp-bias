@@ -15,7 +15,7 @@ TEMPERATURE = 1.0
 MAX_NEW_TOKENS = 258
 
 # Simple sampling: trajectories per arm (trunk + each branch)
-SAMPLING_SAMPLES_PER_ARM = 100
+SAMPLING_SAMPLES_PER_ARM = 10
 
 # Forking paths: max alternate tokens to consider at each position
 FORKING_MAX_ALTERNATES = 5
