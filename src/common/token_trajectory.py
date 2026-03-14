@@ -30,7 +30,9 @@ class TokenTrajectory(BaseSchema):
     entropies: list[float] | None = None  # Per-position entropy (for generated tokens)
 
     # Text fields (set by generate_trajectory_from_prompt)
-    prefill_text: str | None = None  # Trunk/branch/twig text prepended before generation
+    prefill_text: str | None = (
+        None  # Trunk/branch/twig text prepended before generation
+    )
     generated_text: str | None = None  # Text the model actually generated
 
     # Per-arm lengths (set by GenerationOutput.from_tree, indices match arm list)

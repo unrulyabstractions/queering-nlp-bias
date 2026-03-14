@@ -54,7 +54,9 @@ class TokenTree(BaseSchema):
             TokenTree with nodes at divergence points and forks between
             trajectories from specified group pairs.
         """
-        return parse_tree_from_trajs(trajs, groups_per_traj, fork_arms, trunk, prompt_length)
+        return parse_tree_from_trajs(
+            trajs, groups_per_traj, fork_arms, trunk, prompt_length
+        )
 
     def get_logits_at_node(self, node_idx: int, pos: int) -> torch.Tensor | None:
         """Retrieve logits at *pos* from the first trajectory passing through

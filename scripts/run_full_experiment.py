@@ -83,6 +83,8 @@ class ParsedExperimentArgs:
     overrides: dict[str, Any]
     dynamics: bool  # Whether to compute drift/horizon dynamics
     profile: bool  # Whether to enable profiling
+    base_dir: str  # Output base directory (out/ or generation_compare/)
+    include_method_in_path: bool  # Whether to include method name in output path
 
 
 def parse_experiment_args() -> ParsedExperimentArgs:
@@ -134,8 +136,12 @@ def parse_experiment_args() -> ParsedExperimentArgs:
     # Determine methods - convert output names to internal method names
     if args.all:
         methods = [get_method_name_from_output(name) for name in available_output_names]
+        base_dir = "generation_compare"
+        include_method_in_path = True  # Include method name when comparing multiple
     else:
         methods = [get_method_name_from_output(args.method)]
+        base_dir = "out"
+        include_method_in_path = False  # Simpler path for single method
 
     # Collect overrides
     overrides = {
@@ -155,6 +161,8 @@ def parse_experiment_args() -> ParsedExperimentArgs:
         overrides=overrides,
         dynamics=args.dynamics,
         profile=args.profile,
+        base_dir=base_dir,
+        include_method_in_path=include_method_in_path,
     )
 
 
@@ -168,6 +176,8 @@ def step_generate(
     config: GenerationConfig,
     config_path: Path,
     method: str,
+    base_dir: str = "out",
+    include_method: bool = False,
 ) -> GenerationOutput:
     """Generate trajectories using the specified method."""
     output_name = get_output_name(method)
@@ -188,12 +198,16 @@ def step_generate(
     log_tree_trajectories(result.result, runner)
 
     # Save output (and copy original config)
-    output_path = GenerationOutput.compute_output_path(config_path, method=method)
+    output_path = GenerationOutput.compute_output_path(
+        config_path, method=method, base_dir=base_dir, include_method=include_method
+    )
     result.output.save(output_path, config_path=config_path)
     log(f"\nSaved: {output_path}")
 
     # Save human-readable summary
-    summary_path = GenerationOutput.compute_summary_path(config_path, method=method)
+    summary_path = GenerationOutput.compute_summary_path(
+        config_path, method=method, base_dir=base_dir, include_method=include_method
+    )
     result.output.save_summary(summary_path)
     log(f"Saved summary: {summary_path}")
 
@@ -314,9 +328,13 @@ def compute_paths(
     gen_config: Path,
     scoring_config: Path,
     method: str,
+    base_dir: str = "out",
+    include_method: bool = False,
 ) -> OutputPaths:
     """Compute output paths for all pipeline stages."""
-    gen_out = GenerationOutput.compute_output_path(gen_config, method=method)
+    gen_out = GenerationOutput.compute_output_path(
+        gen_config, method=method, base_dir=base_dir, include_method=include_method
+    )
     judge_out = ScoringOutput.compute_output_path(gen_out, scoring_config)
     est_out = EstimationOutput.compute_output_path(judge_out)
     return OutputPaths(generation=gen_out, judgment=judge_out, estimation=est_out)
@@ -333,10 +351,15 @@ def run_single_experiment(
     method: str,
     overrides: dict[str, Any] | None = None,
     dynamics: bool = False,
+    base_dir: str = "out",
+    include_method: bool = False,
 ) -> EstimationResult:
     """Run a single experiment with one generation method."""
     output_name = get_output_name(method)
-    paths = compute_paths(gen_config_path, scoring_config_path, method)
+    paths = compute_paths(
+        gen_config_path, scoring_config_path, method,
+        base_dir=base_dir, include_method=include_method
+    )
 
     log_experiment_start(
         f"EXPERIMENT: {output_name}",
@@ -353,7 +376,7 @@ def run_single_experiment(
     set_seed(config.seed)
 
     # Run pipeline
-    step_generate(config, gen_config_path, method)
+    step_generate(config, gen_config_path, method, base_dir=base_dir, include_method=include_method)
     step_score(scoring_config_path, paths.generation)
     step_estimate(paths.judgment)
 
@@ -376,6 +399,7 @@ def run_all_experiments(args: ParsedExperimentArgs) -> list[EstimationResult]:
     if len(args.methods) > 1:
         method_names = [get_output_name(m) for m in args.methods]
         log_major("MULTI-METHOD EXPERIMENT", f"Methods: {', '.join(method_names)}")
+        log(f"Output directory: {args.base_dir}/")
 
     results = [
         run_single_experiment(
@@ -384,6 +408,8 @@ def run_all_experiments(args: ParsedExperimentArgs) -> list[EstimationResult]:
             method,
             args.overrides,
             dynamics=args.dynamics,
+            base_dir=args.base_dir,
+            include_method=args.include_method_in_path,
         )
         for method in args.methods
     ]

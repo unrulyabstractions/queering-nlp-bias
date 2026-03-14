@@ -1,15 +1,12 @@
-"""Generate visualizations from an existing estimation output JSON.
+#!/usr/bin/env python3
+"""Generate visualizations from an estimation JSON file.
+
+This script is for visualizing legacy or non-standard experiment outputs.
+For standard experiment directories, use visualize_experiment.py instead.
 
 Usage:
-    python scripts/visualize_estimation.py out/<method>/est_<name>.json
-    python scripts/visualize_estimation.py out/<method>/est_<name>.json --output-dir out/<method>/viz
-
-The generation and scoring JSONs are auto-inferred from the estimation path
-and the `generation_file` field embedded in the scoring output. Supply them
-explicitly with --generation / --scoring if auto-inference fails.
-
-Outputs:
-    out/<method>/viz/...  (PNG plots)
+    uv run python scripts/visualize_estimation.py path/to/estimation.json
+    uv run python scripts/visualize_estimation.py path/to/estimation.json --camera-ready
 """
 
 from __future__ import annotations
@@ -26,102 +23,82 @@ from src.estimation.estimation_experiment_types import EstimationResult
 from src.viz import visualize_result
 
 
-def infer_method_from_path(est_path: Path) -> str:
-    """Extract generation method name from estimation path.
-
-    Path pattern: out/<method>/est_<trial>_<scoring>.json
-    Example: out/simple-sampling/est_example_example.json -> simple-sampling
-    """
-    return est_path.parent.name
-
-
-def infer_score_path(est_path: Path) -> Path:
-    """Infer scoring JSON path from estimation path.
-
-    out/<method>/est_<name>.json -> out/<method>/score_<name>.json
-    """
-    name = est_path.stem.replace("est_", "", 1)
-    return est_path.parent / f"score_{name}.json"
-
-
-def infer_gen_path_from_score(score_path: Path) -> Path | None:
-    """Read generation_file field from the scoring JSON.
-
-    Args:
-        score_path: Path to the scoring output JSON file.
-
-    Returns:
-        Path to the generation file if found, None otherwise.
-    """
+def read_json_field(path: Path, *keys: str) -> str | None:
+    """Read a nested field from a JSON file."""
     try:
-        with open(score_path) as f:
+        with open(path) as f:
             data = json.load(f)
-        gen_file = data.get("generation_file", "")
-        if gen_file:
-            return Path(gen_file)
-    except (OSError, json.JSONDecodeError, KeyError):
-        # File not readable, invalid JSON, or missing expected structure
+        for key in keys:
+            data = data.get(key, {})
+        return data if isinstance(data, str) else None
+    except (OSError, json.JSONDecodeError):
         return None
-    return None
 
 
-def resolve_paths(
-    est_path: Path,
-    gen_override: str | None,
-    score_override: str | None,
-) -> OutputPaths:
-    """Resolve all three pipeline paths, auto-inferring where possible."""
-    # Scoring path
-    if score_override:
-        score_path = Path(score_override)
-    else:
-        score_path = infer_score_path(est_path)
-        if not score_path.exists():
-            print(
-                f"Warning: scoring file not found at {score_path} "
-                "(dynamics plots will be skipped). Use --scoring to specify it.",
-                file=sys.stderr,
-            )
-            score_path = est_path  # fallback — dynamics plot will silently skip
+def infer_generation_path(est_path: Path, score_path: Path | None) -> Path:
+    """Infer generation.json path from scoring or estimation metadata."""
+    # Try scoring file first
+    if score_path and score_path.exists():
+        gen_file = read_json_field(score_path, "generation_file")
+        if gen_file:
+            gen_path = Path(gen_file)
+            if gen_path.exists():
+                return gen_path
 
-    # Generation path
-    if gen_override:
-        gen_path = Path(gen_override)
-    else:
-        gen_path = None
-        if score_path.exists() and score_path != est_path:
-            gen_path = infer_gen_path_from_score(score_path)
-        if gen_path is None or not gen_path.exists():
-            if gen_path is not None:
-                print(
-                    f"Warning: generation file not found at {gen_path} "
-                    "(tree plots will be skipped). Use --generation to specify it.",
-                    file=sys.stderr,
-                )
-            gen_path = est_path  # fallback — tree plots will silently skip
+    # Try estimation metadata
+    gen_file = read_json_field(est_path, "metadata", "generation_file")
+    if gen_file:
+        gen_path = Path(gen_file)
+        if gen_path.exists():
+            return gen_path
+        print(f"Warning: generation file not found at {gen_path}", file=sys.stderr)
+
+    return est_path  # Fallback - tree plots will skip
+
+
+def build_paths(est_path: Path) -> OutputPaths:
+    """Build OutputPaths by inferring related files."""
+    # Try multiple scoring path patterns
+    score_path = None
+    candidates = [
+        est_path.parent / "scoring.json",  # Standard name
+        est_path.parent / f"score_{est_path.stem.replace('est_', '', 1)}.json",  # est_X -> score_X
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            score_path = candidate
+            break
+
+    if not score_path:
+        print(f"Warning: scoring file not found in {est_path.parent}", file=sys.stderr)
+        score_path = est_path  # Fallback
+
+    # Try multiple generation path patterns
+    gen_path = None
+    gen_candidates = [
+        est_path.parent.parent / "generation.json",  # Standard location
+    ]
+    for candidate in gen_candidates:
+        if candidate.exists():
+            gen_path = candidate
+            break
+
+    if not gen_path:
+        gen_path = infer_generation_path(est_path, score_path if score_path != est_path else None)
 
     return OutputPaths(generation=gen_path, judgment=score_path, estimation=est_path)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate visualizations from an estimation output JSON"
+        description="Generate visualizations from an estimation JSON"
     )
+    parser.add_argument("estimation", help="Path to estimation.json")
+    parser.add_argument("--output-dir", help="Output directory for plots")
     parser.add_argument(
-        "estimation", help="Path to estimation output JSON (out/<method>/est_*.json)"
-    )
-    parser.add_argument(
-        "--generation",
-        help="Path to generation JSON (out/<method>/gen_*.json). Auto-inferred if omitted.",
-    )
-    parser.add_argument(
-        "--scoring",
-        help="Path to scoring JSON (out/<method>/score_*.json). Auto-inferred if omitted.",
-    )
-    parser.add_argument(
-        "--output-dir",
-        default=None,
-        help="Directory to write plots into (default: out/<method>/viz)",
+        "--camera-ready",
+        action="store_true",
+        help="Publication quality: high DPI (300), all annotations enabled",
     )
     args = parser.parse_args()
 
@@ -130,16 +107,15 @@ def main() -> None:
         print(f"Error: file not found: {est_path}", file=sys.stderr)
         sys.exit(1)
 
-    method = infer_method_from_path(est_path)
-    paths = resolve_paths(est_path, args.generation, args.scoring)
-
-    result = EstimationResult.from_estimation_file(method, paths)
+    paths = build_paths(est_path)
+    method_name = est_path.parent.name
     output_dir = Path(args.output_dir) if args.output_dir else None
-    created = visualize_result(result, output_dir=output_dir)
+
+    result = EstimationResult.from_estimation_file(method_name, paths)
+    created = visualize_result(result, output_dir=output_dir, camera_ready=args.camera_ready)
 
     if created:
-        actual_dir = args.output_dir if args.output_dir else f"out/{method}/viz"
-        print(f"Saved {len(created)} plots to {actual_dir}/")
+        print(f"Saved {len(created)} plots")
     else:
         print("No plots were generated.")
 

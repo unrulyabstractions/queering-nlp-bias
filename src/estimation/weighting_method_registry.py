@@ -26,7 +26,6 @@ from typing import Callable, ClassVar
 
 from src.common.params_schema import ParamsSchema
 
-
 # ══════════════════════════════════════════════════════════════════════════════
 # PARAMETER BASE CLASS
 # ══════════════════════════════════════════════════════════════════════════════

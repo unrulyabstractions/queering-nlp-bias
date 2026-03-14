@@ -23,7 +23,7 @@ from src.estimation.arm_types import (
     has_downstream_arms,
 )
 
-from .viz_plot_utils import annotate_bar_values, save_figure, style_axis_clean
+from .viz_plot_utils import annotate_bar_values, is_camera_ready, save_figure, style_axis_clean
 
 if TYPE_CHECKING:
     from src.estimation.estimation_experiment_types import EstimationResult
@@ -106,18 +106,20 @@ def _plot_deviance_trajectories(
         for i, (x, y) in enumerate(zip(x_positions, y_values)):
             is_final = (i == len(x_positions) - 1)
             if is_final:
-                marker_size = 180 if kind == ArmKind.ROOT else 120
+                marker_size = 140 if kind == ArmKind.ROOT else 100
                 ax.scatter([x], [y], s=marker_size, c=[color], edgecolors='white',
-                          linewidths=2, zorder=10, label=arm_name)
+                          linewidths=1.5, zorder=10, label=arm_name)
+                # Smaller, cleaner value label
                 ax.annotate(
-                    f"{y:.3f}",
-                    xy=(x, y), xytext=(5, 8),
+                    f"{y:.2f}",
+                    xy=(x, y), xytext=(4, 5),
                     textcoords="offset points",
-                    fontsize=9, fontweight="bold", color=color,
+                    fontsize=7, fontweight="medium", color=color,
+                    alpha=0.9,
                 )
             else:
-                ax.scatter([x], [y], s=40, c=[color], edgecolors='white',
-                          linewidths=1, alpha=0.6, zorder=5)
+                ax.scatter([x], [y], s=35, c=[color], edgecolors='white',
+                          linewidths=0.8, alpha=0.5, zorder=5)
 
     # Reference line
     if reference_line is not None:
@@ -125,23 +127,33 @@ def _plot_deviance_trajectories(
                    alpha=0.7, label=reference_label or f"{reference_line}")
 
     # Styling
-    ax.set_xlabel("Conditioning Stage", fontsize=11)
-    ax.set_ylabel(metric_name, fontsize=11)
+    ax.set_xlabel("Token Position", fontsize=10)
+    ax.set_ylabel(metric_name, fontsize=10)
     ax.set_title(f"{title} — {result.method} [{weighting_method}]",
-                 fontsize=13, fontweight="bold")
+                 fontsize=12, fontweight="bold")
     ax.set_xticks(range(max_depth))
-    ax.set_xticklabels(stage_labels, fontsize=11)
-    ax.legend(loc="upper left", bbox_to_anchor=(1.02, 1), fontsize=9)
-    style_axis_clean(ax, grid_axis="both")
+    ax.set_xticklabels(stage_labels, fontsize=10)
+
+    # Legend: compact, outside plot area
+    ax.legend(
+        loc="upper left", bbox_to_anchor=(1.01, 1),
+        fontsize=8, framealpha=0.95, edgecolor="#ddd",
+        handlelength=1.2, handletextpad=0.4,
+    )
+
+    # Clean grid styling
+    ax.grid(True, axis="both", alpha=0.3, linestyle="-", linewidth=0.5)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
 
     # Y-axis padding
     all_vals = list(metric_by_name.values())
     if all_vals:
         y_min, y_max = min(all_vals), max(all_vals)
-        padding = (y_max - y_min) * 0.15 if y_max > y_min else 0.1
-        ax.set_ylim(y_min - padding, y_max + padding * 2)
+        padding = (y_max - y_min) * 0.18 if y_max > y_min else 0.1
+        ax.set_ylim(y_min - padding, y_max + padding * 2.5)
 
-    save_figure(plt.gcf(), output_path, tight_layout_rect=[0, 0, 0.85, 1])
+    save_figure(plt.gcf(), output_path, tight_layout_rect=[0, 0, 0.82, 1])
     return output_path
 
 
@@ -266,20 +278,26 @@ def plot_orientation_for_reference(
         colors = ["#2ECC71" if v >= 0 else "#E74C3C" for v in orientation]
         bars = ax.bar(x, orientation, bar_width, color=colors, edgecolor="black", linewidth=0.5, alpha=0.85)
 
-        # Value labels on bars
-        for bar, val in zip(bars, orientation):
-            height = bar.get_height()
-            ax.annotate(
-                f"{val:+.2f}",
-                xy=(bar.get_x() + bar.get_width() / 2, height),
-                xytext=(0, 3 if height >= 0 else -3),
-                textcoords="offset points",
-                ha="center", va="bottom" if height >= 0 else "top",
-                fontsize=8, fontweight="medium",
-            )
+        # Value labels on bars only in camera-ready mode
+        if is_camera_ready():
+            for bar, val in zip(bars, orientation):
+                height = bar.get_height()
+                val_str = "0" if abs(val) < 0.005 else f"{val:+.2f}"
+                ax.annotate(
+                    val_str,
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 3 if height >= 0 else -3),
+                    textcoords="offset points",
+                    ha="center", va="bottom" if height >= 0 else "top",
+                    fontsize=8, fontweight="medium",
+                )
 
-        # Title with arm name and norm
-        ax.set_title(f"{arm.name.upper()}  (||θ|| = {orient_norm:.3f})", fontsize=10, fontweight="bold", loc="left")
+        # Title with arm name (colored) and norm
+        arm_color = get_arm_color(arm.name)
+        ax.set_title(
+            f"{arm.name.upper()}  (||θ|| = {orient_norm:.3f})",
+            fontsize=10, fontweight="bold", loc="left", color=arm_color
+        )
         ax.axhline(y=0, color="#333", linewidth=1)
         ax.set_xlim(-0.5, n_structures - 0.5)
         style_axis_clean(ax)
@@ -360,8 +378,6 @@ def plot_excess_deviance_by_arm(
         metric_name="E[∂⁺]",
         title="Excess Deviance",
         output_path=output_path,
-        reference_line=1.0,
-        reference_label="neutral (1.0)",
     )
 
 
@@ -382,8 +398,6 @@ def plot_deficit_deviance_by_arm(
         metric_name="E[∂⁻]",
         title="Deficit Deviance",
         output_path=output_path,
-        reference_line=1.0,
-        reference_label="neutral (1.0)",
     )
 
 
@@ -404,8 +418,6 @@ def plot_mutual_deviance_by_arm(
         metric_name="E[∂_M]",
         title="Mutual Deviance",
         output_path=output_path,
-        reference_line=1.0,
-        reference_label="neutral (1.0)",
     )
 
 
@@ -488,32 +500,69 @@ def plot_core_diversity_by_arm(
                 ax.scatter([x], [y], s=40, c=[color], edgecolors='white',
                           linewidths=1, alpha=0.6, zorder=5)
 
-    # Reference lines
-    ax.axhline(y=1.0, color="#E74C3C", linestyle=":", linewidth=1.5, alpha=0.7,
-               label="min diversity (1)")
-
-    # Get max possible diversity
+    # Get max possible diversity (n_structures)
     first_arm = next((a for a in result.arms), None)
+    n_structures = 0
     if first_arm:
-        n_structures = len(first_arm.get_core(weighting_method))
-        if n_structures > 0:
-            ax.axhline(y=n_structures, color="#2ECC71", linestyle=":", linewidth=1.5,
-                       alpha=0.7, label=f"max diversity ({n_structures})")
+        core = first_arm.get_core(weighting_method)
+        n_structures = len(core) if core else 0
+
+    # Y-axis limits - include both data max AND reference line max
+    all_divs = list(diversity_by_name.values())
+    data_max = max(all_divs) if all_divs else 1
+    y_max = max(data_max, n_structures) * 1.15  # Include max reference line
+    ax.set_ylim(0, y_max)
+
+    # Reference lines (now guaranteed to be within plot)
+    ax.axhline(y=1.0, color="#E74C3C", linestyle=":", linewidth=1.5, alpha=0.7)
+    if n_structures > 0:
+        ax.axhline(y=n_structures, color="#2ECC71", linestyle=":", linewidth=1.5, alpha=0.7)
 
     # Styling
-    ax.set_xlabel("Conditioning Stage", fontsize=11)
-    ax.set_ylabel("Core Diversity (D₁)", fontsize=11)
+    ax.set_xlabel("Token Position", fontsize=10)
+    ax.set_ylabel("Core Diversity (D₁)", fontsize=10)
     ax.set_title(f"Diversity Evolution — {result.method} [{weighting_method}]",
-                 fontsize=13, fontweight="bold")
+                 fontsize=12, fontweight="bold")
     ax.set_xticks(range(max_depth))
-    ax.set_xticklabels(stage_labels, fontsize=11)
-    ax.legend(loc="upper right", fontsize=10)
-    style_axis_clean(ax, grid_axis="both")
+    ax.set_xticklabels(stage_labels, fontsize=10)
 
-    # Y-axis limits
-    all_divs = list(diversity_by_name.values())
-    y_max = max(all_divs) if all_divs else 1
-    ax.set_ylim(0, y_max * 1.25)
+    # Create arm legend (outside plot, upper)
+    from matplotlib.lines import Line2D
+    arm_legend_elements = []
+    for arm_name in ordered_names:
+        color = get_arm_color(arm_name)
+        arm_legend_elements.append(
+            Line2D([0], [0], marker='o', color='w', markerfacecolor=color,
+                   markersize=8, label=arm_name)
+        )
 
-    save_figure(plt.gcf(), output_path)
+    arm_legend = ax.legend(
+        handles=arm_legend_elements,
+        loc="upper left", bbox_to_anchor=(1.01, 1),
+        fontsize=8, framealpha=0.95, edgecolor="#ddd",
+    )
+    ax.add_artist(arm_legend)
+
+    # Create separate reference line legend (below arm legend)
+    ref_legend_elements = [
+        Line2D([0], [0], color='#E74C3C', linestyle=':', linewidth=1.5, label='min (1)'),
+    ]
+    if n_structures > 0:
+        ref_legend_elements.append(
+            Line2D([0], [0], color='#2ECC71', linestyle=':', linewidth=1.5,
+                   label=f'max ({n_structures})')
+        )
+
+    ax.legend(
+        handles=ref_legend_elements,
+        loc="lower left", bbox_to_anchor=(1.01, 0),
+        fontsize=8, framealpha=0.95, edgecolor="#ddd",
+    )
+
+    # Grid and spines
+    ax.grid(True, axis="both", alpha=0.3, linestyle="-", linewidth=0.5)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    save_figure(plt.gcf(), output_path, tight_layout_rect=[0, 0, 0.82, 1])
     return output_path

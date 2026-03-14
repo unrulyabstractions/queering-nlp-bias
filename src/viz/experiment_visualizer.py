@@ -15,7 +15,8 @@ Generates all visualizations for an EstimationResult organized as:
 
 {output_dir}/{gen_method}/
   - estimation_comparison.png  Compare cores across weighting methods
-  - breakdown.png              Structure breakdown (all questions by branch)
+  - summary_breakdown.png      Structure breakdown (all questions by branch)
+  - summary_forking.png        Structure compliance in tree layout
   - tree_word.png              Token tree (word level)
   - tree_phrase.png            Token tree (phrase level)
 """
@@ -29,6 +30,7 @@ from src.common.default_config import DEFAULT_WEIGHTING_METHOD
 from src.common.logging import log
 
 from .experiment_breakdown_plot import plot_structure_breakdown
+from .experiment_forking_plot import plot_structure_forking
 from .experiment_core_barplot import (
     plot_cores_barplot,
     plot_cores_comparison,
@@ -52,11 +54,24 @@ if TYPE_CHECKING:
 def visualize_result(
     result: EstimationResult,
     output_dir: Path | str | None = None,
+    *,
+    camera_ready: bool = False,
+    summaries_only: bool = False,
 ) -> list[Path]:
     """Generate all visualizations for an experiment result.
 
     Output structure: out/<method>/<gen_name>/<scoring_name>/viz/...
+
+    Args:
+        result: The estimation result to visualize
+        output_dir: Output directory (default: result path + /viz)
+        camera_ready: If True, use high DPI (300) and enable all annotations
+        summaries_only: If True, only generate summary plots (faster)
     """
+    from .viz_plot_utils import set_camera_ready
+
+    set_camera_ready(camera_ready)
+
     if output_dir is None:
         # Default: same folder as estimation.json, plus /viz
         output_dir = result.paths.estimation.parent / "viz"
@@ -81,19 +96,20 @@ def visualize_result(
             weighting_methods = list(arm.estimates.keys())
             break
 
-    # Per-estimation-method plots in subfolders
-    for method in weighting_methods:
-        est_dir = gen_dir / method
-        est_dir.mkdir(parents=True, exist_ok=True)
+    # Per-estimation-method plots in subfolders (skip if summaries_only)
+    if not summaries_only:
+        for method in weighting_methods:
+            est_dir = gen_dir / method
+            est_dir.mkdir(parents=True, exist_ok=True)
 
-        created_files.extend(_create_est_method_plots(
-            result, method, structure_labels, est_dir
-        ))
+            created_files.extend(
+                _create_est_method_plots(result, method, structure_labels, est_dir)
+            )
 
     # Cross-method plots in gen_dir root
-    created_files.extend(_create_cross_method_plots(
-        result, weighting_methods, structure_labels, gen_dir
-    ))
+    created_files.extend(
+        _create_cross_method_plots(result, weighting_methods, structure_labels, gen_dir)
+    )
 
     if created_files:
         log(f"  [viz] {result.method}: {len(created_files)} plots -> {gen_dir}/")
@@ -102,7 +118,7 @@ def visualize_result(
 
 
 def _create_est_method_plots(
-    result: "EstimationResult",
+    result: EstimationResult,
     method: str,
     structure_labels: list[str],
     est_dir: Path,
@@ -126,7 +142,9 @@ def _create_est_method_plots(
         created.append(saved)
 
     # Deficit deviance
-    saved = plot_deficit_deviance_by_arm(result, method, est_dir / "deficit_deviance.png")
+    saved = plot_deficit_deviance_by_arm(
+        result, method, est_dir / "deficit_deviance.png"
+    )
     if saved:
         created.append(saved)
 
@@ -141,7 +159,9 @@ def _create_est_method_plots(
         created.append(saved)
 
     # Orientation (separate plot per reference arm)
-    orientation_files = plot_orientation_by_branch(result, method, structure_labels, est_dir)
+    orientation_files = plot_orientation_by_branch(
+        result, method, structure_labels, est_dir
+    )
     created.extend(orientation_files)
 
     # Generalized cores heatmap (all arms in one figure)
@@ -152,7 +172,9 @@ def _create_est_method_plots(
         created.append(saved)
 
     # Generalized deviance line plots
-    saved = plot_generalized_deviance(result, method, est_dir / "generalized_deviance.png")
+    saved = plot_generalized_deviance(
+        result, method, est_dir / "generalized_deviance.png"
+    )
     if saved:
         created.append(saved)
 
@@ -168,16 +190,44 @@ def _create_cross_method_plots(
     """Create plots that span multiple estimation methods."""
     created: list[Path] = []
 
-    # Estimation comparison
+    # Load arm metadata from scoring.json and generation_cfg.json
+    arm_descriptions, arm_texts, arm_n_traj, metadata, arm_suffix_probs = _load_arm_metadata(result.paths)
+
+    # Estimation comparison - needs arm_descriptions for legend
     saved = plot_cores_comparison(
-        result, weighting_methods, structure_labels, gen_dir / "estimation_comparison.png"
+        result,
+        weighting_methods,
+        structure_labels,
+        gen_dir / "estimation_comparison.png",
+        arm_descriptions=arm_descriptions,
+        metadata=metadata,
     )
     if saved:
         created.append(saved)
 
-    # Structure breakdown (all questions by branch)
+    # Structure breakdown - uses short config descriptions in legend
     saved = plot_structure_breakdown(
-        result.arm_scoring, result.structure_info, gen_dir / "breakdown.png"
+        result.arm_scoring,
+        result.structure_info,
+        gen_dir / "summary_breakdown.png",
+        arm_descriptions=arm_descriptions,
+        metadata=metadata,
+    )
+    if saved:
+        created.append(saved)
+
+    # Structure forking (tree layout) - shows differentiating arm texts
+    # Use weighted core values from estimation (same as core.png), not raw arm_scoring
+    arm_weighted_cores = _compute_arm_weighted_cores(result)
+
+    saved = plot_structure_forking(
+        result.structure_info,
+        arm_n_traj,
+        arm_texts,
+        gen_dir / "summary_forking.png",
+        metadata=metadata,
+        arm_suffix_probs=arm_suffix_probs,
+        arm_weighted_cores=arm_weighted_cores,
     )
     if saved:
         created.append(saved)
@@ -189,8 +239,229 @@ def _create_cross_method_plots(
     return created
 
 
+def _compute_arm_weighted_cores(
+    result: "EstimationResult",
+    method: str = DEFAULT_WEIGHTING_METHOD,
+) -> dict[str, list[float]]:
+    """Compute weighted core values for each arm using the estimation method.
+
+    This ensures the forking plot shows the same values as core.png.
+
+    Args:
+        result: Estimation result with arm data
+        method: Weighting method to use
+
+    Returns:
+        Dict mapping arm name to list of structure compliance values (0.0-1.0).
+
+    Raises:
+        KeyError: if method not found (no silent fallbacks)
+    """
+    arm_weighted_cores: dict[str, list[float]] = {}
+
+    for arm in result.arms:
+        core = arm.get_core(method)  # Will raise KeyError if method not found
+        arm_weighted_cores[arm.name] = core
+
+    return arm_weighted_cores
+
+
+def _compute_arm_suffix_probs(
+    paths: "Any",
+    arm_names: list[str],
+) -> dict[str, float]:
+    """Compute P(arm_suffix | parent_prefix) for each arm using generation data.
+
+    IMPORTANT: Each arm's probability must be computed from a trajectory that
+    actually went through that arm, since different branches have different tokens.
+
+    Returns:
+        Dict mapping arm name to probability of its suffix given parent.
+
+    Raises:
+        ValueError: if required data is missing (no silent defaults)
+    """
+    import json
+
+    from src.common.token_trajectory import TokenTrajectory
+    from src.estimation.arm_types import ArmKind, classify_arm, get_branch_index
+
+    arm_suffix_probs: dict[str, float] = {}
+
+    with open(paths.generation) as f:
+        gen_data = json.load(f)
+
+    tree = gen_data.get("tree", {})
+    trajs_data = tree.get("trajs", [])
+    if not trajs_data:
+        raise ValueError("No trajectories in generation data")
+
+    # Build arm index mapping (arm_name -> index in arm_token_lengths)
+    config = gen_data.get("config", {})
+    config_arms = config.get("arms", [])
+    arm_name_to_idx = {arm.get("name", ""): i for i, arm in enumerate(config_arms)}
+
+    # Load scoring.json to get arm assignments per trajectory
+    with open(paths.judgment) as f:
+        scoring_data = json.load(f)
+    results = scoring_data.get("results", [])
+
+    # Build mapping: arm_name -> list of trajectory indices that went through it
+    arm_to_traj_indices: dict[str, list[int]] = {}
+    for i, r in enumerate(results):
+        arm = r.get("arm")
+        if arm:
+            if arm not in arm_to_traj_indices:
+                arm_to_traj_indices[arm] = []
+            arm_to_traj_indices[arm].append(i)
+
+    # For root/trunk, any trajectory works since they share the same prefix
+    # For branches/twigs, we need a trajectory that actually went through that arm
+    def get_traj_for_arm(arm_name: str) -> TokenTrajectory:
+        """Get a trajectory that went through the given arm."""
+        kind = classify_arm(arm_name)
+
+        if kind in (ArmKind.ROOT, ArmKind.TRUNK):
+            # Any trajectory works for shared prefix
+            return TokenTrajectory.from_dict(trajs_data[0])
+
+        # For branches/twigs, find a trajectory that went through this arm
+        # A twig trajectory also goes through its parent branch
+        if arm_name in arm_to_traj_indices:
+            idx = arm_to_traj_indices[arm_name][0]
+            return TokenTrajectory.from_dict(trajs_data[idx])
+
+        # For branches, any twig under this branch also works
+        if kind == ArmKind.BRANCH:
+            branch_idx = get_branch_index(arm_name)
+            for twig_name in arm_to_traj_indices:
+                if twig_name.startswith(f"twig_b{branch_idx}_"):
+                    idx = arm_to_traj_indices[twig_name][0]
+                    return TokenTrajectory.from_dict(trajs_data[idx])
+
+        raise ValueError(f"No trajectory found for arm '{arm_name}'")
+
+    # Compute P(suffix | parent) for each arm
+    for arm_name in arm_names:
+        arm_idx = arm_name_to_idx.get(arm_name)
+        if arm_idx is None:
+            raise KeyError(f"arm_name_to_idx missing '{arm_name}'")
+
+        traj = get_traj_for_arm(arm_name)
+        if not traj.arm_token_lengths:
+            raise ValueError(f"Trajectory for '{arm_name}' has no arm_token_lengths")
+        if arm_idx >= len(traj.arm_token_lengths):
+            raise IndexError(f"arm_idx {arm_idx} >= len(arm_token_lengths)")
+
+        kind = classify_arm(arm_name)
+        arm_end = traj.arm_token_lengths[arm_idx]
+
+        # Find parent's end position
+        if kind == ArmKind.ROOT:
+            # Root has no parent, prob = 1
+            arm_suffix_probs[arm_name] = 1.0
+            continue
+        elif kind == ArmKind.TRUNK:
+            parent_idx = arm_name_to_idx.get("root")
+        elif kind == ArmKind.BRANCH:
+            parent_idx = arm_name_to_idx.get("trunk")
+        elif kind == ArmKind.TWIG:
+            branch_idx = get_branch_index(arm_name)
+            parent_idx = arm_name_to_idx.get(f"branch_{branch_idx}")
+        else:
+            raise ValueError(f"Unknown arm kind for '{arm_name}'")
+
+        if parent_idx is None:
+            raise KeyError(f"Parent index not found for '{arm_name}'")
+        if parent_idx >= len(traj.arm_token_lengths):
+            raise IndexError(f"parent_idx {parent_idx} >= len(arm_token_lengths)")
+
+        parent_end = traj.arm_token_lengths[parent_idx]
+
+        # Compute conditional probability of suffix tokens
+        prob = traj.get_conditional_prob(parent_end, arm_end)
+        if prob is None:
+            raise ValueError(f"get_conditional_prob returned None for '{arm_name}'")
+        arm_suffix_probs[arm_name] = prob
+
+    return arm_suffix_probs
+
+
+def _load_arm_metadata(
+    paths: "Any",
+) -> tuple[dict[str, str], dict[str, str], dict[str, int], dict[str, str], dict[str, float]]:
+    """Load arm data from scoring.json and generation_cfg.json.
+
+    Returns:
+        Tuple of (arm_descriptions, arm_texts, arm_n_traj, metadata, arm_suffix_probs)
+        - arm_descriptions: Short config descriptions for legend (from generation_cfg)
+        - arm_texts: Full prefill texts for forking plot (from scoring)
+        - arm_n_traj: Trajectory counts per arm
+        - metadata: prompt, model, judge info
+        - arm_suffix_probs: P(arm_suffix | parent_prefix) from model logprobs
+    """
+    import json
+
+    arm_descriptions: dict[str, str] = {}
+    arm_texts: dict[str, str] = {}
+    arm_n_traj: dict[str, int] = {}
+    metadata: dict[str, str] = {}
+    arm_suffix_probs: dict[str, float] = {}
+
+    # Load from scoring.json
+    try:
+        with open(paths.judgment) as f:
+            scoring_data = json.load(f)
+        arm_texts = scoring_data.get("arm_texts", {})
+
+        # Get trajectory counts from results grouped by arm
+        results = scoring_data.get("results", [])
+        arm_counts: dict[str, int] = {}
+        for r in results:
+            arm = r.get("arm", "trunk")
+            arm_counts[arm] = arm_counts.get(arm, 0) + 1
+        arm_n_traj = arm_counts
+
+        # Load judge from scoring metadata
+        scoring_meta = scoring_data.get("metadata", {})
+        metadata["judge"] = scoring_meta.get("judge_model", "")
+    except (OSError, json.JSONDecodeError, KeyError):
+        pass
+
+    # Load arm descriptions, model, and prompt from generation_cfg.json
+    try:
+        gen_cfg_path = paths.generation.parent / "generation_cfg.json"
+        with open(gen_cfg_path) as f:
+            gen_cfg = json.load(f)
+
+        # Model and prompt
+        metadata["model"] = gen_cfg.get("model", "")
+        metadata["prompt"] = gen_cfg.get("prompt", "")
+
+        # Build arm descriptions from config
+        root_desc = gen_cfg.get("root", "")
+        trunk_desc = gen_cfg.get("trunk", "")
+        branches = gen_cfg.get("branches", [])
+        twig_vars = gen_cfg.get("twig_variations", [])
+
+        arm_descriptions["root"] = root_desc
+        arm_descriptions["trunk"] = trunk_desc
+        for i, branch_text in enumerate(branches, 1):
+            arm_descriptions[f"branch_{i}"] = branch_text
+            for j, twig_text in enumerate(twig_vars, 1):
+                arm_descriptions[f"twig_b{i}_{j}"] = twig_text
+    except (OSError, json.JSONDecodeError, KeyError):
+        pass
+
+    # Compute arm suffix probabilities from generation data
+    all_arm_names = list(arm_texts.keys()) or list(arm_descriptions.keys())
+    arm_suffix_probs = _compute_arm_suffix_probs(paths, all_arm_names)
+
+    return arm_descriptions, arm_texts, arm_n_traj, metadata, arm_suffix_probs
+
+
 def visualize_generation_comparison(
-    results: list["EstimationResult"],
+    results: list[EstimationResult],
     output_dir: Path | str | None = None,
 ) -> list[Path]:
     """Generate comparison visualization across generation methods.
@@ -241,7 +512,9 @@ def visualize_generation_comparison(
 
     # Create generation comparison plot
     saved = plot_generation_comparison(
-        results, weighting_methods, structure_labels,
+        results,
+        weighting_methods,
+        structure_labels,
         output_dir / output_filename,
         default_method=DEFAULT_WEIGHTING_METHOD,
     )

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from src.common.base_schema import BaseSchema
+from src.common.output_paths import generation_output_path, generation_summary_path
 from src.common.token_tree import TokenTree
 
 from .generation_config import GenerationConfig
@@ -156,24 +157,36 @@ class GenerationOutput(BaseSchema):
         return cls.from_dict(data)
 
     # ──────────────────────────────────────────────────────────────────────────
-    # Path Computation
+    # Path Computation (delegates to centralized output_paths module)
     # ──────────────────────────────────────────────────────────────────────────
 
     @staticmethod
-    def compute_output_path(config_path: Path, method: str = "sampling") -> Path:
-        """Compute output path from config path.
-
-        Pattern: out/<method>/<gen_name>/generation.json
-        """
-        return Path("out") / method / config_path.stem / "generation.json"
+    def compute_output_path(
+        config_path: Path,
+        method: str = "sampling",
+        base_dir: str | Path = "out",
+        include_method: bool = False,
+    ) -> Path:
+        """Compute output path from config path."""
+        return generation_output_path(
+            config_path,
+            base_dir=base_dir,
+            method=method if include_method else None,
+        )
 
     @staticmethod
-    def compute_summary_path(config_path: Path, method: str = "sampling") -> Path:
-        """Compute summary text file path.
-
-        Pattern: out/<method>/<gen_name>/summary_generation.txt
-        """
-        return Path("out") / method / config_path.stem / "summary_generation.txt"
+    def compute_summary_path(
+        config_path: Path,
+        method: str = "sampling",
+        base_dir: str | Path = "out",
+        include_method: bool = False,
+    ) -> Path:
+        """Compute summary text file path."""
+        return generation_summary_path(
+            config_path,
+            base_dir=base_dir,
+            method=method if include_method else None,
+        )
 
     # ──────────────────────────────────────────────────────────────────────────
     # Summary (convenience methods delegating to standalone functions)

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from src.common.base_schema import BaseSchema
+from src.common.output_paths import scoring_output_path, scoring_summary_path
 from src.common.result_grouping import group_results_by_arm
 
 from .scoring_data import TrajectoryData
@@ -187,34 +188,18 @@ class ScoringOutput(BaseSchema):
         return cls.from_dict(data)
 
     # ──────────────────────────────────────────────────────────────────────────
-    # Path Computation
+    # Path Computation (delegates to centralized output_paths module)
     # ──────────────────────────────────────────────────────────────────────────
 
     @staticmethod
     def compute_output_path(gen_path: str | Path, scoring_path: str | Path) -> Path:
-        """Compute output path from generation and scoring paths.
-
-        Pattern: out/<method>/<gen_name>/<scoring_name>/scoring.json
-        """
-        gen_path = Path(gen_path)
-        scoring_path = Path(scoring_path)
-        method = gen_path.parent.parent.name
-        gen_name = gen_path.parent.name
-        scoring_name = scoring_path.stem
-        return Path("out") / method / gen_name / scoring_name / "scoring.json"
+        """Compute output path from generation and scoring paths."""
+        return scoring_output_path(Path(gen_path), Path(scoring_path))
 
     @staticmethod
     def compute_summary_path(gen_path: str | Path, scoring_path: str | Path) -> Path:
-        """Compute summary text file path.
-
-        Pattern: out/<method>/<gen_name>/<scoring_name>/summary_scoring.txt
-        """
-        gen_path = Path(gen_path)
-        scoring_path = Path(scoring_path)
-        method = gen_path.parent.parent.name
-        gen_name = gen_path.parent.name
-        scoring_name = scoring_path.stem
-        return Path("out") / method / gen_name / scoring_name / "summary_scoring.txt"
+        """Compute summary text file path."""
+        return scoring_summary_path(Path(gen_path), Path(scoring_path))
 
     # ──────────────────────────────────────────────────────────────────────────
     # Summary (convenience methods delegating to standalone functions)

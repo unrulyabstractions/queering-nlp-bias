@@ -264,7 +264,7 @@ class ModelRunner:
         # Set text fields
         full_text = self.decode_ids(traj.token_ids)
         traj.prefill_text = prefilling  # Trunk/branch/twig text
-        traj.generated_text = full_text[len(formatted):]  # Model-generated text
+        traj.generated_text = full_text[len(formatted) :]  # Model-generated text
         traj.prefill_length = prefill_length
 
         return traj
@@ -297,7 +297,9 @@ class ModelRunner:
 
         # Anthropic models
         anthropic_prefixes = ["anthropic", "claude"]
-        if any(name.startswith(prefix) or name == prefix for prefix in anthropic_prefixes):
+        if any(
+            name.startswith(prefix) or name == prefix for prefix in anthropic_prefixes
+        ):
             return ModelBackend.ANTHROPIC
 
         # Default to recommended backend
@@ -330,7 +332,9 @@ class ModelRunner:
             model = None  # Use default
 
         log(f"Using Anthropic API with model: {model or 'claude-sonnet-4-20250514'}")
-        log("  Note: Anthropic API does not provide logprobs; trajectory logprobs will be 0.0")
+        log(
+            "  Note: Anthropic API does not provide logprobs; trajectory logprobs will be 0.0"
+        )
         self._backend = AnthropicBackend(self, model=model)
 
     def _init_huggingface(self) -> None:

@@ -12,6 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from src.common.base_schema import BaseSchema
+from src.common.output_paths import estimation_output_path, estimation_summary_path
 
 from .estimation_scoring_result import ArmScoring, StructureInfo
 from .estimation_structure import ArmEstimate
@@ -154,24 +155,18 @@ class EstimationOutput(BaseSchema):
         return cls.from_dict(data)
 
     # ──────────────────────────────────────────────────────────────────────────
-    # Path Computation
+    # Path Computation (delegates to centralized output_paths module)
     # ──────────────────────────────────────────────────────────────────────────
 
     @staticmethod
     def compute_output_path(judgment_path: Path) -> Path:
-        """Compute output path from judgment path.
-
-        Pattern: out/<method>/<gen_name>/<scoring_name>/estimation.json
-        """
-        return judgment_path.parent / "estimation.json"
+        """Compute output path from judgment path."""
+        return estimation_output_path(judgment_path)
 
     @staticmethod
     def compute_summary_path(judgment_path: Path) -> Path:
-        """Compute summary text file path.
-
-        Pattern: out/<method>/<gen_name>/<scoring_name>/summary_estimation.txt
-        """
-        return judgment_path.parent / "summary_estimation.txt"
+        """Compute summary text file path."""
+        return estimation_summary_path(judgment_path)
 
     # ──────────────────────────────────────────────────────────────────────────
     # Summary (convenience methods delegating to standalone functions)

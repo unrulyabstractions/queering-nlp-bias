@@ -56,4 +56,6 @@ def compute_inv_ppl_weights(
 
 
 if ENABLED:
-    compute_inv_ppl_weights = register_method(InvPplWeightingParams)(compute_inv_ppl_weights)
+    compute_inv_ppl_weights = register_method(InvPplWeightingParams)(
+        compute_inv_ppl_weights
+    )

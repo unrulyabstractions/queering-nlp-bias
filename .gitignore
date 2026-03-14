@@ -210,5 +210,6 @@ __marimo__/
 # Project outputs
 outputs/
 out/
+generation_compare/
 tmp/
 temp/

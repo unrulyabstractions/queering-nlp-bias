@@ -109,7 +109,8 @@ def load_structure_labels(estimation_path: Path) -> list[str]:
         data = json.load(f)
 
     labels = []
-    structure_info = data.get("structure_info", [])
+    # Try both field names for compatibility
+    structure_info = data.get("structures", data.get("structure_info", []))
     for info in structure_info:
         labels.append(info.get("label", f"s{info.get('idx', 0)}"))
 

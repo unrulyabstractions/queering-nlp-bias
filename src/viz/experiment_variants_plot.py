@@ -13,9 +13,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
 
+from src.common.default_config import DEFAULT_STATISTIC
 from src.estimation.arm_types import get_arm_color, get_ordered_arms_for_plotting
 
-from .viz_plot_utils import save_figure, style_axis_clean
+from .viz_plot_utils import is_camera_ready, save_figure, style_axis_clean
 
 if TYPE_CHECKING:
     from src.estimation.estimation_experiment_types import EstimationResult
@@ -102,20 +103,27 @@ def plot_generalized_cores(
     if not first_variants:
         return None
 
-    n_variants = len(first_variants)
+    # Filter to only the variants we want, in order
+    # Order variants with default first
+    OTHER_VARIANTS = ["mode", "top_heavy", "uniform"]
+    WANTED_VARIANTS = [DEFAULT_STATISTIC] + [v for v in OTHER_VARIANTS if v != DEFAULT_STATISTIC]
+    variant_lookup = {v["name"]: v for v in first_variants}
+    filtered_variants = [variant_lookup[name] for name in WANTED_VARIANTS if name in variant_lookup]
+
+    if not filtered_variants:
+        return None
+
+    n_variants = len(filtered_variants)
     n_structures = len(structure_labels)
     n_rows = len(rows)
     max_cols = max(len(row) for row in rows)
 
     # Extract variant metadata for row labels
-    variant_names = [v["name"] for v in first_variants]
-    q_values = [v["q"] for v in first_variants]
-    r_values = [v["r"] for v in first_variants]
-
     row_labels = []
-    for name, q, r in zip(variant_names, q_values, r_values):
-        q_str = _format_param(q)
-        r_str = _format_param(r)
+    for v in filtered_variants:
+        name = v["name"]
+        q_str = _format_param(v["q"])
+        r_str = _format_param(v["r"])
         row_labels.append(f"{name} (q={q_str}, r={r_str})")
 
     # Create figure with grid of subplots (extra width for colorbar)
@@ -124,9 +132,17 @@ def plot_generalized_cores(
     fig, axes = plt.subplots(n_rows, max_cols, figsize=(fig_width, fig_height),
                               squeeze=False)
 
-    # Custom colormap
+    # Custom colormap - more explicit gradient with clear midpoint
+    # Blue (0) -> White (0.5) -> Red (1)
     cmap = LinearSegmentedColormap.from_list(
-        "diverging", ["#3B82F6", "#FFFFFF", "#EF4444"]
+        "diverging",
+        [
+            (0.0, "#1E40AF"),   # Dark blue at 0
+            (0.25, "#60A5FA"),  # Light blue at 0.25
+            (0.5, "#F5F5F5"),   # Near-white at 0.5
+            (0.75, "#F87171"),  # Light red at 0.75
+            (1.0, "#B91C1C"),   # Dark red at 1
+        ]
     )
 
     im = None  # For colorbar
@@ -147,18 +163,23 @@ def plot_generalized_cores(
                 continue
 
             estimates = arm.estimates.get(weighting_method, {})
-            core_variants = estimates.get("core_variants", [])
+            arm_core_variants = estimates.get("core_variants", [])
 
-            if not core_variants:
+            if not arm_core_variants:
                 ax.set_visible(False)
                 continue
 
-            # Build matrix: rows=variants, cols=structures
+            # Build lookup for this arm's variants
+            arm_variant_lookup = {v["name"]: v for v in arm_core_variants}
+
+            # Build matrix: rows=variants (filtered), cols=structures
             matrix = np.zeros((n_variants, n_structures))
-            for i, v in enumerate(core_variants):
-                core = v.get("core", [])
-                for j in range(min(len(core), n_structures)):
-                    matrix[i, j] = core[j]
+            for i, v in enumerate(filtered_variants):
+                arm_v = arm_variant_lookup.get(v["name"])
+                if arm_v:
+                    core = arm_v.get("core", [])
+                    for j in range(min(len(core), n_structures)):
+                        matrix[i, j] = core[j]
 
             # Plot heatmap
             im = ax.imshow(matrix, cmap=cmap, aspect="auto", vmin=0, vmax=1)
@@ -178,32 +199,32 @@ def plot_generalized_cores(
             # Title
             ax.set_title(arm_name.upper(), fontsize=12, fontweight="bold")
 
-            # Add value annotations
-            for i in range(n_variants):
-                for j in range(n_structures):
-                    val = matrix[i, j]
-                    text_color = "white" if val < 0.35 or val > 0.65 else "black"
-                    ax.text(
-                        j, i, f"{val:.2f}",
-                        ha="center", va="center",
-                        color=text_color, fontsize=9, fontweight="bold"
-                    )
-
-            # Grid lines
+            # Grid lines (no text annotations - color gradient is explicit enough)
             ax.set_xticks(np.arange(n_structures + 1) - 0.5, minor=True)
             ax.set_yticks(np.arange(n_variants + 1) - 0.5, minor=True)
-            ax.grid(which="minor", color="white", linestyle="-", linewidth=1.5)
+            ax.grid(which="minor", color="white", linestyle="-", linewidth=2)
             ax.tick_params(which="minor", bottom=False, left=False)
 
-    # Suptitle
+    # Suptitle - positioned above figure
     fig.suptitle(
         f"Generalized Cores [{weighting_method}]",
-        fontsize=14, fontweight="bold"
+        fontsize=13, fontweight="bold", y=0.995
     )
 
-    # Save
-    plt.subplots_adjust(top=0.92, wspace=0.15, hspace=0.3)
-    save_figure(plt.gcf(), output_path)
+    # Manual layout - leave space on right for colorbar
+    plt.subplots_adjust(left=0.06, right=0.91, top=0.93, bottom=0.08, wspace=0.12, hspace=0.25)
+
+    # Add colorbar OUTSIDE the plot area (in the right margin)
+    if im is not None:
+        # Create a new axes for the colorbar on the right side
+        cbar_ax = fig.add_axes([0.93, 0.15, 0.015, 0.7])  # [left, bottom, width, height]
+        cbar = fig.colorbar(im, cax=cbar_ax, orientation="vertical")
+        cbar.set_label("Core Value", fontsize=11, fontweight="bold")
+        cbar.set_ticks([0, 0.25, 0.5, 0.75, 1.0])
+        cbar.set_ticklabels(["0", "0.25", "0.5", "0.75", "1"])
+        cbar.ax.tick_params(labelsize=10)
+
+    save_figure(plt.gcf(), output_path, skip_tight_layout=True)
     return output_path
 
 
@@ -359,8 +380,13 @@ def _plot_single_trajectory(
     ax.plot(x_positions, y_vals, "o-", color=color, linewidth=2.5,
             markersize=8, markeredgecolor="white", markeredgewidth=1.5)
 
-    # Only add labels for extreme points (first and last) to reduce clutter
-    if len(x_positions) > 0:
+    # Add dashed vertical lines for infinity values
+    for i, (val, _, _) in enumerate(sorted_traj):
+        if val == float("inf") or val == float("-inf"):
+            ax.axvline(x=i, color="#888", linestyle="--", linewidth=1.2, alpha=0.6, zorder=1)
+
+    # Only add labels in camera-ready mode
+    if is_camera_ready() and len(x_positions) > 0:
         # Label only the first and last points to avoid clutter
         for idx in [0, len(x_positions) - 1] if len(x_positions) > 1 else [0]:
             x, y, name = x_positions[idx], y_vals[idx], point_labels[idx]
