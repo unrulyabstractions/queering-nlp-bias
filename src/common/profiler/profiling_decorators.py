@@ -6,10 +6,70 @@ import functools
 from typing import Callable, TypeVar, Union, overload
 
 from .profiling_timer import P
-from ..device_utils import log_memory
+from ..device_utils import get_memory_usage, log_memory
 from src.common.logging import log
 
 F = TypeVar("F", bound=Callable)
+
+
+def _get_accel_mem(mem: dict) -> float:
+    """Get accelerator memory (MLX > MPS > CUDA)."""
+    return (
+        mem.get("mlx_alloc_gb", 0)
+        or mem.get("mps_alloc_gb", 0)
+        or mem.get("cuda_alloc_gb", 0)
+    )
+
+
+def track_memory(func: F) -> F:
+    """Decorator to log memory usage before and after a function.
+
+    Usage:
+        @track_memory
+        def cleanup(self):
+            # cleanup logic
+            pass
+
+    Logs:
+        - Memory before function call
+        - Memory after function call
+        - Delta (freed/allocated)
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # Get function context (for logging)
+        func_name = func.__name__
+        # Try to get self.model_name or similar for context
+        context = ""
+        if args and hasattr(args[0], "model_name"):
+            context = f" ({args[0].model_name})"
+
+        log(f"\n[Memory] {func_name}{context}...")
+
+        # Memory before
+        mem_before = get_memory_usage()
+        ram_before = mem_before.get("ram_gb", 0)
+        accel_before = _get_accel_mem(mem_before)
+
+        # Run function
+        result = func(*args, **kwargs)
+
+        # Memory after
+        mem_after = get_memory_usage()
+        ram_after = mem_after.get("ram_gb", 0)
+        accel_after = _get_accel_mem(mem_after)
+
+        # Log delta
+        ram_delta = ram_after - ram_before
+        accel_delta = accel_after - accel_before
+        log(f"  RAM: {ram_after:.2f}GB (Δ{ram_delta:+.2f}GB)")
+        if accel_before > 0 or accel_after > 0:
+            log(f"  Accel: {accel_after:.2f}GB (Δ{accel_delta:+.2f}GB)")
+
+        return result
+
+    return wrapper  # type: ignore
 
 
 @overload

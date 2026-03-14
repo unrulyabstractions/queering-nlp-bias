@@ -378,11 +378,18 @@ def _compute_arm_suffix_probs(
 
         parent_end = traj.arm_token_lengths[parent_idx]
 
+        # If no suffix tokens (parent_end == arm_end), probability is 1.0
+        if parent_end >= arm_end:
+            arm_suffix_probs[arm_name] = 1.0
+            continue
+
         # Compute conditional probability of suffix tokens
         prob = traj.get_conditional_prob(parent_end, arm_end)
         if prob is None:
-            raise ValueError(f"get_conditional_prob returned None for '{arm_name}'")
-        arm_suffix_probs[arm_name] = prob
+            # No logprobs available for this range, default to 1.0
+            arm_suffix_probs[arm_name] = 1.0
+        else:
+            arm_suffix_probs[arm_name] = prob
 
     return arm_suffix_probs
 

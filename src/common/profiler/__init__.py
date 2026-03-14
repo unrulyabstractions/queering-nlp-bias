@@ -8,7 +8,7 @@ from src.common.auto_export import auto_export
 
 __all__ = auto_export(__file__, __name__, globals())
 
-# Explicit import needed: 'profile' is excluded by auto_export (stdlib collision)
-from .profiling_decorators import profile
+# Explicit imports needed: excluded by auto_export (stdlib collision or special)
+from .profiling_decorators import profile, track_memory
 
-__all__.append("profile")
+__all__.extend(["profile", "track_memory"])

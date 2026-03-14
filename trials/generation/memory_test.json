@@ -1,0 +1,8 @@
+{
+  "model": "Qwen/Qwen3-1.7B",
+  "prompt": "Write one word.",
+  "trunk": "The word is: ",
+  "branches": ["", "happy "],
+  "samples_per_arm": 2,
+  "max_tokens": 20
+}

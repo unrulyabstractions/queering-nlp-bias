@@ -24,7 +24,7 @@ def get_memory_usage() -> dict:
     """Return current memory usage statistics for available accelerators and system RAM."""
     stats = {}
 
-    # GPU memory
+    # GPU memory (PyTorch)
     if torch.cuda.is_available():
         stats["cuda_alloc_gb"] = torch.cuda.memory_allocated() / 1e9
         stats["cuda_reserved_gb"] = torch.cuda.memory_reserved() / 1e9
@@ -33,6 +33,21 @@ def get_memory_usage() -> dict:
             stats["mps_alloc_gb"] = torch.mps.current_allocated_memory() / 1e9
         except Exception:
             pass
+
+    # MLX memory (Apple Silicon)
+    try:
+        import mlx.core as mx
+        # Use new API (mx.get_*) if available, fall back to deprecated (mx.metal.get_*)
+        if hasattr(mx, "get_active_memory"):
+            stats["mlx_alloc_gb"] = mx.get_active_memory() / 1e9
+        elif hasattr(mx.metal, "get_active_memory"):
+            stats["mlx_alloc_gb"] = mx.metal.get_active_memory() / 1e9
+        if hasattr(mx, "get_peak_memory"):
+            stats["mlx_peak_gb"] = mx.get_peak_memory() / 1e9
+        elif hasattr(mx.metal, "get_peak_memory"):
+            stats["mlx_peak_gb"] = mx.metal.get_peak_memory() / 1e9
+    except ImportError:
+        pass
 
     # System RAM (cross-platform)
     proc = psutil.Process(os.getpid())
@@ -61,9 +76,20 @@ def log_mem(label: str) -> None:
 
 
 def clear_gpu_memory() -> None:
-    """Clear GPU memory caches for CUDA and MPS."""
+    """Clear GPU memory caches for CUDA, MPS, and MLX."""
     gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
     if torch.backends.mps.is_available():
         torch.mps.empty_cache()
+
+    # Clear MLX memory cache
+    try:
+        import mlx.core as mx
+        # Use new API (mx.clear_cache) if available, fall back to deprecated (mx.metal.clear_cache)
+        if hasattr(mx, "clear_cache"):
+            mx.clear_cache()
+        elif hasattr(mx.metal, "clear_cache"):
+            mx.metal.clear_cache()
+    except ImportError:
+        pass

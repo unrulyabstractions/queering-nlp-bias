@@ -1,0 +1,9 @@
+{
+  "model": "Qwen/Qwen3-1.7B",
+  "categorical_judgements": [
+    "Is this text positive?"
+  ],
+  "similarity_scoring": [
+    "happy"
+  ]
+}

@@ -11,7 +11,9 @@ from numpy.typing import NDArray
 from sentence_transformers import SentenceTransformer
 
 from src.common.default_config import EMBEDDING_MODEL
+from src.common.device_utils import clear_gpu_memory
 from src.common.logging import log
+from src.common.profiler import track_memory
 
 
 @contextlib.contextmanager
@@ -129,16 +131,10 @@ class EmbeddingRunner:
 
         return similarities
 
+    @track_memory
     def cleanup(self) -> None:
-        """Release model memory and clear GPU caches.
-
-        Call this when done with the embedding model to free memory.
-        """
-        from src.common.device_utils import clear_gpu_memory
-
+        """Release model memory and clear GPU caches."""
         if hasattr(self, "model") and self.model is not None:
             del self.model
             self.model = None
-
         clear_gpu_memory()
-        log(f"Embedding model {self.model_name} cleaned up")

@@ -10,7 +10,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from src.common.default_config import MAX_NEW_TOKENS
 from src.common.device_utils import get_device
 from src.common.logging import log
-from src.common.profiler import profile
+from src.common.device_utils import clear_gpu_memory
+from src.common.profiler import profile, track_memory
 
 from .backends import (
     AnthropicBackend,
@@ -421,22 +422,12 @@ class ModelRunner:
         reasoning_models = ["qwen3", "qwen-3", "qwen_3", "deepseek-r1", "o1", "o3"]
         return any(model in name for model in reasoning_models)
 
+    @track_memory
     def cleanup(self) -> None:
-        """Release model memory and clear GPU caches.
-
-        Call this when done with the model to free GPU/MPS memory.
-        """
-        from src.common.device_utils import clear_gpu_memory
-
-        # Delete model reference
+        """Release model memory and clear GPU caches."""
         if self._model is not None:
             del self._model
             self._model = None
-
-        # Delete backend (which may hold model/tokenizer references)
         if hasattr(self, "_backend"):
             del self._backend
-
-        # Clear GPU caches
         clear_gpu_memory()
-        log(f"Model {self.model_name} cleaned up")
