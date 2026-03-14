@@ -62,4 +62,7 @@ def run_scoring_pipeline(
         arm_texts=arm_texts,
     )
 
+    # Cleanup scorer models to free memory
+    scorer.cleanup()
+
     return ScoringPipelineResult(results=results, output=output)

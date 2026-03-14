@@ -211,6 +211,9 @@ def step_generate(
     result.output.save_summary(summary_path)
     log(f"Saved summary: {summary_path}")
 
+    # Cleanup generation model to free memory before scoring
+    runner.cleanup()
+
     return result.output
 
 
@@ -305,6 +308,9 @@ def step_dynamics(result: EstimationResult, scoring_config_path: Path) -> None:
 
     # Compute dynamics
     dynamics_result = compute_dynamics(trajectories, scorer, step=DYNAMICS_STEP, log_fn=log)
+
+    # Cleanup scorer models to free memory
+    scorer.cleanup()
 
     # Save dynamics data as JSON
     dynamics_json_path = result.paths.estimation.parent / "dynamics.json"

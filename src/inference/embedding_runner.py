@@ -128,3 +128,17 @@ class EmbeddingRunner:
             similarities.append(float(max(0.0, min(1.0, (sim + 1) / 2))))
 
         return similarities
+
+    def cleanup(self) -> None:
+        """Release model memory and clear GPU caches.
+
+        Call this when done with the embedding model to free memory.
+        """
+        from src.common.device_utils import clear_gpu_memory
+
+        if hasattr(self, "model") and self.model is not None:
+            del self.model
+            self.model = None
+
+        clear_gpu_memory()
+        log(f"Embedding model {self.model_name} cleaned up")

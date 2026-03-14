@@ -135,3 +135,16 @@ class Scorer:
     def structure_labels(self) -> list[str]:
         """Labels for each structure (c1, c2, g1, ...)."""
         return self.config.get_structure_labels()
+
+    def cleanup(self) -> None:
+        """Release model memory and clear GPU caches.
+
+        Call this when done with the scorer to free GPU/MPS memory.
+        """
+        if self._runner is not None:
+            self._runner.cleanup()
+            self._runner = None
+
+        if self._embedder is not None:
+            self._embedder.cleanup()
+            self._embedder = None

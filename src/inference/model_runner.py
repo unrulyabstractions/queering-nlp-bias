@@ -420,3 +420,23 @@ class ModelRunner:
         # Name-based heuristics for known reasoning models
         reasoning_models = ["qwen3", "qwen-3", "qwen_3", "deepseek-r1", "o1", "o3"]
         return any(model in name for model in reasoning_models)
+
+    def cleanup(self) -> None:
+        """Release model memory and clear GPU caches.
+
+        Call this when done with the model to free GPU/MPS memory.
+        """
+        from src.common.device_utils import clear_gpu_memory
+
+        # Delete model reference
+        if self._model is not None:
+            del self._model
+            self._model = None
+
+        # Delete backend (which may hold model/tokenizer references)
+        if hasattr(self, "_backend"):
+            del self._backend
+
+        # Clear GPU caches
+        clear_gpu_memory()
+        log(f"Model {self.model_name} cleaned up")
