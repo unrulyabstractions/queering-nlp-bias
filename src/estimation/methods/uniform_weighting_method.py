@@ -13,7 +13,7 @@ from typing import ClassVar
 from ..weighting_method_registry import WeightingMethodParams, register_method
 
 # Set to False to disable this weighting method
-ENABLED = False
+ENABLED = True
 
 
 @dataclass

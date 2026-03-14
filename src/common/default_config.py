@@ -63,7 +63,7 @@ EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 DEFAULT_STATISTIC = "standard"
 
 # Default weighting method for estimation (prob, inv-ppl, uniform)
-DEFAULT_WEIGHTING_METHOD = "inv-ppl"
+DEFAULT_WEIGHTING_METHOD = "uniform"
 
 
 # ══════════════════════════════════════════════════════════════════════════════

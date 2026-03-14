@@ -11,12 +11,17 @@ from dataclasses import dataclass
 from typing import Callable
 
 from src.common.callback_types import LogFn
+from src.common.device_utils import clear_gpu_memory
 from src.common.profiler import profile
 
 from .scorer import Scorer
 from .scoring_config import ScoringConfig
 from .scoring_data import TrajectoryData
 from .scoring_output import ScoringOutput, ScoringResult
+
+# Clear memory after every trajectory to prevent MLX cache accumulation
+# Each trajectory has ~10 LLM calls, cache grows ~2GB per batch
+MEMORY_CLEAR_INTERVAL = 1
 
 
 @dataclass
@@ -52,6 +57,10 @@ def run_scoring_pipeline(
 
         method_scores = scorer.score_trajectory(traj, log_fn, eos_token)
         results.append(ScoringResult.from_method_scores(traj, method_scores))
+
+        # Periodic memory cleanup to prevent accumulation
+        if (i + 1) % MEMORY_CLEAR_INTERVAL == 0:
+            clear_gpu_memory()
 
     output = ScoringOutput.create(
         generation_file=generation_file,
