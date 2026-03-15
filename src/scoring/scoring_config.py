@@ -34,11 +34,12 @@ class StringSelection(Enum):
     """Determines which portion of the trajectory text to use for scoring.
 
     Options:
-        WholeTrajectory: Full text including prompt and response
-        WholeContinuation: Just the generated response/continuation (default)
-        AfterTrunk: Text after the trunk tokens (continuation minus trunk)
-        AfterBranch: Text after the branch point (continuation minus trunk and branch)
-        AfterTwig: Text after the twig point (continuation minus trunk, branch, and twig)
+        WholeTrajectory: Not dispatched in scorer; falls through to NonThinkingContinuation.
+        WholeContinuation: All arm prefill text + generated text. <think> blocks NOT stripped.
+        NonThinkingContinuation: All arm prefill text + generated text, <think> blocks removed (default).
+        AfterTrunk: Text after trunk arm prefix (branch + twig + generated). <think> blocks stripped.
+        AfterBranch: Text after branch arm prefix (twig + generated). <think> blocks stripped.
+        AfterTwig: Raw generated text only — no arm prefill. <think> blocks NOT stripped.
     """
 
     WholeTrajectory = "WholeTrajectory"

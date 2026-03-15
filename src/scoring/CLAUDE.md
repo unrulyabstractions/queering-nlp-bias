@@ -85,9 +85,12 @@ Use `score_with_bundling()` from registry to handle this automatically.
 ## String Selection
 
 The `string_selection` config determines which text portion to score:
-- `WholeContinuation` - full generated text (default)
-- `NonThinkingContinuation` - strips `<think>...</think>` blocks
-- `AfterTrunk` / `AfterBranch` / `AfterTwig` - after specific arm prefix
+- `WholeContinuation` - all arm prefills + generated text (`<think>` blocks kept)
+- `NonThinkingContinuation` - all arm prefills + generated text, `<think>` blocks removed **(default)**
+- `AfterTrunk` - text after trunk arm prefix (`<think>` stripped)
+- `AfterBranch` - text after branch arm prefix (`<think>` stripped)
+- `AfterTwig` - raw generated text only, no arm prefills (`<think>` blocks kept)
+- `WholeTrajectory` - not dispatched; falls through to `NonThinkingContinuation`
 
 ## Common Pitfalls
 
