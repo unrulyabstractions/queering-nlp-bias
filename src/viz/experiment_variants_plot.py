@@ -16,7 +16,7 @@ from matplotlib.colors import LinearSegmentedColormap
 from src.common.default_config import DEFAULT_STATISTIC
 from src.estimation.arm_types import get_arm_color, get_ordered_arms_for_plotting
 
-from .viz_plot_utils import is_camera_ready, save_figure, style_axis_clean
+from .viz_plot_utils import add_dense_grid, is_camera_ready, save_figure, style_axis_clean
 
 if TYPE_CHECKING:
     from src.estimation.estimation_experiment_types import EstimationResult
@@ -404,8 +404,8 @@ def _plot_single_trajectory(
     ax.set_xticklabels(x_labels, fontsize=11)
     ax.set_xlabel(param_name, fontsize=12)
 
-    # Styling
-    style_axis_clean(ax, grid_axis="both")
+    # Styling with dense grid for better readability
+    style_axis_clean(ax, grid_axis="both", dense_grid=True)
     ax.tick_params(axis="y", labelsize=10)
 
     # Y limits with padding

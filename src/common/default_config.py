@@ -18,7 +18,7 @@ MAX_NEW_TOKENS = 258
 SAMPLING_SAMPLES_PER_ARM = 10
 
 # Forking paths: max alternate tokens to consider at each position
-FORKING_MAX_ALTERNATES = 5
+FORKING_MAX_ALTERNATES = 2
 
 # Forking paths: min probability for a token to qualify as alternate
 FORKING_MIN_PROB = 0.2
@@ -63,7 +63,7 @@ EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 DEFAULT_STATISTIC = "standard"
 
 # Default weighting method for estimation (prob, inv-ppl, uniform)
-DEFAULT_WEIGHTING_METHOD = "uniform"
+DEFAULT_WEIGHTING_METHOD = "inv-ppl"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -71,10 +71,10 @@ DEFAULT_WEIGHTING_METHOD = "uniform"
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Measure scores every N tokens
-DYNAMICS_STEP = 4
+DYNAMICS_STEP = 1
 
 # Number of most extremal trajectories to analyze per arm
 DYNAMICS_TRAJS_PER_ARM = 2
 
 # Which arm types to analyze: "root", "trunk", "branch", "twig"
-DYNAMICS_ARMS: list[str] = ["branch"]
+DYNAMICS_ARMS: list[str] = ["root", "trunk", "branch", "twig"]

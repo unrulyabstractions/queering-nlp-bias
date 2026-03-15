@@ -23,10 +23,56 @@ from src.estimation.arm_types import (
     has_downstream_arms,
 )
 
-from .viz_plot_utils import annotate_bar_values, is_camera_ready, save_figure, style_axis_clean
+from .viz_plot_utils import add_dense_grid, annotate_bar_values, is_camera_ready, save_figure, style_axis_clean
 
 if TYPE_CHECKING:
     from src.estimation.estimation_experiment_types import EstimationResult
+
+
+def _compute_stagger_offsets(arm_names: list[str]) -> dict[str, float]:
+    """Compute x-axis offsets for staggering branches and twigs.
+
+    Root and trunk stay at their base positions (offset=0).
+    Branches are spread around their base position.
+    Twigs are spread around their base position.
+
+    Returns:
+        Dict mapping arm name to x offset (e.g., -0.15, 0, +0.15)
+    """
+    offsets: dict[str, float] = {}
+
+    # Group arms by kind
+    branches = [n for n in arm_names if n.startswith("branch_")]
+    twigs = [n for n in arm_names if n.startswith("twig_")]
+
+    # Root and trunk: no offset
+    offsets["root"] = 0.0
+    offsets["trunk"] = 0.0
+
+    # Stagger branches around x=2
+    n_branches = len(branches)
+    if n_branches > 1:
+        spread = 0.25  # Total spread width
+        for i, name in enumerate(sorted(branches)):
+            # Center the offsets: [-spread/2, ..., +spread/2]
+            offset = -spread / 2 + (i / (n_branches - 1)) * spread if n_branches > 1 else 0
+            offsets[name] = offset
+    else:
+        for name in branches:
+            offsets[name] = 0.0
+
+    # Stagger twigs around x=3
+    n_twigs = len(twigs)
+    if n_twigs > 1:
+        spread = 0.35  # Wider spread for twigs (usually more of them)
+        for i, name in enumerate(sorted(twigs)):
+            offset = -spread / 2 + (i / (n_twigs - 1)) * spread if n_twigs > 1 else 0
+            offsets[name] = offset
+    else:
+        for name in twigs:
+            offsets[name] = 0.0
+
+    return offsets
 
 
 def _plot_deviance_trajectories(
@@ -56,11 +102,16 @@ def _plot_deviance_trajectories(
     """
     # Build metric lookup
     metric_by_name: dict[str, float] = {}
+    variance_by_name: dict[str, float] = {}
     for arm in result.arms:
         getter = getattr(arm, metric_getter)
         val = getter(weighting_method)
         if math.isfinite(val):
             metric_by_name[arm.name] = val
+            # Get variance if available (for deviance metrics)
+            var_val = arm.get_deviance_var(weighting_method)
+            if math.isfinite(var_val):
+                variance_by_name[arm.name] = var_val
 
     if not metric_by_name:
         return None
@@ -78,6 +129,9 @@ def _plot_deviance_trajectories(
     fig, ax = plt.subplots(figsize=(12, 7))
     stage_labels = ["root", "trunk", "branch", "twig"][:max_depth]
 
+    # Compute x-offsets for staggering branches and twigs
+    x_offsets = _compute_stagger_offsets(ordered_names)
+
     # Plot each arm's trajectory
     for arm_name in ordered_names:
         if arm_name not in metric_by_name:
@@ -87,20 +141,40 @@ def _plot_deviance_trajectories(
         color = get_arm_color(arm_name)
         kind = classify_arm(arm_name)
 
-        # Get metric values along ancestry
+        # Get metric values and variances along ancestry
+        # Apply x offset for staggering at the final point
         x_positions = []
         y_values = []
+        y_stds = []
+        arm_offset = x_offsets.get(arm_name, 0.0)
+
         for i, anc_name in enumerate(ancestry):
             if anc_name in metric_by_name:
-                x_positions.append(i)
+                # Apply stagger offset only to this arm's own point (final in ancestry)
+                is_own_point = (anc_name == arm_name)
+                x_pos = i + (arm_offset if is_own_point else 0.0)
+                x_positions.append(x_pos)
                 y_values.append(metric_by_name[anc_name])
+                # Get std dev (sqrt of variance) for error bars
+                var = variance_by_name.get(anc_name, 0.0)
+                y_stds.append(math.sqrt(var) if var > 0 else 0.0)
 
         if not x_positions:
             continue
 
-        # Plot line
+        # Plot line (connects through staggered final point)
         if len(x_positions) > 1:
             ax.plot(x_positions, y_values, '-', color=color, linewidth=2.5, alpha=0.7)
+
+        # Plot variance bars (background, semi-transparent)
+        for x, y, std in zip(x_positions, y_values, y_stds):
+            if std > 0:
+                ax.errorbar(
+                    x, y, yerr=std,
+                    fmt='none', ecolor=color, alpha=0.3,
+                    capsize=4, capthick=1.5, elinewidth=2,
+                    zorder=4,
+                )
 
         # Plot points
         for i, (x, y) in enumerate(zip(x_positions, y_values)):
@@ -141,8 +215,8 @@ def _plot_deviance_trajectories(
         handlelength=1.2, handletextpad=0.4,
     )
 
-    # Clean grid styling
-    ax.grid(True, axis="both", alpha=0.3, linestyle="-", linewidth=0.5)
+    # Dense grid for better readability
+    add_dense_grid(ax, axis="both")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 
@@ -224,9 +298,9 @@ def plot_orientation_for_reference(
     n_arms = len(other_arms)
     n_structures = len(structure_labels)
 
-    # Figure size
-    fig_width = max(8, n_structures * 1.5 + 2)
-    fig_height = 3.0 * n_arms + 1.0
+    # Figure size - wider for better bar visibility
+    fig_width = max(12, n_structures * 2.0 + 3)
+    fig_height = 3.5 * n_arms + 1.5
 
     fig, axes = plt.subplots(
         n_arms, 1,
@@ -239,11 +313,11 @@ def plot_orientation_for_reference(
 
     fig.suptitle(
         f"Orientation E[θ|{reference_arm_name}] — {result.method} [{weighting_method}]",
-        fontsize=13, fontweight="bold", y=0.98,
+        fontsize=14, fontweight="bold", y=0.98,
     )
 
     x = np.arange(n_structures)
-    bar_width = 0.6
+    bar_width = 0.75  # Wider bars for better visibility
 
     for i, arm in enumerate(other_arms):
         ax = axes[i]
@@ -275,44 +349,50 @@ def plot_orientation_for_reference(
                 f"Ensure estimation pipeline computed orientation fields."
             )
 
-        colors = ["#2ECC71" if v >= 0 else "#E74C3C" for v in orientation]
-        bars = ax.bar(x, orientation, bar_width, color=colors, edgecolor="black", linewidth=0.5, alpha=0.85)
+        # Use structure colors from palette (same as evolution tree)
+        from .viz_plot_utils import get_structure_color
+        colors = [get_structure_color(j) for j in range(len(orientation))]
+        bars = ax.bar(x, orientation, bar_width, color=colors, edgecolor="white", linewidth=1.0, alpha=0.9)
 
-        # Value labels on bars only in camera-ready mode
-        if is_camera_ready():
-            for bar, val in zip(bars, orientation):
-                height = bar.get_height()
-                val_str = "0" if abs(val) < 0.005 else f"{val:+.2f}"
-                ax.annotate(
-                    val_str,
-                    xy=(bar.get_x() + bar.get_width() / 2, height),
-                    xytext=(0, 3 if height >= 0 else -3),
-                    textcoords="offset points",
-                    ha="center", va="bottom" if height >= 0 else "top",
-                    fontsize=8, fontweight="medium",
-                )
+        # Always show value labels on bars
+        for bar, val in zip(bars, orientation):
+            height = bar.get_height()
+            val_str = "0" if abs(val) < 0.005 else f"{val:+.2f}"
+            ax.annotate(
+                val_str,
+                xy=(bar.get_x() + bar.get_width() / 2, height),
+                xytext=(0, 4 if height >= 0 else -4),
+                textcoords="offset points",
+                ha="center", va="bottom" if height >= 0 else "top",
+                fontsize=9, fontweight="bold", color="#333",
+            )
 
         # Title with arm name (colored) and norm
         arm_color = get_arm_color(arm.name)
         ax.set_title(
             f"{arm.name.upper()}  (||θ|| = {orient_norm:.3f})",
-            fontsize=10, fontweight="bold", loc="left", color=arm_color
+            fontsize=11, fontweight="bold", loc="left", color=arm_color
         )
-        ax.axhline(y=0, color="#333", linewidth=1)
+        ax.axhline(y=0, color="#333", linewidth=1.2)
         ax.set_xlim(-0.5, n_structures - 0.5)
-        style_axis_clean(ax)
+        # Use dense grid for better readability
+        style_axis_clean(ax, dense_grid=True, grid_axis="y")
 
     # Add padding to y-axis
     y_min, y_max = axes[0].get_ylim()
     padding = (y_max - y_min) * 0.12
     axes[0].set_ylim(y_min - padding, y_max + padding)
 
-    # X-axis labels on bottom subplot
+    # X-axis labels on bottom subplot - wrap long labels
     axes[-1].set_xticks(x)
-    axes[-1].set_xticklabels(structure_labels, fontsize=10)
-    axes[-1].set_xlabel("Structure", fontsize=10)
+    # Wrap long structure labels
+    wrapped_labels = [label if len(label) <= 25 else label[:22] + "..." for label in structure_labels]
+    axes[-1].set_xticklabels(wrapped_labels, fontsize=10, rotation=15, ha="right")
+    axes[-1].set_xlabel("Structure", fontsize=11, fontweight="medium")
 
-    save_figure(plt.gcf(), output_path, tight_layout_rect=[0, 0, 1, 0.96])
+    # Add more vertical padding
+    plt.subplots_adjust(hspace=0.35)
+    save_figure(plt.gcf(), output_path, tight_layout_rect=[0, 0.02, 1, 0.96])
     return output_path
 
 
@@ -350,8 +430,13 @@ def plot_orientation_by_branch(
         if has_downstream_arms(name, all_arm_names)
     ]
 
+    # Create orientation subfolder
+    orientation_dir = output_dir / "orientation"
+    orientation_dir.mkdir(parents=True, exist_ok=True)
+
     for ref_name in reference_arms:
-        output_path = output_dir / f"orientation_{ref_name}.png"
+        # Save as orientation/{ref_name}.png (not orientation_{ref_name}.png)
+        output_path = orientation_dir / f"{ref_name}.png"
         path = plot_orientation_for_reference(
             result, ref_name, weighting_method, structure_labels, output_path
         )
@@ -559,8 +644,8 @@ def plot_core_diversity_by_arm(
         fontsize=8, framealpha=0.95, edgecolor="#ddd",
     )
 
-    # Grid and spines
-    ax.grid(True, axis="both", alpha=0.3, linestyle="-", linewidth=0.5)
+    # Dense grid for better readability
+    add_dense_grid(ax, axis="both")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
 

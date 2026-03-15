@@ -17,6 +17,7 @@ from src.common.profiler import P
 from src.estimation.arm_types import get_arm_color, get_ordered_arms_for_plotting
 
 from .viz_plot_utils import (
+    add_dense_grid,
     annotate_bar_values,
     create_arm_legend,
     get_structure_color,
@@ -108,7 +109,7 @@ def plot_cores_barplot(
         ax.set_ylim(0, 1.15)
         ax.axhline(y=0.5, color="#cccccc", linestyle="--", linewidth=0.8, zorder=0)
         ax.set_xlim(-0.5, n_structures - 0.5)
-        style_axis_clean(ax)
+        style_axis_clean(ax, dense_grid=True, grid_axis="both")
 
     # X-axis labels only on bottom subplot
     axes[-1].set_xticks(x)
@@ -165,17 +166,17 @@ def plot_cores_comparison(
         n_methods = len(ordered_methods)
 
     with P("comparison_figure_create"):
-        # Setup figure with subplots stacked vertically
-        # Width needs to accommodate many arms per structure group + large legend
-        # Each structure group needs space proportional to n_arms
-        width_per_structure = max(1.5, 0.25 * n_arms)
-        fig_width = max(16, n_structures * width_per_structure + 10)  # Extra space for legend
-        fig_height = 4.5 * n_methods + 1.5
+        # Setup figure with subplots in a ROW (horizontal layout)
+        # Width per subplot based on structures
+        width_per_structure = max(1.2, 0.2 * n_arms)
+        subplot_width = n_structures * width_per_structure + 1
+        fig_width = subplot_width * n_methods + 1
+        fig_height = 6.5  # Single row of plots + legend row
 
         fig, axes = plt.subplots(
-            n_methods, 1,
+            1, n_methods,
             figsize=(fig_width, fig_height),
-            sharex=True,
+            sharey=True,
             squeeze=False,
         )
         axes = axes.flatten()
@@ -224,76 +225,73 @@ def plot_cores_comparison(
                 # Add value labels on top of bars (scale font for many bars)
                 annotate_bar_values(ax, bars, core, fontsize=7, n_bars_per_group=n_arms)
 
-            # Styling for each subplot - method name as subtitle
-            ax.set_title(f"[{method}]", fontsize=10, fontweight="bold", loc="left")
-            ax.set_ylabel("Core", fontsize=9)
+            # Styling for each subplot - method name as title
+            ax.set_title(f"[{method}]", fontsize=10, fontweight="bold")
+            if row_idx == 0:
+                ax.set_ylabel("Core", fontsize=9)
             ax.set_ylim(0, 1.15)
-            ax.set_xlim(-0.6, n_structures - 0.4)  # Proper x-axis limits
+            ax.set_xlim(-0.6, n_structures - 0.4)
             ax.axhline(y=0.5, color="#cccccc", linestyle="--", linewidth=0.8, zorder=0)
-            style_axis_clean(ax)
+            style_axis_clean(ax, dense_grid=True, grid_axis="both")
+
+            # X-axis labels on each subplot (since they're side by side)
+            ax.set_xticks(x)
+            ax.set_xticklabels(structure_labels, fontsize=8, rotation=45, ha="right")
+            ax.set_xlabel("Structure", fontsize=9)
 
     with P("comparison_legend_meta"):
-        # Legend outside plot with arm descriptions - vertically centered, smaller
-        create_arm_legend(
-            axes[0],
-            ordered_names,
-            arm_descriptions,
-            max_desc_length=40,
-            fontsize=10,
-            bbox_anchor=(1.04, 0.5),  # Vertically centered
-            loc="center left",
+        # Legend below plots in its own row
+        handles, labels = axes[0].get_legend_handles_labels()
+
+        # Create legend with arm descriptions
+        if arm_descriptions:
+            legend_labels = []
+            for name in ordered_names:
+                desc = arm_descriptions.get(name, "")
+                if desc:
+                    desc_short = desc[:30] + "..." if len(desc) > 33 else desc
+                    legend_labels.append(f"{name}\n{desc_short}")
+                else:
+                    legend_labels.append(name)
+        else:
+            legend_labels = labels
+
+        fig.legend(
+            handles,
+            legend_labels,
+            loc="upper center",
+            bbox_to_anchor=(0.5, 0.12),
+            ncol=min(n_arms, 5),
+            fontsize=9,
+            frameon=False,
         )
 
-        # X-axis labels only on bottom subplot
-        axes[-1].set_xticks(x)
-        axes[-1].set_xticklabels(structure_labels, fontsize=9)
-        axes[-1].set_xlabel("Structure", fontsize=10)
-
-        # Add metadata (model, judge) - no prompt
+        # Add metadata (model, judge) - bottom right corner
         if metadata:
-            # Model and Judge: "Label:" small monospace + value bold
-            if metadata.get("model"):
-                fig.text(
-                    0.77, 0.012,
-                    "Gen Model:",
-                    fontsize=6,
-                    fontfamily='monospace',
-                    verticalalignment="bottom",
-                    horizontalalignment="left",
-                    color="#999",
-                )
-                fig.text(
-                    0.84, 0.01,
-                    metadata['model'],
-                    fontsize=9,
-                    fontweight='bold',
-                    verticalalignment="bottom",
-                    horizontalalignment="left",
-                    color="#444",
-                )
             if metadata.get("judge"):
                 fig.text(
-                    0.77, 0.042,
-                    "Judge LLM:",
-                    fontsize=6,
-                    fontfamily='monospace',
-                    verticalalignment="bottom",
-                    horizontalalignment="left",
-                    color="#999",
-                )
-                fig.text(
-                    0.84, 0.04,
-                    metadata['judge'],
+                    0.98, 0.04,
+                    f"Judge: {metadata['judge']}",
                     fontsize=9,
                     fontweight='bold',
                     verticalalignment="bottom",
-                    horizontalalignment="left",
+                    horizontalalignment="right",
+                    color="#444",
+                )
+            if metadata.get("model"):
+                fig.text(
+                    0.98, 0.015,
+                    f"Gen: {metadata['model']}",
+                    fontsize=9,
+                    fontweight='bold',
+                    verticalalignment="bottom",
+                    horizontalalignment="right",
                     color="#444",
                 )
 
     with P("comparison_save"):
-        # Save - leave room on right for legend
-        save_figure(plt.gcf(), output_path, tight_layout_rect=[0, 0, 0.72, 0.96])
+        # Save - leave room at bottom for legend row
+        save_figure(plt.gcf(), output_path, tight_layout_rect=[0, 0.15, 1, 0.96])
 
     return output_path
 
@@ -408,7 +406,7 @@ def plot_generation_comparison(
 
             ax.set_ylim(0, 1.15)
             ax.axhline(y=0.5, color="#cccccc", linestyle="--", linewidth=0.8, zorder=0)
-            style_axis_clean(ax)
+            style_axis_clean(ax, dense_grid=True, grid_axis="both")
 
     # Legend outside plot (upper right)
     handles, labels = axes[0, 0].get_legend_handles_labels()

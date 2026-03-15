@@ -58,11 +58,14 @@ color = get_arm_color("trunk")  # Returns hex like "#E67E22"
 out/<method>/<gen_name>/<scoring_name>/viz/
     core.png                  # Structure compliance bars
     deviance.png              # E[d|self] trajectory
-    orientation_trunk.png     # Orientation relative to trunk
     generalized_cores.png     # (q,r) variant heatmap
     breakdown.png             # Per-branch structure breakdown
     tree_word.png             # Word-level trajectory tree
     tree_phrase.png           # Phrase-level tree
+    orientation/
+        trunk.png             # Orientation relative to trunk
+        evolution_root.png    # Evolution tree from root
+        evolution_trunk.png   # Evolution tree from trunk
 
 out/<method>/<gen_name>/<scoring_name>/viz/dynamics/
     traj_0_trunk.png          # Per-trajectory dynamics

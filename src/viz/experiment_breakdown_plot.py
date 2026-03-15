@@ -277,14 +277,14 @@ def plot_structure_breakdown(
                 y=0.98,
             )
 
-        # Create hierarchical legend - vertically centered, smaller
+        # Create hierarchical legend - pushed to right side
         create_arm_legend(
             ax,
             arm_names,
             arm_descriptions,
             max_desc_length=35,
             fontsize=7,
-            bbox_anchor=(1.04, 0.5),
+            bbox_anchor=(1.25, 0.5),
             loc="center left",
         )
 
@@ -337,7 +337,7 @@ def plot_structure_breakdown(
     with P("breakdown_save"):
         # Save with proper margins - more space on right for legend, metadata, and prompt
         plt.tight_layout()
-        plt.subplots_adjust(left=0.28, right=0.50)
+        plt.subplots_adjust(left=0.28, right=0.58)
         save_figure(plt.gcf(), output_path)
 
     return output_path

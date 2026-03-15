@@ -16,7 +16,7 @@ Generates all visualizations for an EstimationResult organized as:
 {output_dir}/{gen_method}/
   - estimation_comparison.png  Compare cores across weighting methods
   - summary_breakdown.png      Structure breakdown (all questions by branch)
-  - summary_forking.png        Structure compliance in tree layout
+  - summary_core_evolution.png  Structure compliance in tree layout
   - tree_word.png              Token tree (word level)
   - tree_phrase.png            Token tree (phrase level)
 """
@@ -30,7 +30,7 @@ from src.common.default_config import DEFAULT_WEIGHTING_METHOD
 from src.common.logging import log
 
 from .experiment_breakdown_plot import plot_structure_breakdown
-from .experiment_forking_plot import plot_structure_forking
+from .experiment_forking_plot import plot_orientation_tree, plot_structure_forking
 from .experiment_core_barplot import (
     plot_cores_barplot,
     plot_cores_comparison,
@@ -96,6 +96,9 @@ def visualize_result(
             weighting_methods = list(arm.estimates.keys())
             break
 
+    # Load arm metadata for tree plots
+    arm_descriptions, arm_texts, arm_n_traj, metadata, arm_suffix_probs = _load_arm_metadata(result.paths)
+
     # Per-estimation-method plots in subfolders (skip if summaries_only)
     if not summaries_only:
         for method in weighting_methods:
@@ -103,7 +106,13 @@ def visualize_result(
             est_dir.mkdir(parents=True, exist_ok=True)
 
             created_files.extend(
-                _create_est_method_plots(result, method, structure_labels, est_dir)
+                _create_est_method_plots(
+                    result, method, structure_labels, est_dir,
+                    arm_n_traj=arm_n_traj,
+                    arm_texts=arm_texts,
+                    arm_suffix_probs=arm_suffix_probs,
+                    metadata=metadata,
+                )
             )
 
     # Cross-method plots in gen_dir root
@@ -122,6 +131,10 @@ def _create_est_method_plots(
     method: str,
     structure_labels: list[str],
     est_dir: Path,
+    arm_n_traj: dict[str, int] | None = None,
+    arm_texts: dict[str, str] | None = None,
+    arm_suffix_probs: dict[str, float] | None = None,
+    metadata: dict[str, str] | None = None,
 ) -> list[Path]:
     """Create plots for a single estimation method."""
     created: list[Path] = []
@@ -131,25 +144,24 @@ def _create_est_method_plots(
     if saved:
         created.append(saved)
 
+    # Structure core evolution (tree layout) per method
+    if arm_n_traj and arm_texts:
+        arm_weighted_cores = _compute_arm_weighted_cores(result, method)
+        saved = plot_structure_forking(
+            result.structure_info,
+            arm_n_traj,
+            arm_texts,
+            est_dir / "core_evolution.png",
+            metadata=metadata,
+            arm_suffix_probs=arm_suffix_probs,
+            arm_weighted_cores=arm_weighted_cores,
+            weighting_method=method,
+        )
+        if saved:
+            created.append(saved)
+
     # Deviance
     saved = plot_deviance_by_arm(result, method, est_dir / "deviance.png")
-    if saved:
-        created.append(saved)
-
-    # Excess deviance
-    saved = plot_excess_deviance_by_arm(result, method, est_dir / "excess_deviance.png")
-    if saved:
-        created.append(saved)
-
-    # Deficit deviance
-    saved = plot_deficit_deviance_by_arm(
-        result, method, est_dir / "deficit_deviance.png"
-    )
-    if saved:
-        created.append(saved)
-
-    # Mutual deviance
-    saved = plot_mutual_deviance_by_arm(result, method, est_dir / "mutual_deviance.png")
     if saved:
         created.append(saved)
 
@@ -158,25 +170,123 @@ def _create_est_method_plots(
     if saved:
         created.append(saved)
 
-    # Orientation (separate plot per reference arm)
+    # Orientation (separate plot per reference arm) - goes to orientation/ subfolder
     orientation_files = plot_orientation_by_branch(
         result, method, structure_labels, est_dir
     )
     created.extend(orientation_files)
 
-    # Generalized cores heatmap (all arms in one figure)
+    # Orientation tree plots (like forking but with orientation)
+    orientation_tree_files = _create_orientation_tree_plots(
+        result, method, structure_labels, est_dir
+    )
+    created.extend(orientation_tree_files)
+
+    # Compare statistics subfolder
+    stats_dir = est_dir / "compare_statistics"
+    stats_dir.mkdir(parents=True, exist_ok=True)
+
+    # Excess deviance
+    saved = plot_excess_deviance_by_arm(result, method, stats_dir / "excess_deviance.png")
+    if saved:
+        created.append(saved)
+
+    # Deficit deviance
+    saved = plot_deficit_deviance_by_arm(result, method, stats_dir / "deficit_deviance.png")
+    if saved:
+        created.append(saved)
+
+    # Mutual deviance
+    saved = plot_mutual_deviance_by_arm(result, method, stats_dir / "mutual_deviance.png")
+    if saved:
+        created.append(saved)
+
+    # Generalized cores heatmap
     saved = plot_generalized_cores(
-        result, method, structure_labels, est_dir / "generalized_cores.png"
+        result, method, structure_labels, stats_dir / "generalized_cores.png"
     )
     if saved:
         created.append(saved)
 
     # Generalized deviance line plots
-    saved = plot_generalized_deviance(
-        result, method, est_dir / "generalized_deviance.png"
-    )
+    saved = plot_generalized_deviance(result, method, stats_dir / "generalized_deviance.png")
     if saved:
         created.append(saved)
+
+    return created
+
+
+def _create_orientation_tree_plots(
+    result: "EstimationResult",
+    method: str,
+    structure_labels: list[str],
+    est_dir: Path,
+) -> list[Path]:
+    """Create orientation tree plots for each reference arm.
+
+    Like summary_core_evolution.png but shows orientation vectors instead of core values.
+    Saved to orientation/evolution_{ref_arm}.png
+    """
+    from src.estimation.arm_types import ArmKind, classify_arm, get_branch_index
+
+    created: list[Path] = []
+
+    # Load arm metadata
+    arm_descriptions, arm_texts, arm_n_traj, metadata, arm_suffix_probs = _load_arm_metadata(result.paths)
+
+    # Get all arm names
+    all_arm_names = [a.name for a in result.arms]
+
+    # Find arms with downstream children (these will be reference arms)
+    from .experiment_deviance_plot import has_downstream_arms
+    reference_arms = [
+        name for name in all_arm_names
+        if has_downstream_arms(name, all_arm_names)
+    ]
+
+    # Create orientation subfolder
+    orientation_dir = est_dir / "orientation"
+    orientation_dir.mkdir(parents=True, exist_ok=True)
+
+    for ref_name in reference_arms:
+        # Build orientation dict for ALL arms (needed for tree structure)
+        # Use zeros for arms without orientation relative to this ref
+        arm_orientations: dict[str, list[float]] = {}
+        n_structures = len(structure_labels)
+
+        for arm in result.arms:
+            # Get orientation relative to this reference
+            if ref_name == "root":
+                orientation = arm.get_orientation_from_root(method)
+            elif ref_name == "trunk":
+                orientation = arm.get_orientation_from_trunk(method)
+            else:
+                # For branch references, get orientation from parent
+                orientation = arm.get_orientation_from_parent(method)
+
+            if orientation:
+                arm_orientations[arm.name] = orientation
+            else:
+                # Use zeros for arms without orientation (e.g., the reference itself)
+                arm_orientations[arm.name] = [0.0] * n_structures
+
+        if not arm_orientations:
+            continue
+
+        # Create tree plot
+        output_path = orientation_dir / f"evolution_{ref_name}.png"
+        saved = plot_orientation_tree(
+            result.structure_info,
+            arm_n_traj,
+            arm_texts,
+            output_path,
+            reference_arm=ref_name,
+            arm_orientations=arm_orientations,
+            metadata=metadata,
+            arm_suffix_probs=arm_suffix_probs,
+        )
+        if saved:
+            created.append(saved)
 
     return created
 
@@ -224,10 +334,11 @@ def _create_cross_method_plots(
         result.structure_info,
         arm_n_traj,
         arm_texts,
-        gen_dir / "summary_forking.png",
+        gen_dir / "summary_core_evolution.png",
         metadata=metadata,
         arm_suffix_probs=arm_suffix_probs,
         arm_weighted_cores=arm_weighted_cores,
+        weighting_method=DEFAULT_WEIGHTING_METHOD,
     )
     if saved:
         created.append(saved)

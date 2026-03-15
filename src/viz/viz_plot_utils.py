@@ -72,6 +72,32 @@ def get_structure_color(idx: int) -> str:
     return STRUCTURE_COLORS[idx % len(STRUCTURE_COLORS)]
 
 
+def add_dense_grid(
+    ax: "Axes",
+    *,
+    axis: str = "both",
+    major_alpha: float = 0.4,
+    minor_alpha: float = 0.15,
+) -> None:
+    """Add dense major and minor grid lines for better readability.
+
+    Args:
+        ax: Matplotlib axis
+        axis: Which axis to add grid to ("x", "y", "both")
+        major_alpha: Transparency of major grid lines
+        minor_alpha: Transparency of minor grid lines
+    """
+    ax.minorticks_on()
+    ax.grid(
+        which="major", axis=axis,
+        alpha=major_alpha, linestyle="-", linewidth=0.8, zorder=0,
+    )
+    ax.grid(
+        which="minor", axis=axis,
+        alpha=minor_alpha, linestyle="-", linewidth=0.4, zorder=0,
+    )
+
+
 def style_axis_clean(
     ax: "Axes",
     *,
@@ -80,6 +106,7 @@ def style_axis_clean(
     grid_axis: str | None = "y",
     grid_alpha: float = 0.3,
     grid_linestyle: str = ":",
+    dense_grid: bool = False,
 ) -> None:
     """Apply clean styling to an axis.
 
@@ -90,8 +117,9 @@ def style_axis_clean(
         remove_top_spine: Whether to remove top spine
         remove_right_spine: Whether to remove right spine
         grid_axis: Which axis to add grid to ("x", "y", "both", or None)
-        grid_alpha: Grid transparency
-        grid_linestyle: Grid line style
+        grid_alpha: Grid transparency (ignored if dense_grid=True)
+        grid_linestyle: Grid line style (ignored if dense_grid=True)
+        dense_grid: If True, use dense major+minor grid instead of simple grid
     """
     if remove_top_spine:
         ax.spines["top"].set_visible(False)
@@ -99,7 +127,10 @@ def style_axis_clean(
         ax.spines["right"].set_visible(False)
 
     if grid_axis:
-        ax.grid(axis=grid_axis, alpha=grid_alpha, linestyle=grid_linestyle)
+        if dense_grid:
+            add_dense_grid(ax, axis=grid_axis)
+        else:
+            ax.grid(axis=grid_axis, alpha=grid_alpha, linestyle=grid_linestyle)
 
 
 def annotate_bar_values(

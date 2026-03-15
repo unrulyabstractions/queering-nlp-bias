@@ -13,217 +13,35 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib.pyplot as plt
-import numpy as np
 from matplotlib.patches import FancyBboxPatch
 
-from src.estimation.arm_types import (
-    ArmKind,
-    classify_arm,
-    get_arm_color,
-    get_branch_index,
+from .forking_plot_renderers import (
+    desaturate_color,
+    draw_connecting_lines,
+    draw_metadata,
+    draw_reference_lines_core,
+    draw_reference_lines_orientation,
+    draw_wrapped_arm_label,
+    populate_tree_content_tracker,
+    render_legend,
 )
-
+from .forking_tree_builder import (
+    build_arm_tree,
+    build_parent_texts,
+    build_sibling_groups,
+    build_subtree,
+    compute_min_y_spacing,
+    compute_normalized_probs,
+    compute_tree_layout,
+    filter_downstream_arms,
+    get_arm_values,
+    get_display_text,
+    get_dynamic_sizes,
+    validate_tree_node_spacing,
+)
+from .legend_layout_engine import optimize_legend_placement
+from .viz_bounding_box import BoundingBox
 from .viz_plot_utils import get_structure_color, save_figure
-
-
-def _build_arm_tree(
-    arm_names: list[str],
-    arm_n_traj: dict[str, int],
-    arm_suffix_probs: dict[str, float] | None = None,
-) -> dict[str, dict]:
-    """Build a tree structure from arm names.
-
-    Returns dict with:
-        - name: arm name
-        - n_traj: trajectory count
-        - children: list of child arm dicts
-        - p_given_parent: p(arm|parent) from model logprobs
-
-    Raises:
-        KeyError: if arm_suffix_probs is missing required arms
-    """
-    if arm_suffix_probs is None:
-        raise ValueError("arm_suffix_probs is required, no silent defaults")
-
-    # Build lookup
-    arms_by_kind: dict[ArmKind, list[str]] = {
-        ArmKind.ROOT: [],
-        ArmKind.TRUNK: [],
-        ArmKind.BRANCH: [],
-        ArmKind.TWIG: [],
-    }
-    for name in arm_names:
-        kind = classify_arm(name)
-        arms_by_kind[kind].append(name)
-
-    # Build tree
-    def make_node(name: str) -> dict:
-        if name not in arm_n_traj:
-            raise KeyError(f"arm_n_traj missing '{name}', no silent defaults")
-        if name not in arm_suffix_probs:
-            raise KeyError(f"arm_suffix_probs missing '{name}', no silent defaults")
-        return {
-            "name": name,
-            "n_traj": arm_n_traj[name],
-            "p_given_parent": arm_suffix_probs[name],
-            "children": [],
-        }
-
-    # Start with root if it exists
-    root_name = arms_by_kind[ArmKind.ROOT][0] if arms_by_kind[ArmKind.ROOT] else None
-    trunk_name = arms_by_kind[ArmKind.TRUNK][0] if arms_by_kind[ArmKind.TRUNK] else None
-
-    if not trunk_name:
-        raise ValueError("No trunk arm found, cannot build tree")
-
-    # Build trunk node
-    trunk_node = make_node(trunk_name)
-
-    # Add branches to trunk
-    for branch_name in sorted(arms_by_kind[ArmKind.BRANCH]):
-        branch_node = make_node(branch_name)
-
-        # Add twigs for this branch
-        branch_idx = get_branch_index(branch_name)
-
-        for twig_name in sorted(arms_by_kind[ArmKind.TWIG]):
-            twig_branch_idx = get_branch_index(twig_name)
-            if twig_branch_idx == branch_idx:
-                twig_node = make_node(twig_name)
-                branch_node["children"].append(twig_node)
-
-        trunk_node["children"].append(branch_node)
-
-    # If root exists, make it the top-level with trunk as child
-    if root_name:
-        root_node = make_node(root_name)
-        root_node["children"] = [trunk_node]
-        return root_node
-
-    return trunk_node
-
-
-def _compute_tree_layout(
-    tree: dict,
-    x: float = 0,
-    y: float = 0,
-    x_spacing: float = 1.0,
-    y_spacing: float = 1.0,
-) -> list[dict]:
-    """Compute (x, y) positions for each node in tree layout.
-
-    Returns list of {name, x, y, p_given_parent, children_positions}
-    """
-    if not tree:
-        return []
-
-    positions = []
-
-    def layout_node(node: dict, x: float, y: float, depth: int) -> float:
-        """Layout a node and its children, return total height used."""
-        children = node.get("children", [])
-
-        if not children:
-            # Leaf node
-            positions.append({
-                "name": node["name"],
-                "x": x,
-                "y": y,
-                "p_given_parent": node["p_given_parent"],
-                "n_traj": node["n_traj"],
-            })
-            return y_spacing
-
-        # Layout children first to get total height
-        # Reverse children so branch_1 is at TOP (lower index = higher y position)
-        child_x = x + x_spacing
-        child_y = y
-        total_height = 0
-
-        child_positions = []
-        for child in reversed(children):
-            child_height = layout_node(child, child_x, child_y, depth + 1)
-            child_positions.append(child_y + child_height / 2 - y_spacing / 2)
-            child_y += child_height
-            total_height += child_height
-
-        # Position this node in center of its children
-        node_y = y + total_height / 2 - y_spacing / 2
-        positions.append({
-            "name": node["name"],
-            "x": x,
-            "y": node_y,
-            "p_given_parent": node["p_given_parent"],
-            "n_traj": node["n_traj"],
-            "child_ys": child_positions,
-        })
-
-        return total_height
-
-    layout_node(tree, x, y, 0)
-    return positions
-
-
-def _get_arm_values(
-    arm_name: str,
-    arm_weighted_cores: dict[str, list[float]],
-    n_structures: int,
-) -> list[float]:
-    """Get structure compliance values for an arm from weighted cores.
-
-    Uses weighted cores from estimation (same values as core.png).
-
-    Returns:
-        List of compliance percentages (0-100).
-
-    Raises:
-        KeyError: if arm not found in arm_weighted_cores.
-    """
-    if arm_name not in arm_weighted_cores:
-        raise KeyError(f"arm_weighted_cores missing '{arm_name}', no silent defaults")
-
-    core = arm_weighted_cores[arm_name]
-    if len(core) != n_structures:
-        raise ValueError(
-            f"Core length {len(core)} != n_structures {n_structures} for '{arm_name}'"
-        )
-
-    # Convert from 0.0-1.0 to percentage 0-100
-    return [val * 100 for val in core]
-
-
-def _get_display_text(
-    arm_text: str,
-    parent_text: str | None,
-    arm_name: str,
-) -> str:
-    """Get display text for an arm - shows differentiating part from parent.
-
-    For root: shows "<think>...</think>" label
-    For others: shows only the part that differs from parent
-    """
-    import re
-
-    text = arm_text.strip()
-
-    # Special case for root: show a nice label for the thinking block
-    if arm_name == "root":
-        if "<think>" in text:
-            return "<think>...</think>"
-        return text[:30] if text else "root"
-
-    # Remove <think>...</think> prefix for comparison
-    text_clean = re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL)
-
-    # If we have parent text, show only the difference
-    if parent_text:
-        parent_clean = re.sub(r"<think>.*?</think>\s*", "", parent_text, flags=re.DOTALL)
-        if text_clean.startswith(parent_clean):
-            diff = text_clean[len(parent_clean):].strip()
-            if diff:
-                return diff
-
-    return text_clean.strip() if text_clean.strip() else text[:40]
 
 
 def plot_structure_forking(
@@ -234,6 +52,7 @@ def plot_structure_forking(
     metadata: dict[str, str] | None = None,
     arm_suffix_probs: dict[str, float] | None = None,
     arm_weighted_cores: dict[str, list[float]] | None = None,
+    weighting_method: str | None = None,
 ) -> Path | None:
     """Create tree-shaped structure visualization.
 
@@ -248,6 +67,7 @@ def plot_structure_forking(
         metadata: Optional dict with 'prompt', 'model', 'judge' keys
         arm_suffix_probs: P(arm_suffix | parent_prefix) from model logprobs
         arm_weighted_cores: Dict mapping arm name to weighted core values (0.0-1.0)
+        weighting_method: Weighting method name to display (e.g., "prob", "inv-ppl")
 
     Returns:
         Path to saved file, or None if insufficient data
@@ -264,200 +84,151 @@ def plot_structure_forking(
     arm_names = list(arm_weighted_cores.keys())
 
     # Build tree and layout
-    tree = _build_arm_tree(arm_names, arm_n_traj, arm_suffix_probs)
+    tree = build_arm_tree(arm_names, arm_n_traj, arm_suffix_probs)
     if not tree:
         return None
 
-    # Dynamic spacing based on number of arms
-    n_arms = len(arm_names)
-    n_branches = sum(1 for a in arm_names if a.startswith("branch"))
     n_twigs = sum(1 for a in arm_names if a.startswith("twig"))
+    n_structures = len(structure_info)
+    n_arms = len(arm_names)
 
-    # Tighter spacing for more arms, looser for fewer
-    x_spacing = 3.8  # Horizontal spacing between levels
-    y_spacing = max(3.5, 4.0 + 0.3 * max(0, n_twigs - 4))  # More vertical spacing for twigs
+    # Get dynamic sizes FIRST - needed for spacing calculation
+    sizes = get_dynamic_sizes(n_structures, n_arms=n_arms)
+    bar_height = sizes["bar_height"]
+    bar_width_scale = sizes["bar_width_scale"]
+    arm_label_fontsize = sizes["arm_label_fontsize"]
 
-    positions = _compute_tree_layout(tree, x=0, y=0, x_spacing=x_spacing, y_spacing=y_spacing)
+    # Dynamic spacing based on actual bar dimensions
+    x_spacing = bar_width_scale + 1.2  # Ensure enough gap for connecting lines
+
+    # Compute minimum y_spacing based on actual scaled bar_height to prevent collisions
+    min_y_spacing = compute_min_y_spacing(n_structures, bar_height, arm_label_fontsize)
+
+    # Additional spacing for many twigs
+    twig_factor = 0.2 * max(0, n_twigs - 4)
+    y_spacing = max(min_y_spacing, min_y_spacing + twig_factor)
+
+    positions = compute_tree_layout(tree, x=0, y=0, x_spacing=x_spacing, y_spacing=y_spacing)
+
+    # Validate tree node spacing (will assert if nodes collide)
+    if positions:
+        validate_tree_node_spacing(positions, n_structures, bar_height, y_spacing, arm_label_fontsize)
     if not positions:
         return None
 
-    # Calculate figure size - TIGHT, minimal white space
-    max_x = max(p["x"] for p in positions) + 3.2
-    max_y = max(p["y"] for p in positions) + 2.0
-    min_y = min(p["y"] for p in positions) - 1.8
+    # Calculate tree bounds (before offset)
+    raw_max_x = max(p["x"] for p in positions) + 3.0
+    tree_max_y = max(p["y"] for p in positions)
+    tree_min_y = min(p["y"] for p in positions)
 
-    # Width proportional to tree depth, height proportional to vertical spread
-    fig_width = max(22, max_x * 3.5)
-    fig_height = max(14, (max_y - min_y) * 2.8)
+    # Calculate tree content bounds (tight around bars and labels)
+    tree_content_top = tree_max_y + n_structures * bar_height / 2 + 0.5
+    tree_content_bottom = tree_min_y - n_structures * bar_height / 2 - 0.5
+    tree_width = raw_max_x + bar_width_scale + 0.3
+
+    # Populate TreeContentTracker for legend optimization (pre-offset)
+    tree_content = populate_tree_content_tracker(
+        positions, arm_texts, n_structures, bar_height,
+        bar_width_scale, arm_label_fontsize, x_spacing,
+    )
+
+    # Define figure bounds for optimizer
+    legend_height_estimate = n_structures * 0.25 + 1.0
+    figure_bounds = BoundingBox(
+        x_min=-0.1,
+        y_min=tree_content_bottom,
+        x_max=tree_width,
+        y_max=tree_content_top + legend_height_estimate,
+    )
+
+    # Extract descriptions and optimize legend placement
+    descriptions = [s.get("description", f"S{i}") for i, s in enumerate(structure_info)]
+    legend_layout, legend_top_y, _ = optimize_legend_placement(
+        descriptions,
+        tree_content,
+        figure_bounds,
+        target_quadrant="top_left",
+    )
+
+    # DYNAMIC TREE OFFSET: Shift tree right based on legend width
+    tree_x_offset = _compute_tree_offset(legend_layout)
+
+    # Apply offset to all positions
+    for pos in positions:
+        pos["x"] += tree_x_offset
+
+    # Recalculate tree bounds with offset
+    max_x = max(p["x"] for p in positions) + 3.0
+    tree_width = max_x + bar_width_scale + 0.3
+
+    # Rebuild TreeContentTracker with offset positions
+    tree_content = populate_tree_content_tracker(
+        positions, arm_texts, n_structures, bar_height,
+        bar_width_scale, arm_label_fontsize, x_spacing,
+    )
+
+    # Total plot bounds
+    plot_min_y = tree_content_bottom
+    content_bounds = tree_content.get_content_bounds()
+    tree_top = content_bounds.y_max if content_bounds else tree_content_top
+    plot_max_y = max(legend_top_y + 0.2, tree_top + 0.3)
+
+    # Figure sizing
+    content_width = tree_width
+    scale = 1.5
+    fig_width = max(12, content_width * scale)
+    fig_height = (plot_max_y - plot_min_y) * scale
 
     fig, ax = plt.subplots(figsize=(fig_width, fig_height))
-    ax.set_xlim(-1.5, max_x + 0.5)
-    ax.set_ylim(min_y - 0.5, max_y + 1.0)
+    ax.set_xlim(-0.1, content_width)
+    ax.set_ylim(plot_min_y, plot_max_y)
     ax.axis("off")
 
-    # Structure labels for legend
     structure_labels = [s["label"] for s in structure_info]
-    n_structures = len(structure_labels)
 
     # Build parent lookup for text diffing
-    parent_texts: dict[str, str | None] = {}
-    root_text = arm_texts.get("root")
-    trunk_text = arm_texts.get("trunk")
-    for name in arm_names:
-        kind = classify_arm(name)
-        if kind == ArmKind.ROOT:
-            parent_texts[name] = None
-        elif kind == ArmKind.TRUNK:
-            parent_texts[name] = root_text
-        elif kind == ArmKind.BRANCH:
-            parent_texts[name] = trunk_text
-        elif kind == ArmKind.TWIG:
-            branch_idx = get_branch_index(name)
-            parent_texts[name] = arm_texts.get(f"branch_{branch_idx}")
-        else:
-            parent_texts[name] = None
+    parent_texts = build_parent_texts(arm_names, arm_texts)
 
-    # Build sibling groups for per-forking-point normalization
-    # Siblings are arms that share the same parent (fork from the same point)
-    sibling_groups: dict[str, list[str]] = {}  # parent_name -> list of child names
-    for pos in positions:
-        arm_name = pos["name"]
-        kind = classify_arm(arm_name)
-        if kind == ArmKind.ROOT:
-            parent = None
-        elif kind == ArmKind.TRUNK:
-            parent = "root"
-        elif kind == ArmKind.BRANCH:
-            parent = "trunk"
-        elif kind == ArmKind.TWIG:
-            branch_idx = get_branch_index(arm_name)
-            parent = f"branch_{branch_idx}"
-        else:
-            parent = None
+    # Build sibling groups and compute normalized probabilities
+    sibling_groups = build_sibling_groups(positions, arm_names)
+    arm_normalized_probs = compute_normalized_probs(positions, sibling_groups)
 
-        if parent:
-            if parent not in sibling_groups:
-                sibling_groups[parent] = []
-            sibling_groups[parent].append(arm_name)
+    # Draw probability-proportional connecting lines
+    draw_connecting_lines(ax, positions, arm_normalized_probs, bar_width_scale, x_spacing)
 
-    # Build arm_name -> normalized prob (normalized within sibling group)
-    arm_normalized_probs: dict[str, float] = {}
-    pos_by_name = {pos["name"]: pos for pos in positions}
-
-    for parent, siblings in sibling_groups.items():
-        sibling_probs = [pos_by_name[s]["p_given_parent"] for s in siblings if s in pos_by_name]
-        if sibling_probs:
-            # Single child = 100% of flow at this forking point
-            if len(sibling_probs) == 1:
-                for s in siblings:
-                    if s in pos_by_name:
-                        arm_normalized_probs[s] = 1.0
-            else:
-                # Multiple siblings: normalize within group
-                min_p = min(sibling_probs)
-                max_p = max(sibling_probs)
-                range_p = max_p - min_p if max_p > min_p else 1.0
-                for s in siblings:
-                    if s in pos_by_name:
-                        p = pos_by_name[s]["p_given_parent"]
-                        if range_p <= 0:
-                            raise ValueError(f"Invalid range_p={range_p} for siblings, no silent defaults")
-                        arm_normalized_probs[s] = (p - min_p) / range_p
-
-    # Root always gets 1.0
-    arm_normalized_probs["root"] = 1.0
-
-    def normalize_prob(arm_name: str) -> float:
-        """Get normalized probability for an arm (normalized within its sibling group)."""
-        if arm_name not in arm_normalized_probs:
-            raise KeyError(f"arm_normalized_probs missing '{arm_name}', no silent defaults")
-        return arm_normalized_probs[arm_name]
-
-    # Build lookup from position y to child info for line thickness
-    # Use rounded keys to handle floating point precision issues
-    pos_by_y: dict[float, dict] = {round(pos["y"], 6): pos for pos in positions}
-
-    def find_pos_by_y(target_y: float) -> dict | None:
-        """Find position by y with floating point tolerance."""
-        rounded = round(target_y, 6)
-        if rounded in pos_by_y:
-            return pos_by_y[rounded]
-        # Fallback: search with tolerance
-        for y, pos in pos_by_y.items():
-            if abs(y - target_y) < 0.001:
-                return pos
-        return None
-
-    # Draw connecting lines first (so they're behind bars)
-    for pos in positions:
-        if "child_ys" in pos:
-            parent_x = pos["x"] + 2.6  # End of parent's bar area
-            parent_y = pos["y"]
-            for child_y in pos["child_ys"]:
-                # Find child's probability for line thickness
-                child_pos = find_pos_by_y(child_y)
-                if child_pos:
-                    child_name = child_pos["name"]
-                    norm_prob = normalize_prob(child_name)
-                    line_width = 1.0 + norm_prob * 10.0  # Range: 1.0 to 11.0 (dramatic)
-                    gray_val = int(180 - norm_prob * 140)  # Range: 180 to 40 (more contrast)
-                    line_color = f"#{gray_val:02x}{gray_val:02x}{gray_val:02x}"
-                else:
-                    raise ValueError(f"Child not found at y={child_y}, no silent defaults")
-
-                # Draw curved connector - use dynamic x_spacing
-                child_x = pos["x"] + x_spacing
-                mid_x = (parent_x + child_x) / 2
-                ax.plot(
-                    [parent_x, mid_x, mid_x, child_x - 0.3],
-                    [parent_y, parent_y, child_y, child_y],
-                    color=line_color,
-                    linewidth=line_width,
-                    solid_capstyle="round",
-                    zorder=1,
-                )
-
-    # Draw each arm's bar chart - HUGE subplots
-    bar_height = 0.28
-    bar_width_scale = 2.5  # Scale for bar widths
-
+    # Draw each arm's bars
     for pos in positions:
         arm_name = pos["name"]
         x = pos["x"]
         y = pos["y"]
-        p_given_parent = pos["p_given_parent"]
-        norm_prob = normalize_prob(arm_name)
+        norm_prob = arm_normalized_probs.get(arm_name, 0.5)
 
         # Get values for this arm (uses weighted cores, same as core.png)
-        values = _get_arm_values(arm_name, arm_weighted_cores, n_structures)
+        values = get_arm_values(arm_name, arm_weighted_cores, n_structures)
 
-        # Fixed font size - same for all arms
-        font_size = 24
-
-        # Get differentiating text for this arm - SHOW ALL TEXT (no truncation)
+        # Get differentiating text for this arm
         raw_text = arm_texts.get(arm_name, arm_name)
         parent_text = parent_texts.get(arm_name)
-        display_text = _get_display_text(raw_text, parent_text, arm_name)
+        display_text = get_display_text(raw_text, parent_text, arm_name)
 
-        # Draw arm label above bars - FULL TEXT, same size for all
-        ax.text(
+        # Draw arm label above bars - wrap if too wide
+        max_label_width = bar_width_scale + 1.5  # Allow some overhang
+        draw_wrapped_arm_label(
+            ax,
             x - 0.05,
-            y + n_structures * bar_height / 2 + 0.4,
+            y + n_structures * bar_height / 2 + 0.3,
             display_text,
-            fontsize=font_size,
-            fontweight="bold",
-            color="#000",
-            ha="left",
-            va="bottom",
-            zorder=10,
+            fontsize=arm_label_fontsize,
+            max_width=max_label_width,
         )
 
-        # Draw arm name below the box for ALL arms
+        # Draw arm name below the box
+        arm_name_fontsize = max(12, arm_label_fontsize - 4)
         ax.text(
             x + bar_width_scale / 2,
-            y - n_structures * bar_height / 2 - 0.6,
+            y - n_structures * bar_height / 2 - 0.4,
             arm_name,
-            fontsize=18,
+            fontsize=arm_name_fontsize,
             color="#444",
             ha="center",
             va="top",
@@ -466,14 +237,11 @@ def plot_structure_forking(
             zorder=10,
         )
 
-        # Draw horizontal bars for each structure - BIGGER
+        # Draw horizontal bars for each structure
         for i, (val, label) in enumerate(zip(values, structure_labels)):
-            bar_y = (
-                y + (n_structures - 1 - i) * bar_height - n_structures * bar_height / 2
-            )
+            bar_y = y + (n_structures - 1 - i) * bar_height - n_structures * bar_height / 2
             bar_w = val / 100 * bar_width_scale
 
-            # Bar
             color = get_structure_color(i)
             ax.barh(
                 bar_y,
@@ -488,9 +256,8 @@ def plot_structure_forking(
 
         # Draw background box - border thickness based on probability
         box_height = n_structures * bar_height + 0.22
-        # Higher prob = thicker, darker border
-        border_width = 1.0 + norm_prob * 4.0  # Range: 1.0 to 5.0
-        border_gray = int(170 - norm_prob * 120)  # Range: 170 to 50
+        border_width = 1.0 + norm_prob * 4.0
+        border_gray = int(170 - norm_prob * 120)
         border_color = f"#{border_gray:02x}{border_gray:02x}{border_gray:02x}"
         box = FancyBboxPatch(
             (x - 0.1, y - box_height / 2 - 0.1),
@@ -504,96 +271,339 @@ def plot_structure_forking(
         )
         ax.add_patch(box)
 
-        # Add 50% reference line OVER the bars - VERY VISIBLE
-        ref_y_min = y - box_height / 2
-        ref_y_max = y + box_height / 2
-        ax.plot(
-            [x + 0.5 * bar_width_scale, x + 0.5 * bar_width_scale],
-            [ref_y_min, ref_y_max],
-            color="#333",
-            linestyle="--",
-            linewidth=2.5,
-            zorder=10,  # OVER the bars (bars are zorder=5)
-        )
+        # Draw reference lines at 0%, 50%, 100%
+        draw_reference_lines_core(ax, x, y, box_height, bar_width_scale)
 
-    # Add legend for structures - MUCH BIGGER, moved away from corner
-    legend_x = 0.04
-    legend_y = 0.92
+    # Draw legend and metadata
+    render_legend(ax, legend_layout, legend_top_y)
 
-    line_height = 0.038  # More spacing
-    for i, struct in enumerate(structure_info):
-        desc = struct.get("description", "")
-
-        color = get_structure_color(i)
-        y_pos = legend_y - i * line_height
-
-        # Color swatch - BIGGER
-        ax.add_patch(
-            plt.Rectangle(
-                (legend_x, y_pos - 0.012),
-                0.022,
-                0.022,
-                transform=ax.transAxes,
-                facecolor=color,
-                edgecolor="white",
-                linewidth=2.0,
-                clip_on=False,
-            )
-        )
-        # Description text - BIGGER
-        ax.text(
-            legend_x + 0.03,
-            y_pos,
-            desc,
-            transform=ax.transAxes,
-            fontsize=24,
+    # Add weighting method label in top-left corner (use figure coords since axis is off)
+    if weighting_method:
+        fig.text(
+            0.01, 0.99,
+            f"[{weighting_method}]",
+            fontsize=11,
             fontweight="bold",
-            va="center",
-            color="#111",
+            fontfamily="monospace",
+            color="#555",
+            ha="left",
+            va="top",
+            zorder=200,
         )
 
-    # Add model and judge info - BOTTOM LEFT (3x bigger as requested)
-    if metadata and metadata.get("judge"):
-        fig.text(
-            0.015, 0.055,
-            "Judge LLM:",
-            fontsize=24,
-            fontfamily='monospace',
-            verticalalignment="bottom",
-            horizontalalignment="left",
-            color="#666",
-        )
-        fig.text(
-            0.095, 0.050,
-            metadata['judge'],
-            fontsize=36,
-            fontweight='bold',
-            verticalalignment="bottom",
-            horizontalalignment="left",
-            color="#222",
-        )
-    if metadata and metadata.get("model"):
-        fig.text(
-            0.015, 0.015,
-            "Gen Model:",
-            fontsize=24,
-            fontfamily='monospace',
-            verticalalignment="bottom",
-            horizontalalignment="left",
-            color="#666",
-        )
-        fig.text(
-            0.095, 0.010,
-            metadata['model'],
-            fontsize=36,
-            fontweight='bold',
-            verticalalignment="bottom",
-            horizontalalignment="left",
-            color="#222",
-        )
+    draw_metadata(fig, metadata, n_structures)
 
-    # No title - removed as requested
-
-    plt.tight_layout()
     save_figure(fig, output_path)
     return output_path
+
+
+def plot_orientation_tree(
+    structure_info: list[dict[str, Any]],
+    arm_n_traj: dict[str, int],
+    arm_texts: dict[str, str],
+    output_path: Path,
+    reference_arm: str,
+    arm_orientations: dict[str, list[float]],
+    metadata: dict[str, str] | None = None,
+    arm_suffix_probs: dict[str, float] | None = None,
+) -> Path | None:
+    """Create tree-shaped orientation visualization.
+
+    Like plot_structure_forking but shows orientation vectors relative to
+    a reference arm instead of core values.
+
+    Args:
+        structure_info: List of structure info dicts
+        arm_n_traj: Dict mapping arm name to trajectory count
+        arm_texts: Dict mapping arm name to conditioning text
+        output_path: Where to save the plot
+        reference_arm: Name of reference arm (e.g., "trunk", "branch_1")
+        arm_orientations: Dict mapping arm name to orientation vector (-1 to 1)
+        metadata: Optional dict with 'prompt', 'model', 'judge' keys
+        arm_suffix_probs: P(arm_suffix | parent_prefix) from model logprobs
+
+    Returns:
+        Path to saved file, or None if insufficient data
+    """
+    if not structure_info or not arm_orientations:
+        return None
+
+    all_arm_names = list(arm_orientations.keys())
+
+    # Filter to only show relevant subtree (reference arm + downstream)
+    arm_names = filter_downstream_arms(reference_arm, all_arm_names)
+    if len(arm_names) < 2:
+        return None
+
+    # Filter the data dicts to only include relevant arms
+    filtered_n_traj = {k: v for k, v in arm_n_traj.items() if k in arm_names}
+    filtered_suffix_probs = (
+        {k: v for k, v in arm_suffix_probs.items() if k in arm_names}
+        if arm_suffix_probs else None
+    )
+    filtered_orientations = {k: v for k, v in arm_orientations.items() if k in arm_names}
+    filtered_arm_texts = {k: v for k, v in arm_texts.items() if k in arm_names}
+
+    # Build tree and layout
+    tree = build_subtree(reference_arm, arm_names, filtered_n_traj, filtered_suffix_probs)
+    if not tree:
+        return None
+
+    n_twigs = sum(1 for a in arm_names if a.startswith("twig"))
+    n_structures = len(structure_info)
+    n_arms = len(arm_names)
+
+    # Get dynamic sizes FIRST - needed for spacing calculation
+    sizes = get_dynamic_sizes(n_structures, n_arms=n_arms)
+    bar_height = sizes["bar_height"]
+    bar_width_scale = sizes["bar_width_scale"]
+    arm_label_fontsize = sizes["arm_label_fontsize"]
+
+    # Dynamic spacing based on actual bar dimensions
+    x_spacing = bar_width_scale + 1.2  # Ensure enough gap for connecting lines
+
+    # Compute minimum y_spacing based on actual scaled bar_height to prevent collisions
+    min_y_spacing = compute_min_y_spacing(n_structures, bar_height, arm_label_fontsize)
+
+    # Additional spacing for many twigs (orientation plots need slightly more)
+    twig_factor = 0.3 * max(0, n_twigs - 4)
+    y_spacing = max(min_y_spacing, min_y_spacing + twig_factor)
+
+    positions = compute_tree_layout(tree, x=0, y=0, x_spacing=x_spacing, y_spacing=y_spacing)
+    if not positions:
+        return None
+
+    # Validate tree node spacing (will assert if nodes collide)
+    validate_tree_node_spacing(positions, n_structures, bar_height, y_spacing, arm_label_fontsize)
+
+    # Calculate tree bounds (before offset)
+    raw_max_x = max(p["x"] for p in positions) + 3.2
+    tree_max_y = max(p["y"] for p in positions)
+    tree_min_y = min(p["y"] for p in positions)
+
+    # Calculate tree content bounds
+    tree_content_top = tree_max_y + n_structures * bar_height / 2 + 0.5
+    tree_content_bottom = tree_min_y - n_structures * bar_height / 2 - 0.5
+    tree_width = raw_max_x + bar_width_scale + 0.3
+
+    # Populate TreeContentTracker for legend optimization (pre-offset)
+    tree_content = populate_tree_content_tracker(
+        positions, filtered_arm_texts, n_structures, bar_height,
+        bar_width_scale, arm_label_fontsize, x_spacing,
+    )
+
+    # Add title to tracker (orientation plots have a title between tree and legend)
+    title_height = 0.32
+    tree_content.set_title(
+        x=0, y=tree_content_top,
+        width=tree_width * 0.6, height=title_height,
+    )
+
+    # Define figure bounds for optimizer
+    legend_max_height = 8.0
+    figure_bounds = BoundingBox(
+        x_min=-0.1,
+        y_min=tree_content_bottom,
+        x_max=tree_width,
+        y_max=tree_content_top + title_height + legend_max_height,
+    )
+
+    # Extract descriptions and optimize legend placement
+    descriptions = [s.get("description", f"S{i}") for i, s in enumerate(structure_info)]
+    legend_layout, legend_top_y, _ = optimize_legend_placement(
+        descriptions,
+        tree_content,
+        figure_bounds,
+        target_quadrant="top_left",
+    )
+
+    # DYNAMIC TREE OFFSET: Shift tree right based on legend width
+    tree_x_offset = _compute_tree_offset(legend_layout)
+
+    # Apply offset to all positions
+    for pos in positions:
+        pos["x"] += tree_x_offset
+
+    # Recalculate tree bounds with offset
+    max_x = max(p["x"] for p in positions) + 3.2
+    tree_width = max_x + bar_width_scale + 0.3
+
+    # Rebuild TreeContentTracker with offset positions
+    tree_content = populate_tree_content_tracker(
+        positions, filtered_arm_texts, n_structures, bar_height,
+        bar_width_scale, arm_label_fontsize, x_spacing,
+    )
+
+    # Re-add title with offset
+    tree_content.set_title(
+        x=tree_x_offset, y=tree_content_top,
+        width=tree_width * 0.6, height=title_height,
+    )
+
+    # Total plot bounds
+    plot_min_y = tree_content_bottom
+    content_bounds = tree_content.get_content_bounds()
+    tree_top = content_bounds.y_max if content_bounds else tree_content_top
+    plot_max_y = max(legend_top_y + 0.2, tree_top + 0.3)
+
+    # Figure sizing
+    content_width = tree_width
+    scale = 1.5
+    fig_width = max(12, content_width * scale)
+    fig_height = (plot_max_y - plot_min_y) * scale
+
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+    ax.set_xlim(-0.1, content_width)
+    ax.set_ylim(plot_min_y, plot_max_y)
+    ax.axis("off")
+
+    structure_labels = [s["label"] for s in structure_info]
+
+    # Build parent lookup for text diffing
+    parent_texts = build_parent_texts(arm_names, arm_texts)
+
+    # Build sibling groups and normalized probabilities for line drawing
+    sibling_groups = build_sibling_groups(positions, arm_names)
+    arm_normalized_probs = compute_normalized_probs(positions, sibling_groups)
+
+    # Draw probability-proportional connecting lines
+    draw_connecting_lines(ax, positions, arm_normalized_probs, bar_width_scale, x_spacing)
+
+    # Draw each arm's orientation bars (centered at 0)
+    for pos in positions:
+        arm_name = pos["name"]
+        x = pos["x"]
+        y = pos["y"]
+
+        if arm_name not in filtered_orientations:
+            continue
+        orientation = filtered_orientations[arm_name]
+
+        # Get display text
+        raw_text = filtered_arm_texts.get(arm_name, arm_name)
+        parent_text = parent_texts.get(arm_name)
+        display_text = get_display_text(raw_text, parent_text, arm_name)
+
+        # Draw arm label above bars - wrap if too wide
+        max_label_width = bar_width_scale + 1.5  # Allow some overhang
+        draw_wrapped_arm_label(
+            ax,
+            x - 0.05,
+            y + n_structures * bar_height / 2 + 0.3,
+            display_text,
+            fontsize=arm_label_fontsize,
+            max_width=max_label_width,
+        )
+
+        # Draw arm name below the box
+        arm_name_fontsize = max(12, arm_label_fontsize - 4)
+        ax.text(
+            x + bar_width_scale / 2,
+            y - n_structures * bar_height / 2 - 0.4,
+            arm_name,
+            fontsize=arm_name_fontsize,
+            color="#444",
+            ha="center",
+            va="top",
+            style="italic",
+            fontweight="semibold",
+            zorder=10,
+        )
+
+        # Draw horizontal bars for each structure (centered, diverging)
+        center_x = x + bar_width_scale / 2
+        for i, (val, label) in enumerate(zip(orientation, structure_labels)):
+            bar_y = y + (n_structures - 1 - i) * bar_height - n_structures * bar_height / 2
+            bar_w = val * (bar_width_scale / 2)
+
+            # Color: normal for positive, desaturated for negative
+            if val >= 0:
+                color = get_structure_color(i)
+            else:
+                base_color = get_structure_color(i)
+                color = desaturate_color(base_color, 0.5)
+
+            # Draw bar from center
+            if bar_w >= 0:
+                ax.barh(
+                    bar_y,
+                    bar_w,
+                    height=bar_height * 0.88,
+                    left=center_x,
+                    color=color,
+                    edgecolor="white",
+                    linewidth=0.8,
+                    zorder=5,
+                )
+            else:
+                ax.barh(
+                    bar_y,
+                    abs(bar_w),
+                    height=bar_height * 0.88,
+                    left=center_x + bar_w,
+                    color=color,
+                    edgecolor="white",
+                    linewidth=0.8,
+                    zorder=5,
+                    hatch="//",
+                    alpha=0.7,
+                )
+
+        # Draw background box
+        box_height = n_structures * bar_height + 0.22
+        box = FancyBboxPatch(
+            (x - 0.1, y - box_height / 2 - 0.1),
+            bar_width_scale + 0.25,
+            box_height + 0.2,
+            boxstyle="round,pad=0.04,rounding_size=0.08",
+            facecolor="#f5f5f5",
+            edgecolor="#999",
+            linewidth=1.5,
+            zorder=2,
+        )
+        ax.add_patch(box)
+
+        # Draw reference lines at -100%, -50%, 0%, 50%, 100%
+        draw_reference_lines_orientation(ax, center_x, y, box_height, bar_width_scale)
+
+    # Draw legend
+    render_legend(ax, legend_layout, legend_top_y)
+
+    # Add title (below legend, above tree) - ALL CAPS, ROBOTO MONO style
+    ax.text(
+        content_width / 2,
+        tree_content_top + 0.4,  # Higher up
+        f"ORIENTATION RELATIVE TO {reference_arm.upper()}",
+        fontsize=14,
+        fontweight="bold",
+        fontfamily="monospace",  # Roboto Mono fallback
+        ha="center",
+        va="bottom",
+        color="#333",
+        zorder=100,
+    )
+
+    draw_metadata(fig, metadata, n_structures)
+
+    save_figure(fig, output_path)
+    return output_path
+
+
+def _compute_tree_offset(legend_layout: dict[str, Any]) -> float:
+    """Compute tree X offset based on legend width.
+
+    Places tree to the right of the legend for balanced layout.
+    """
+    legend_items = legend_layout.get("items", [])
+    if not legend_items:
+        return 0
+
+    legend_width = legend_layout.get("total_width", 0)
+    if legend_width == 0:
+        char_width = legend_layout.get("char_width", 0.055)
+        legend_width = max(
+            item["text_x"] + len(item["description"]) * char_width * 0.7
+            for item in legend_items
+        )
+
+    return legend_width + 0.2  # Tight gap between legend and tree

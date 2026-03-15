@@ -225,7 +225,7 @@ class ScoringData(BaseSchema):
                 idx=idx,
                 label=label,
                 description=" + ".join(
-                    q[:30] + "..." if len(q) > 30 else q for q in item
+                    q[:60] + "..." if len(q) > 60 else q for q in item
                 ),
                 is_bundled=True,
                 question_count=len(item),

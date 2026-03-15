@@ -61,6 +61,15 @@ class EstimationArmResult(BaseSchema):
         est = self._get_estimate_or_raise(method)
         return safe_float(est.get("deviance_avg"), 0.0)
 
+    def get_deviance_var(self, method: str = "prob") -> float:
+        """Get Var[d|B] for a weighting method.
+
+        Raises:
+            KeyError: If the weighting method doesn't exist.
+        """
+        est = self._get_estimate_or_raise(method)
+        return safe_float(est.get("deviance_var"), 0.0)
+
     def get_deviance_avg_trunk(self, method: str = "prob") -> float:
         """Get E[∂|trunk] for a weighting method.
 

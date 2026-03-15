@@ -28,7 +28,8 @@ out/{method}/{gen_name}/{scoring_name}/viz/
   - deficit_deviance.png        # Under-compliance trajectory
   - mutual_deviance.png         # Symmetric deviance trajectory
   - core_diversity.png          # Diversity (D₁) trajectory
-  - orientation_{ref}.png       # Orientation relative to reference arm(s)
+  - orientation/{ref}.png       # Orientation bar plot relative to reference arm
+  - orientation/evolution_{ref}.png  # Evolution tree relative to reference arm
   - generalized_cores.png       # Heatmap of core variants
   - generalized_deviance.png    # E[∂] line plots as q/r→∞
   - estimation_comparison.png   # Compare cores across weighting methods
