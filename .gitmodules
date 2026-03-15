@@ -1,0 +1,3 @@
+[submodule "submodules/winoqueer"]
+	path = submodules/winoqueer
+	url = https://github.com/katyfelkner/winoqueer
