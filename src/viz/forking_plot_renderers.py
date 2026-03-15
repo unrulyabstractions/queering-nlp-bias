@@ -199,8 +199,10 @@ def draw_metadata(
             fontfamily='monospace',
             va="bottom", ha="left", color="#666",
         )
+        string_selection = metadata.get("string_selection", "")
+        judge_label = f"{metadata['judge']} (Scope: {string_selection})" if string_selection else metadata['judge']
         fig.text(
-            VALUE_X, JUDGE_Y, metadata['judge'],
+            VALUE_X, JUDGE_Y, judge_label,
             fontsize=VALUE_FONTSIZE,
             fontweight='bold',
             va="bottom", ha="left", color="#222",
