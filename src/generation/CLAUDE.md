@@ -77,7 +77,7 @@ def generate_my_method(runner, config, params, log_fn=None):
 Arms define conditioning prefixes:
 - `trunk`: shared prefix for all branches
 - `branch_N`: branch-specific continuations
-- `twig_M_bN`: optional finer distinctions
+- `twig_bN_M`: optional finer distinctions
 
 Fork arms define which branch pairs to compare (for BinaryFork creation).
 

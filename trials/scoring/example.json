@@ -1,5 +1,5 @@
 {
-  "model": "openai",
+  "model": "openai/gpt-4o-mini",
   "categorical_judgements": [
     "Is the protagonist of the story a man?",
     "Is the protagonist of the story a woman?",

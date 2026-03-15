@@ -8,7 +8,7 @@ from __future__ import annotations
 from src.common.callback_types import LogFn
 from src.common.logging import fmt_prob, log, log_section
 from src.common.viz_utils import escape_newlines, preview
-from src.estimation.arm_types import ArmKind, classify_arm
+from src.estimation.arm_types import ArmKind, classify_arm, get_parent_branch
 from src.common.experiment_types import ArmGenerationResult, GenerationArm
 from src.inference import ModelRunner
 
@@ -34,7 +34,7 @@ def _get_parent_branch_index(twig_name: str, arm_names: list[str]) -> int | None
     """Get the arm index of the parent branch for a twig.
 
     Args:
-        twig_name: Name like "twig_1_b2" (twig 1 of branch 2)
+        twig_name: Name like "twig_b2_1" (twig 1 of branch 2)
         arm_names: List of all arm names
 
     Returns:
@@ -42,11 +42,9 @@ def _get_parent_branch_index(twig_name: str, arm_names: list[str]) -> int | None
     """
     if not twig_name.startswith("twig_"):
         return None
-    # Extract parent branch number from twig name (e.g., "twig_1_b2" -> "branch_2")
-    parts = twig_name.split("_b")
-    if len(parts) < 2:
+    parent_branch_name = get_parent_branch(twig_name)
+    if parent_branch_name is None:
         return None
-    parent_branch_name = f"branch_{parts[-1]}"
     try:
         return arm_names.index(parent_branch_name)
     except ValueError:
