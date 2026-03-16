@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import WebSocket
 
 from webapp.common.algorithm_config import SamplingConfig
@@ -28,20 +30,26 @@ async def run_judge(ws: WebSocket, session: dict, data: dict) -> None:
     session.update(running=True, stop=False, mode="judge")
     log_section(f"Judge ({config.judge_provider}/{config.judge_model})")
 
-    async for event in run_judge_algorithm(
-        texts=texts,
-        questions=questions,
-        config=config,
-        should_stop=lambda: session.get("stop", False),
-        text_offset=text_offset,
-    ):
-        if event.type == "text_scored":
-            log_timestamped(
-                f"  text {event.data['text_idx']}: {[f'{s:.2f}' for s in event.data['scores']]}"
-            )
-            await ws.send_json({"type": event.type, "data": event.data})
-        else:
-            await ws.send_json({"type": event.type, **event.data})
+    try:
+        async for event in run_judge_algorithm(
+            texts=texts,
+            questions=questions,
+            config=config,
+            should_stop=lambda: session.get("stop", False),
+            text_offset=text_offset,
+        ):
+            if event.type == "text_scored":
+                log_timestamped(
+                    f"  text {event.data['text_idx']}: {[f'{s:.2f}' for s in event.data['scores']]}"
+                )
+                await ws.send_json({"type": event.type, "data": event.data})
+            else:
+                await ws.send_json({"type": event.type, **event.data})
 
-    session["running"] = False
-    log_section("Judge complete")
+        log_section("Judge complete")
+
+    except asyncio.CancelledError:
+        log_section("Judge cancelled")
+
+    finally:
+        session["running"] = False

@@ -7,6 +7,7 @@ Run: ./webapp/run.sh or uv run uvicorn webapp.web_server:app --reload --port 800
 
 from __future__ import annotations
 
+import asyncio
 import os
 from pathlib import Path
 from typing import Any
@@ -51,19 +52,43 @@ async def index():
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
     sid = str(id(ws))
-    sessions[sid] = {"state": None, "running": False, "stop": False, "mode": None}
+    sessions[sid] = {"state": None, "running": False, "stop": False, "mode": None, "task": None}
 
     try:
         while True:
             data = await ws.receive_json()
             action = data.get("action")
-            if action == "start_tree":
-                await run_tree(ws, sessions[sid], data)
-            elif action == "start_dynamics":
-                await run_dynamics(ws, sessions[sid], data)
-            elif action == "start_judge":
-                await run_judge(ws, sessions[sid], data)
-            elif action == "stop":
+
+            if action == "stop":
                 sessions[sid]["stop"] = True
+                # Cancel the running task if it exists
+                task = sessions[sid].get("task")
+                if task and not task.done():
+                    task.cancel()
+                continue
+
+            # Cancel any existing task before starting a new one
+            existing_task = sessions[sid].get("task")
+            if existing_task and not existing_task.done():
+                sessions[sid]["stop"] = True
+                existing_task.cancel()
+                try:
+                    await existing_task
+                except asyncio.CancelledError:
+                    pass
+
+            # Reset stop flag for new task
+            sessions[sid]["stop"] = False
+
+            if action == "start_tree":
+                sessions[sid]["task"] = asyncio.create_task(run_tree(ws, sessions[sid], data))
+            elif action == "start_dynamics":
+                sessions[sid]["task"] = asyncio.create_task(run_dynamics(ws, sessions[sid], data))
+            elif action == "start_judge":
+                sessions[sid]["task"] = asyncio.create_task(run_judge(ws, sessions[sid], data))
     except WebSocketDisconnect:
+        # Cancel any running task on disconnect
+        task = sessions[sid].get("task")
+        if task and not task.done():
+            task.cancel()
         sessions.pop(sid, None)

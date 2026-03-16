@@ -737,33 +737,33 @@ function drawPhantomBranches(nodes, offsetY, defs) {
     const PHANTOM_WIDTH = 70;
     const PHANTOM_HEIGHT = 26;
 
-    // Helper: create a fading gradient - pastel lavender tones, more visible
+    // Helper: create a fading gradient - pastel lavender tones, subtle
     function makeGradient(id, x1, y1, x2, y2, startOpacity, endOpacity) {
         const grad = defs.append('linearGradient')
             .attr('id', id)
             .attr('gradientUnits', 'userSpaceOnUse')
             .attr('x1', x1).attr('y1', y1)
             .attr('x2', x2).attr('y2', y2);
-        // More visible pastel lavender
-        grad.append('stop').attr('offset', '0%').attr('stop-color', `rgba(180,160,200,${startOpacity * 0.5})`);
-        grad.append('stop').attr('offset', '100%').attr('stop-color', `rgba(160,140,180,${endOpacity * 0.25})`);
+        // Subtle pastel lavender - more transparent
+        grad.append('stop').attr('offset', '0%').attr('stop-color', `rgba(180,160,200,${startOpacity * 0.2})`);
+        grad.append('stop').attr('offset', '100%').attr('stop-color', `rgba(160,140,180,${endOpacity * 0.1})`);
         return id;
     }
 
-    // Helper: draw a phantom node - soft pastel, more visible
+    // Helper: draw a phantom node - soft pastel, subtle
     function drawPhantomNode(x, y, opacity, scale = 1) {
         const w = PHANTOM_WIDTH * scale;
         const h = PHANTOM_HEIGHT * scale;
-        // More visible - multiply opacity by 0.5
-        const fadeOp = opacity * 0.5;
+        // Subtle - multiply opacity by 0.15
+        const fadeOp = opacity * 0.15;
         phantomG.append('rect')
             .attr('x', x - w/2)
             .attr('y', y - h/2)
             .attr('width', w)
             .attr('height', h)
             .attr('rx', 5)
-            .attr('fill', `rgba(248,244,255,${fadeOp * 0.4})`)
-            .attr('stroke', `rgba(180,160,200,${fadeOp * 0.3})`)
+            .attr('fill', `rgba(248,244,255,${fadeOp * 0.3})`)
+            .attr('stroke', `rgba(180,160,200,${fadeOp * 0.2})`)
             .attr('stroke-width', 0.5)
             .attr('stroke-dasharray', '2,3');  // Dashed for artsy effect
         // Bar placeholder - pastel colored
@@ -773,7 +773,7 @@ function drawPhantomBranches(nodes, offsetY, defs) {
             .attr('width', 30 * scale)
             .attr('height', 6 * scale)
             .attr('rx', 2)
-            .attr('fill', `rgba(196,144,209,${fadeOp * 0.15})`);
+            .attr('fill', `rgba(196,144,209,${fadeOp * 0.1})`);
     }
 
     // Helper: draw diverging phantom subtree recursively
@@ -981,7 +981,7 @@ function drawPhantomBranches(nodes, offsetY, defs) {
             .attr('stroke-linejoin', 'round');
     }
 
-    // Add some ambient floating dots/particles - pastel
+    // Add some ambient floating dots/particles - very subtle
     const bounds = treeG.node().getBBox();
     for (let i = 0; i < 40; i++) {
         const px = bounds.x + Math.random() * (bounds.width + 400);
@@ -990,7 +990,7 @@ function drawPhantomBranches(nodes, offsetY, defs) {
             .attr('cx', px)
             .attr('cy', py)
             .attr('r', 1 + Math.random() * 2.5)
-            .attr('fill', `rgba(180,160,200,${0.08 + Math.random() * 0.12})`)
+            .attr('fill', `rgba(180,160,200,${0.03 + Math.random() * 0.04})`)
             .attr('class', 'phantom-particle');
     }
 
@@ -1007,8 +1007,8 @@ function drawScatteredMiniTrees(phantomG, bounds, defs) {
         const treeX = bounds.x - 400 + Math.random() * (bounds.width + 800);
         const treeY = bounds.y - 200 + Math.random() * (bounds.height + 400);
 
-        // Very faint opacity
-        const baseOp = 0.06 + Math.random() * 0.08;
+        // Very faint opacity - more subtle
+        const baseOp = 0.02 + Math.random() * 0.03;
 
         // Draw a simple mini-tree structure
         drawMiniTree(phantomG, treeX, treeY, baseOp, defs);
@@ -1020,15 +1020,15 @@ function drawMiniTree(g, startX, startY, opacity, defs) {
     const nodeSize = 8 + Math.random() * 6;
     const levels = 2 + Math.floor(Math.random() * 2);  // 2-3 levels
 
-    // Draw root node
+    // Draw root node - subtle
     g.append('rect')
         .attr('x', startX - nodeSize/2)
         .attr('y', startY - nodeSize/2)
         .attr('width', nodeSize)
         .attr('height', nodeSize * 0.7)
         .attr('rx', 2)
-        .attr('fill', `rgba(248,244,255,${opacity * 0.5})`)
-        .attr('stroke', `rgba(180,160,200,${opacity * 0.4})`)
+        .attr('fill', `rgba(248,244,255,${opacity * 0.3})`)
+        .attr('stroke', `rgba(180,160,200,${opacity * 0.2})`)
         .attr('stroke-width', 0.5);
 
     // Recursively draw branches
@@ -1047,14 +1047,14 @@ function drawMiniTreeBranches(g, x, y, depth, maxDepth, branchLen, nodeSize, opa
         const endX = x + branchLen * (0.8 + Math.random() * 0.4);
         const endY = y + offsetY;
 
-        // Draw branch line
+        // Draw branch line - subtle
         g.append('path')
             .attr('d', `M${x},${y} Q${x + branchLen * 0.5},${(y + endY) / 2} ${endX},${endY}`)
             .attr('fill', 'none')
-            .attr('stroke', `rgba(180,160,200,${fadeOp * 0.5})`)
+            .attr('stroke', `rgba(180,160,200,${fadeOp * 0.25})`)
             .attr('stroke-width', 0.8);
 
-        // Draw node
+        // Draw node - subtle
         const ns = nodeSize * (0.8 - depth * 0.15);
         g.append('rect')
             .attr('x', endX)
@@ -1062,8 +1062,8 @@ function drawMiniTreeBranches(g, x, y, depth, maxDepth, branchLen, nodeSize, opa
             .attr('width', ns)
             .attr('height', ns * 0.7)
             .attr('rx', 2)
-            .attr('fill', `rgba(248,244,255,${fadeOp * 0.4})`)
-            .attr('stroke', `rgba(180,160,200,${fadeOp * 0.3})`)
+            .attr('fill', `rgba(248,244,255,${fadeOp * 0.2})`)
+            .attr('stroke', `rgba(180,160,200,${fadeOp * 0.15})`)
             .attr('stroke-width', 0.5);
 
         // Recurse
@@ -1393,11 +1393,11 @@ function drawPhantomCanvas(nodeId, canvasWidth, canvasHeight) {
             const cp2x = startX + length * (0.55 + Math.random() * 0.2);
             const cp2y = endY + (Math.random() - 0.5) * 180 * verticalBias;
 
-            // Draw curve - VISIBLE but artistic
+            // Draw curve - subtle artistic
             ctx.beginPath();
             ctx.moveTo(startX, startY);
             ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, endX, endY);
-            const curveOpacity = (0.04 + Math.random() * 0.1) * accumFade;
+            const curveOpacity = (0.02 + Math.random() * 0.04) * accumFade;
             ctx.strokeStyle = `rgba(${r},${g},${b},${curveOpacity})`;
             ctx.lineWidth = 0.5 + Math.random() * 2;
             if (Math.random() > 0.5) ctx.setLineDash([3 + Math.random()*4, 5 + Math.random()*5]);
@@ -1437,9 +1437,9 @@ function drawPhantomCanvas(nodeId, canvasWidth, canvasHeight) {
                         : (8 + Math.random()*8 + (1-t)*6);
                 }
 
-                // Opacity also varies - bigger = more visible
+                // Opacity also varies - bigger = more visible, but subtle overall
                 const sizeOpacityBoost = Math.min(1, fontSize / 20);
-                const wordOpacity = (0.08 + (1-t)*0.2 + Math.random()*0.12 + sizeOpacityBoost * 0.15) * accumFade;
+                const wordOpacity = (0.03 + (1-t)*0.08 + Math.random()*0.05 + sizeOpacityBoost * 0.06) * accumFade;
 
                 ctx.font = `italic ${Math.random() > 0.7 ? '500' : '300'} ${fontSize}px system-ui`;
                 ctx.fillStyle = `rgba(${wordColor.r},${wordColor.g},${wordColor.b},${wordOpacity})`;
@@ -1464,7 +1464,7 @@ function drawPhantomCanvas(nodeId, canvasWidth, canvasHeight) {
 
             ctx.beginPath();
             ctx.arc(px, py, pr, 0, Math.PI * 2);
-            const particleOpacity = (0.08 + Math.random()*0.25) * accumFade;
+            const particleOpacity = (0.03 + Math.random()*0.08) * accumFade;
             ctx.fillStyle = `rgba(${particleColor.r},${particleColor.g},${particleColor.b},${particleOpacity})`;
             ctx.fill();
         }
