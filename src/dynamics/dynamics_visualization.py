@@ -3,7 +3,7 @@
 Plots three metrics over token position k:
 - Pull: l2 norm of scores (normative strength)
 - Drift: deviance from initial scores (how far we've moved from start)
-- Horizon: deviance from final scores (how far to end state)
+- Potential: deviance from final scores (how far to end state)
 
 Output structure:
     dynamics/
@@ -71,26 +71,26 @@ def _plot_series(ax: plt.Axes, data: list[tuple[int, float]], color: str, label:
 
 
 def _plot_single_trajectory(traj: TrajectoryDynamics, ax: plt.Axes) -> None:
-    """Plot pull, drift, and horizon curves for a single trajectory."""
+    """Plot pull, drift, and potential curves for a single trajectory."""
     if not traj.positions:
         return
 
     _plot_series(ax, traj.pull_series, get_dynamics_color("pull"), "Pull", "^")
     _plot_series(ax, traj.drift_series, get_dynamics_color("drift"), "Drift", "o")
-    _plot_series(ax, traj.horizon_series, get_dynamics_color("horizon"), "Horizon", "s")
+    _plot_series(ax, traj.potential_series, get_dynamics_color("potential"), "Potential", "s")
 
     _style_axis(ax, f"Trajectory {traj.traj_idx} ({traj.arm_name})")
     ax.legend(fontsize=LEGEND_FONTSIZE, loc="upper right")
 
 
 def _plot_aggregate_arm(trajs: list[TrajectoryDynamics], arm_type: str) -> plt.Figure:
-    """Create 3-column aggregate plot for an arm type (pull, drift, horizon)."""
+    """Create 3-column aggregate plot for an arm type (pull, drift, potential)."""
     fig, axes = plt.subplots(1, 3, figsize=(15, 5), facecolor=FACECOLOR)
 
     metrics = [
         ("Pull", "pull", "^", lambda t: t.pull_series),
         ("Drift", "drift", "o", lambda t: t.drift_series),
-        ("Horizon", "horizon", "s", lambda t: t.horizon_series),
+        ("Potential", "potential", "s", lambda t: t.potential_series),
     ]
 
     for ax, (name, key, marker, get_series) in zip(axes, metrics):

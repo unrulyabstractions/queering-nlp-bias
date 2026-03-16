@@ -24,7 +24,7 @@ def save_dynamics_json(result: DynamicsResult, output_path: Path | str) -> Path:
                 "n_tokens": 64,
                 "pull": [[k, value], ...],
                 "drift": [[k, value], ...],
-                "horizon": [[k, value], ...]
+                "potential": [[k, value], ...]
             }
         ]
     }
@@ -42,7 +42,7 @@ def save_dynamics_json(result: DynamicsResult, output_path: Path | str) -> Path:
                 "n_tokens": t.n_tokens,
                 "pull": t.pull_series,
                 "drift": t.drift_series,
-                "horizon": t.horizon_series,
+                "potential": t.potential_series,
             }
             for t in result.trajectories
         ],

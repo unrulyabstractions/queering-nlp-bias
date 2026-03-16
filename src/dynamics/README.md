@@ -42,11 +42,11 @@ drift(k) = ||scores(k) - scores(initial)||_2
 ```
 Measures how far the trajectory has evolved from its starting point.
 
-### Horizon z(k)
+### Potential z(k)
 
 Deviance of scores at position k from the final scores:
 ```
-horizon(k) = ||scores(k) - scores(final)||_2
+potential(k) = ||scores(k) - scores(final)||_2
 ```
 Measures how far the trajectory is from its end state.
 
@@ -76,14 +76,14 @@ out/<method>/<gen_name>/<scoring_name>/
         dynamics_branch_2.png        # Aggregate: all branch_2 trajectories (3 columns)
 ```
 
-**Individual plots** (in `all/`): Single figure with pull, drift, horizon curves.
+**Individual plots** (in `all/`): Single figure with pull, drift, potential curves.
 
-**Aggregate plots**: 3-column layout (Pull | Drift | Horizon) with all trajectories for that arm overlaid.
+**Aggregate plots**: 3-column layout (Pull | Drift | Potential) with all trajectories for that arm overlaid.
 
 Each plot shows three curves:
 - **Pull** (orange): L2 norm of scores at each position
 - **Drift** (purple): deviance from initial scores
-- **Horizon** (blue): deviance from final scores
+- **Potential** (blue): deviance from final scores
 
 ## Quick Start
 
@@ -116,7 +116,7 @@ saved_paths = plot_dynamics(result, Path("out/.../viz/dynamics/"))
 
 | Type | Description |
 |------|-------------|
-| `PositionScores` | Scores and metrics at a specific token position (k, scores, pull, drift, horizon) |
+| `PositionScores` | Scores and metrics at a specific token position (k, scores, pull, drift, potential) |
 | `TrajectoryDynamics` | All dynamics data for one trajectory |
 | `DynamicsResult` | Result for all analyzed trajectories |
 

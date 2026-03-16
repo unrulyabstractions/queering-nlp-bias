@@ -8,9 +8,8 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from src.common.default_config import MAX_NEW_TOKENS
-from src.common.device_utils import get_device
+from src.common.device_utils import clear_gpu_memory, get_device
 from src.common.logging import log
-from src.common.device_utils import clear_gpu_memory
 from src.common.profiler import profile, track_memory
 
 from .backends import (
@@ -257,6 +256,22 @@ class ModelRunner:
         Returns:
             GeneratedTrajectory with full sequence (prompt + generated) and logprobs
         """
+        # For API backends, delegate to backend's prefill-aware implementation
+        if self._backend_type in (ModelBackend.OPENAI, ModelBackend.ANTHROPIC):
+            all_token_ids, all_logprobs, prefill_text, generated_text = (
+                self._backend.generate_trajectory_from_prompt(
+                    prompt, max_new_tokens, temperature, prefilling
+                )
+            )
+            traj = GeneratedTrajectory.from_logprobs(all_token_ids, all_logprobs)
+            traj.prefill_text = prefill_text
+            traj.generated_text = generated_text
+            traj.prefill_length = len(self.encode_ids(prompt)) + len(
+                self.encode_ids(prefilling)
+            )
+            return traj
+
+        # For local backends, use token-based generation
         formatted = self.apply_chat_template(prompt) + prefilling
         token_ids = self.encode_ids(formatted, add_special_tokens=True)
         prefill_length = len(token_ids)  # Where generated content starts

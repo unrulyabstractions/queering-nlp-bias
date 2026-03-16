@@ -313,7 +313,7 @@ uv run python scripts/run_full_experiment.py --profile gen.json scoring.json
 The `--dynamics` flag adds trajectory evolution analysis:
 - **Pull**: L2 norm of scores at each token position (normative strength)
 - **Drift**: Deviance from initial scores (how far from start)
-- **Horizon**: Deviance from final scores (how far to end state)
+- **Potential**: Deviance from final scores (how far to end state)
 
 Dynamics analyzes extremal trajectories (highest/lowest inverse perplexity per arm) and outputs to:
 ```

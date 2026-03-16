@@ -1,4 +1,4 @@
-"""Dynamics module for drift and horizon analysis."""
+"""Dynamics module for drift and potential analysis."""
 
 from src.common.auto_export import auto_export
 

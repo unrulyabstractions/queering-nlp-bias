@@ -1,0 +1,122 @@
+[
+  {
+    "surface_form": "confirmed bachelor",
+    "covert_meaning": "gay man",
+    "type": "II",
+    "persona": "queer",
+    "example_coded": "He was a confirmed bachelor who never showed interest in marriage.",
+    "example_literal": "The confirmed bachelor was actively looking for a wife on dating apps."
+  },
+  {
+    "surface_form": "roommates",
+    "covert_meaning": "romantic partners",
+    "type": "II",
+    "persona": "queer",
+    "example_coded": "They have been roommates for thirty years and share everything together.",
+    "example_literal": "The college roommates split the rent to save money."
+  },
+  {
+    "surface_form": "companion",
+    "covert_meaning": "romantic partner",
+    "type": "II",
+    "persona": "queer",
+    "example_coded": "She lived with her longtime companion until the end.",
+    "example_literal": "The hiking companion helped carry the heavy backpack."
+  },
+  {
+    "surface_form": "artistic",
+    "covert_meaning": "homosexual",
+    "type": "II",
+    "persona": "queer",
+    "example_coded": "He was an artistic type, very sensitive and never married.",
+    "example_literal": "The artistic rendering of the building won the design award."
+  },
+  {
+    "surface_form": "sensitive",
+    "covert_meaning": "effeminate or gay",
+    "type": "II",
+    "persona": "queer",
+    "example_coded": "He was always the sensitive one, not like other boys.",
+    "example_literal": "The instrument is sensitive to temperature changes."
+  },
+  {
+    "surface_form": "friend of Dorothy",
+    "covert_meaning": "gay person",
+    "type": "I",
+    "persona": "queer",
+    "example_coded": "Are you a friend of Dorothy? We should talk.",
+    "example_literal": "I am a friend of Dorothy who lives on Main Street."
+  },
+  {
+    "surface_form": "family",
+    "covert_meaning": "queer community member",
+    "type": "I",
+    "persona": "queer",
+    "example_coded": "Is she family? I got a vibe.",
+    "example_literal": "My family is coming to visit for the holidays."
+  },
+  {
+    "surface_form": "special friend",
+    "covert_meaning": "same-sex partner",
+    "type": "II",
+    "persona": "queer",
+    "example_coded": "She introduced her special friend at the gathering.",
+    "example_literal": "My special friend from childhood came to visit."
+  },
+  {
+    "surface_form": "bachelor uncle",
+    "covert_meaning": "gay uncle",
+    "type": "II",
+    "persona": "queer",
+    "example_coded": "Uncle Robert was always the bachelor uncle who brought his friend to holidays.",
+    "example_literal": "My bachelor uncle finally got married at age 50."
+  },
+  {
+    "surface_form": "confirmed spinster",
+    "covert_meaning": "lesbian woman",
+    "type": "II",
+    "persona": "queer",
+    "example_coded": "She was a confirmed spinster who lived with her dear friend.",
+    "example_literal": "The confirmed spinster was waiting for the right man."
+  },
+  {
+    "surface_form": "Boston marriage",
+    "covert_meaning": "lesbian relationship",
+    "type": "II",
+    "persona": "queer",
+    "example_coded": "The two women lived in what some called a Boston marriage.",
+    "example_literal": "They celebrated their Boston marriage ceremony downtown."
+  },
+  {
+    "surface_form": "alternative lifestyle",
+    "covert_meaning": "homosexuality",
+    "type": "II",
+    "persona": "queer",
+    "example_coded": "He chose an alternative lifestyle and moved to San Francisco.",
+    "example_literal": "Living off-grid is an alternative lifestyle gaining popularity."
+  },
+  {
+    "surface_form": "light in the loafers",
+    "covert_meaning": "gay man",
+    "type": "II",
+    "persona": "queer",
+    "example_coded": "People whispered he was light in the loafers.",
+    "example_literal": "These new sneakers are light in the loafers, very comfortable."
+  },
+  {
+    "surface_form": "theatrical",
+    "covert_meaning": "flamboyant or gay",
+    "type": "II",
+    "persona": "queer",
+    "example_coded": "He was always rather theatrical in his mannerisms.",
+    "example_literal": "The theatrical production received rave reviews."
+  },
+  {
+    "surface_form": "confirmed",
+    "covert_meaning": "openly or obviously gay",
+    "type": "II",
+    "persona": "queer",
+    "example_coded": "She was a confirmed tomboy who never dated men.",
+    "example_literal": "The reservation is confirmed for 7 PM."
+  }
+]

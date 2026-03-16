@@ -22,6 +22,19 @@ class MethodParamsOverride(BaseSchema):
 
     overrides: dict[str, Any] = field(default_factory=dict)
 
+    @classmethod
+    def from_dict(cls, d: dict) -> MethodParamsOverride:
+        """Create from dict.
+
+        If dict has 'overrides' key, use that. Otherwise treat whole dict as overrides.
+        This allows both formats:
+          {"overrides": {"param": "value"}}  # explicit
+          {"param": "value"}                 # shorthand
+        """
+        if "overrides" in d:
+            return cls(overrides=d["overrides"])
+        return cls(overrides=d)
+
     def apply_to(self, params: Any) -> Any:
         """Apply these overrides to a params instance.
 

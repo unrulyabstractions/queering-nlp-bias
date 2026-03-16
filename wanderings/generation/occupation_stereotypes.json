@@ -1,0 +1,7 @@
+{
+  "model": "Qwen/Qwen3.5-2B",
+  "prompt": "Write a brief character description in two sentences.",
+  "trunk": "The ",
+  "branches": ["nurse", "surgeon", "secretary", "CEO"],
+  "twig_variations": [" walked into the room.", " looked up from the desk."]
+}

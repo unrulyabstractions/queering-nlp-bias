@@ -21,6 +21,8 @@ Score generated trajectories using configurable scoring methods.
 | `graded` | `graded_judgements` | g1, g2... | LLM |
 | `similarity` | `similarity_scoring` | s1, s2... | Embedder |
 | `count-occurrences` | `count_occurrences` | o1, o2... | None |
+| `whistles` | `whistles` | w1 | LLM + glossary |
+| `marked_personas` | `marked_personas` | p1 | LLM (Phase 1) |
 
 ## Usage
 

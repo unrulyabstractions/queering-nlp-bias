@@ -21,7 +21,7 @@ Generation → Scoring → Estimation → Visualization
     │           │          │             │
     │           │          │             └─ viz/
     │           │          ├─ Compute cores, deviance, orientation
-    │           │          └─ dynamics/ (drift and horizon analysis)
+    │           │          └─ dynamics/ (drift and potential analysis)
     │           └─ Structure compliance scoring
     └─ Output: out/<method>/gen_<config>.json
 ```
@@ -114,7 +114,7 @@ Estimate normativity metrics from scored trajectories.
 
 **Subfolders:**
 - `methods/` — Weighting method implementations
-- `dynamics/` — Drift and horizon analysis
+- `dynamics/` — Drift and potential analysis
 - `logging/` — Display utilities
 
 **Key files:**

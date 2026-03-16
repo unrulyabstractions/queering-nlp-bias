@@ -685,6 +685,11 @@ def optimize_legend_placement(
         if collision == 0:
             break
 
+    # Ensure legend meets minimum coverage requirement before validation
+    layout, legend_top_y = _ensure_minimum_coverage(
+        layout, legend_top_y, target_region, tree_content
+    )
+
     # CONSTRAINT VALIDATION
     validate_legend_constraints(layout, legend_top_y, target_region, tree_content)
 
@@ -825,6 +830,93 @@ def _relayout_to_avoid_collision(
     return new_layout, new_legend_top_y
 
 
+def _ensure_minimum_coverage(
+    layout: dict[str, Any],
+    legend_top_y: float,
+    target_region: BoundingBox,
+    tree_content: TreeContentTracker,
+) -> tuple[dict[str, Any], float]:
+    """Scale up legend if needed to meet minimum coverage requirement.
+
+    When there are few legend items, the legend may be too small relative
+    to the available white space. This function scales up the legend
+    dimensions to ensure it fills at least MIN_COVERAGE_RATIO of the
+    available region.
+
+    Returns (updated_layout, updated_legend_top_y).
+    """
+    items = layout.get("items", [])
+    if not items:
+        return layout, legend_top_y
+
+    # Compute available region (same as in validate_legend_constraints)
+    left_tree_boxes = [
+        box for box in tree_content.node_boxes if box.x_min < 3.0
+    ]
+    if left_tree_boxes:
+        local_tree_top = max(box.y_max for box in left_tree_boxes)
+    else:
+        tree_bounds = tree_content.get_tree_bounds()
+        local_tree_top = tree_bounds.y_max if tree_bounds else target_region.y_min
+
+    available_region = _compute_available_region(
+        target_region, local_tree_top, legend_top_y, tree_content
+    )
+
+    if available_region.area <= 0.5:
+        return layout, legend_top_y
+
+    # Compute current legend area
+    legend_bounds = compute_legend_bounds(layout, legend_top_y)
+    legend_union = BoundingBox.union(legend_bounds)
+    if not legend_union:
+        return layout, legend_top_y
+
+    current_coverage = legend_union.area / available_region.area
+
+    if current_coverage >= MIN_COVERAGE_RATIO:
+        return layout, legend_top_y
+
+    # Need to scale up. Compute required scale factor.
+    required_area = MIN_COVERAGE_RATIO * available_region.area
+    # Scale both width and height proportionally
+    scale_factor = (required_area / legend_union.area) ** 0.5
+
+    # Scale up layout dimensions
+    new_layout = layout.copy()
+    new_layout["items"] = [item.copy() for item in layout["items"]]
+
+    # Scale swatch size
+    old_swatch = layout.get("swatch_size", SWATCH_SIZE)
+    new_swatch = old_swatch * scale_factor
+    new_layout["swatch_size"] = new_swatch
+
+    # Scale row height
+    old_row_height = layout.get("row_height", 0.32)
+    new_row_height = old_row_height * scale_factor
+    new_layout["row_height"] = new_row_height
+
+    # Scale char width (for text rendering)
+    old_char_width = layout.get("char_width", 0.09)
+    new_char_width = old_char_width * scale_factor
+    new_layout["char_width"] = new_char_width
+
+    # Scale total dimensions
+    new_layout["total_width"] = layout.get("total_width", 1.0) * scale_factor
+    new_layout["total_height"] = layout.get("total_height", 0.5) * scale_factor
+
+    # Scale item positions
+    swatch_scale = new_swatch / old_swatch
+    for item in new_layout["items"]:
+        item["swatch_x"] = item["swatch_x"] * scale_factor
+        item["swatch_y"] = item["swatch_y"] * scale_factor
+        item["text_x"] = item["text_x"] * scale_factor
+        item["text_y"] = item["text_y"] * scale_factor
+        item["swatch_size"] = new_swatch
+
+    return new_layout, legend_top_y
+
+
 ###############################################################################
 # CONSTRAINT VALIDATION
 ###############################################################################
@@ -922,8 +1014,10 @@ def validate_legend_constraints(
         if legend_union:
             coverage = legend_union.area / available_region.area
             # Only enforce for regions with meaningful space
+            # Use small tolerance for floating point comparison
+            COVERAGE_TOLERANCE = 0.001
             if available_region.area > 0.5:
-                assert coverage >= MIN_COVERAGE_RATIO, (
+                assert coverage >= MIN_COVERAGE_RATIO - COVERAGE_TOLERANCE, (
                     f"Legend coverage constraint FAILED: coverage={coverage:.1%} < "
                     f"min={MIN_COVERAGE_RATIO:.0%} (legend_area={legend_union.area:.2f}, "
                     f"available_area={available_region.area:.2f})"

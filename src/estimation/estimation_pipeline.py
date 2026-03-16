@@ -33,22 +33,43 @@ from .estimation_weighted_types import WeightedEstimate
 from .weighting_method_registry import get_default_params, get_method, iter_methods
 
 
+@dataclass
+class EstimationPipelineResult:
+    """Result of estimation pipeline."""
+
+    output: EstimationOutput
+    arms: list[ArmEstimate]
+    trunk_cores: dict[str, list[float]]
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # CORE COMPUTATION
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-def _compute_core_variants(scores: list[list[float]], weights: list[float]) -> list[CoreVariant]:
+def _compute_core_variants(
+    scores: list[list[float]], weights: list[float]
+) -> list[CoreVariant]:
     """Compute all named core variants (different q,r params)."""
     variants = []
     for name, q, r, desc in NAMED_CORES:
         try:
             core = generalized_system_core(scores, weights, q=q, r=r)
-            variants.append(CoreVariant(
-                name=name, q=q, r=r, description=desc, core=core,
-                deviance_avg=expected_deviance(scores, core, weights=weights, norm="l2"),
-                deviance_var=deviance_variance(scores, core, weights=weights, norm="l2"),
-            ))
+            variants.append(
+                CoreVariant(
+                    name=name,
+                    q=q,
+                    r=r,
+                    description=desc,
+                    core=core,
+                    deviance_avg=expected_deviance(
+                        scores, core, weights=weights, norm="l2"
+                    ),
+                    deviance_var=deviance_variance(
+                        scores, core, weights=weights, norm="l2"
+                    ),
+                )
+            )
         except (ValueError, ZeroDivisionError, OverflowError):
             pass
     return variants
@@ -62,7 +83,9 @@ def _compute_weighted_estimate(
     ref_cores: dict[str, list[float] | None],
 ) -> WeightedEstimate:
     """Compute estimate for one weighting method."""
-    weights = get_method(method_name)(log_probs, n_tokens, get_default_params(method_name))
+    weights = get_method(method_name)(
+        log_probs, n_tokens, get_default_params(method_name)
+    )
     core = generalized_system_core(scores, weights, q=1.0, r=1.0)
 
     if not core:
@@ -81,8 +104,16 @@ def _compute_weighted_estimate(
         core=core,
         deviance_avg=expected_deviance(scores, core, weights=weights, norm="l2"),
         deviance_var=deviance_variance(scores, core, weights=weights, norm="l2"),
-        deviance_avg_root=expected_deviance(scores, root_core, weights=weights, norm="l2") if root_core else 0.0,
-        deviance_avg_trunk=expected_deviance(scores, trunk_core, weights=weights, norm="l2") if trunk_core else 0.0,
+        deviance_avg_root=expected_deviance(
+            scores, root_core, weights=weights, norm="l2"
+        )
+        if root_core
+        else 0.0,
+        deviance_avg_trunk=expected_deviance(
+            scores, trunk_core, weights=weights, norm="l2"
+        )
+        if trunk_core
+        else 0.0,
         excess_deviance_avg=expected_excess_deviance(scores, core, weights=weights),
         deficit_deviance_avg=expected_deficit_deviance(scores, core, weights=weights),
         mutual_deviance_avg=expected_mutual_deviance(scores, core, weights=weights),
@@ -119,7 +150,9 @@ def _compute_arm_estimate(
             "root": ref_cores.get("root", {}).get(method_name),
             "parent": ref_cores.get("parent", {}).get(method_name),
         }
-        estimates[method_name] = _compute_weighted_estimate(method_name, scores, log_probs, n_tokens, method_refs)
+        estimates[method_name] = _compute_weighted_estimate(
+            method_name, scores, log_probs, n_tokens, method_refs
+        )
 
     # Per-trajectory estimates using prob-weighted core
     prob_core = estimates["prob"].core
@@ -132,7 +165,9 @@ def _compute_arm_estimate(
         for t in trajs
     ]
 
-    return ArmEstimate(arm_idx=arm_idx, name=name, trajectories=traj_estimates, estimates=estimates)
+    return ArmEstimate(
+        arm_idx=arm_idx, name=name, trajectories=traj_estimates, estimates=estimates
+    )
 
 
 def _extract_cores(estimate: ArmEstimate) -> dict[str, list[float]]:
@@ -145,17 +180,10 @@ def _extract_cores(estimate: ArmEstimate) -> dict[str, list[float]]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
-@dataclass
-class PipelineResult:
-    """Result of estimation pipeline."""
-
-    output: EstimationOutput
-    arms: list[ArmEstimate]
-    trunk_cores: dict[str, list[float]]
-
-
 @profile
-def run_estimation_pipeline(data: ScoringData, judgment_file: str) -> PipelineResult:
+def run_estimation_pipeline(
+    data: ScoringData, judgment_file: str
+) -> EstimationPipelineResult:
     """Run estimation pipeline on scored trajectories."""
     by_arm = data.group_by_arm()
     arm_names = data.arm_names or ["trunk"]
@@ -166,7 +194,7 @@ def run_estimation_pipeline(data: ScoringData, judgment_file: str) -> PipelineRe
     idx = 0
 
     # Process root if present
-    if "root" in by_arm and by_arm["root"]:
+    if by_arm.get("root"):
         est = _compute_arm_estimate(idx, "root", by_arm["root"], ref_cores)
         arms.append(est)
         ref_cores["root"] = _extract_cores(est)
@@ -208,4 +236,6 @@ def run_estimation_pipeline(data: ScoringData, judgment_file: str) -> PipelineRe
         arm_scoring=data.compute_arm_scoring(),
     )
 
-    return PipelineResult(output=output, arms=arms, trunk_cores=ref_cores["trunk"])
+    return EstimationPipelineResult(
+        output=output, arms=arms, trunk_cores=ref_cores["trunk"]
+    )

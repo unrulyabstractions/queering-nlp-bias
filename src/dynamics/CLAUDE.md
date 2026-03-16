@@ -43,7 +43,7 @@ At each token position k, we score the partial text and compute:
 |--------|--------|-------------|
 | **Pull** | x(k) | L2 norm of scores at position k (normative strength) |
 | **Drift** | y(k) | Deviance from initial scores (how far from start) |
-| **Horizon** | z(k) | Deviance from final scores (how far to end state) |
+| **Potential** | z(k) | Deviance from final scores (how far to end state) |
 
 ## Algorithm
 
@@ -53,7 +53,7 @@ At each token position k, we score the partial text and compute:
    - Score it using the scoring config to get structure scores
    - Compute pull = `||scores||` (L2 norm)
    - Compute drift = `||scores - initial_scores||` (deviance from position 0)
-   - Compute horizon = `||scores - final_scores||` (deviance from end)
+   - Compute potential = `||scores - final_scores||` (deviance from end)
 
 ## Key Files
 
@@ -92,7 +92,7 @@ out/<method>/<gen_name>/<scoring_name>/
       "n_tokens": 64,
       "pull": [[4, 1.12], [8, 1.62], ...],
       "drift": [[4, 0.0], [8, 0.8], ...],
-      "horizon": [[4, 1.5], [8, 1.2], ...]
+      "potential": [[4, 1.5], [8, 1.2], ...]
     }
   ]
 }
@@ -114,7 +114,7 @@ Dynamics analyzes **extremal trajectories** - those with highest and lowest inve
 1. **Re-scoring at each position** - partial text is re-scored at each k
 2. **Step size matters** - smaller step = more measurements but slower
 3. **Drift starts at 0** - by definition, drift from initial scores is 0 at first position
-4. **Horizon ends at 0** - by definition, horizon to final scores is 0 at last position
+4. **Potential ends at 0** - by definition, potential to final scores is 0 at last position
 5. **String selection applies** - thinking blocks are stripped before dynamics scoring (same as main scoring)
 6. **Extremal selection** - not all trajectories are analyzed, only the most/least probable per arm
 

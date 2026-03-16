@@ -6,7 +6,7 @@ Orchestrates the three-stage pipeline:
     2. Score trajectories against scoring structures
     3. Estimate normativity from scores
 
-Optional: --dynamics computes drift and horizon dynamics for trajectories,
+Optional: --dynamics computes drift and potential dynamics for trajectories,
 showing how deviance evolves through token positions.
 
 Usage:
@@ -81,7 +81,7 @@ class ParsedExperimentArgs:
     scoring_config_path: Path
     methods: list[str]  # Method names from registry
     overrides: dict[str, Any]
-    dynamics: bool  # Whether to compute drift/horizon dynamics
+    dynamics: bool  # Whether to compute drift/potential dynamics
     profile: bool  # Whether to enable profiling
     base_dir: str  # Output base directory (out/ or generation_compare/)
     include_method_in_path: bool  # Whether to include method name in output path
@@ -114,7 +114,7 @@ def parse_experiment_args() -> ParsedExperimentArgs:
     parser.add_argument(
         "--dynamics",
         action="store_true",
-        help="Compute drift/horizon dynamics for trajectories",
+        help="Compute drift/potential dynamics for trajectories",
     )
     parser.add_argument(
         "--profile",
@@ -288,9 +288,9 @@ def _select_extremal_trajectories(all_trajs: list) -> list[tuple[int, str, str, 
 
 @profile
 def step_dynamics(result: EstimationResult, scoring_config_path: Path) -> None:
-    """Compute drift and horizon dynamics for trajectories."""
+    """Compute drift and potential dynamics for trajectories."""
     log_section("DYNAMICS")
-    log("Computing dynamics (pull, drift, horizon)...")
+    log("Computing dynamics (pull, drift, potential)...")
 
     scorer = Scorer.load(scoring_config_path)
     log(f"Loaded scorer: {scorer.num_structures} structures")

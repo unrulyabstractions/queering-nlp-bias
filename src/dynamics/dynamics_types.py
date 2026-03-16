@@ -5,7 +5,7 @@ At each token position k, we:
 2. Compute metrics from those scores:
    - Pull: l2 norm of scores (normative strength)
    - Drift: deviance from initial scores (how far we've moved)
-   - Horizon: deviance from final scores (how far to end state)
+   - Potential: deviance from final scores (how far to end state)
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ class PositionScores(BaseSchema):
     scores: list[float]  # Structure scores at this position
     pull: float  # l2 norm of scores
     drift: float  # Deviance from initial scores
-    horizon: float  # Deviance from final scores
+    potential: float  # Deviance from final scores
 
 
 @dataclass
@@ -48,9 +48,9 @@ class TrajectoryDynamics(BaseSchema):
         return [(p.k, p.drift) for p in self.positions]
 
     @property
-    def horizon_series(self) -> list[tuple[int, float]]:
-        """(k, horizon) pairs for plotting."""
-        return [(p.k, p.horizon) for p in self.positions]
+    def potential_series(self) -> list[tuple[int, float]]:
+        """(k, potential) pairs for plotting."""
+        return [(p.k, p.potential) for p in self.positions]
 
 
 @dataclass

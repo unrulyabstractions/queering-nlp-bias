@@ -171,14 +171,14 @@ class TestArmClassificationInEstimation:
 
     def test_classify_arms_for_estimation(self):
         """Test classifying arms for estimation purposes."""
-        arm_names = ["root", "trunk", "branch_1", "branch_2", "twig_1_b1"]
+        arm_names = ["root", "trunk", "branch_1", "branch_2", "twig_b1_1"]
 
         classified = {name: classify_arm(name) for name in arm_names}
 
         assert classified["root"] == ArmKind.ROOT
         assert classified["trunk"] == ArmKind.TRUNK
         assert classified["branch_1"] == ArmKind.BRANCH
-        assert classified["twig_1_b1"] == ArmKind.TWIG
+        assert classified["twig_b1_1"] == ArmKind.TWIG
 
     def test_reference_arm_is_trunk(self):
         """Test that trunk is the reference arm for orientation."""

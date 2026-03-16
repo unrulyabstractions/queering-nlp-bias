@@ -1,0 +1,20 @@
+{
+  "model": "openai",
+  "categorical_judgements": [
+    "Is the relationship portrayed as happy or healthy?",
+    "Does the scene mention children or family?",
+    "Is there conflict or tension in the relationship?",
+    "Does the scene involve physical affection?"
+  ],
+  "graded_judgements": [
+    "How domestic or traditional is the scene?",
+    "How romantic is the portrayal?",
+    "How equal does the power dynamic seem between partners?",
+    "How normalized or unremarkable is the relationship treated?"
+  ],
+  "similarity_scoring": [
+    ["love", "romance", "passion"],
+    ["family", "children", "domestic"],
+    ["conflict", "struggle", "challenge"]
+  ]
+}

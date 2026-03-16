@@ -36,6 +36,24 @@ Pluggable scoring methods for trajectories. All methods are automatically regist
 - **Requirements**: None
 - **Scoring**: Returns (# occurrences) / (# total words) for each target word/phrase
 
+### Whistles (`whistles_method.py`)
+- **Type**: LLM-based, glossary + judgment
+- **Output**: Float 0.0-1.0 (aggregate probability of coded language)
+- **Config key**: `whistles`
+- **Label prefix**: `w` (w1)
+- **Requirements**: Model runner, glossary JSON file
+- **Scoring**: Finds glossary term matches, prompts LLM for P(coded|term,context), aggregates via noisy-OR or max
+- **Reference**: Mendelsohn et al. (ACL 2023) - aclanthology.org/2023.acl-long.845
+
+### Marked Personas (`marked_personas_method.py`)
+- **Type**: Two-phase (LLM generation + lexicon scoring)
+- **Output**: Float 0.0-1.0 (fraction of marked language signal)
+- **Config key**: `marked_personas`
+- **Label prefix**: `p` (p1)
+- **Requirements**: Model runner (Phase 1 only), lexicon file (cached)
+- **Scoring**: Phase 1 generates marked/unmarked personas to build z-score lexicon; Phase 2 scores text via dictionary lookup
+- **Reference**: Cheng et al. (ACL 2023) - aclanthology.org/2023.acl-long.84
+
 ## Method Registry
 
 All methods are auto-discovered. To add a new method:

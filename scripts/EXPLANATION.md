@@ -45,7 +45,7 @@ uv run python scripts/run_full_experiment.py --all \
     trials/generation/<gen_config>.json \
     trials/scoring/<scoring_config>.json
 
-# Compute drift and horizon dynamics
+# Compute drift and potential dynamics
 uv run python scripts/run_full_experiment.py --dynamics \
     trials/generation/<gen_config>.json \
     trials/scoring/<scoring_config>.json
@@ -59,7 +59,7 @@ uv run python scripts/run_full_experiment.py --dynamics \
 | `scoring_config` | positional | Path to scoring config JSON |
 | `--method` | optional | Generation method: `simple-sampling`, `forking-paths`, or `seeking-entropy` (default: `simple-sampling`) |
 | `--all` | flag | Run all methods and compare results |
-| `--dynamics` | flag | Compute drift and horizon dynamics for trajectories (requires scoring model) |
+| `--dynamics` | flag | Compute drift and potential dynamics for trajectories (requires scoring model) |
 
 ### Method-Specific Parameters
 

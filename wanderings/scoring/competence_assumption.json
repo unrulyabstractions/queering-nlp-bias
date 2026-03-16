@@ -1,0 +1,15 @@
+{
+  "model": "openai",
+  "categorical_judgements": [
+    "Does the employee claim to be in charge?",
+    "Does the employee defer to someone else?",
+    "Does the customer express doubt about the employee's authority?",
+    "Is the interaction resolved satisfactorily?"
+  ],
+  "graded_judgements": [
+    "How confident does the employee appear?",
+    "How much authority does the employee exercise?",
+    "How respectfully does the customer treat the employee?",
+    "How competent does the employee seem?"
+  ]
+}

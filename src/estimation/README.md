@@ -14,11 +14,11 @@ estimation/
 │   ├── estimation_display_utils.py      # Structure/compliance/core logging
 │   ├── estimation_step_logging.py       # Pipeline step logging
 │   └── estimation_comparison_logging.py # Cross-method comparison display
-├── dynamics/                         # Drift, horizon, and pull analysis
+├── dynamics/                         # Drift, potential, and pull analysis
 │   ├── logging/                         # Dynamics logging utilities
-│   │   └── dynamics_step_logging.py       # Step-by-step drift/horizon/pull logging
-│   ├── dynamics_types.py                # DriftPoint, HorizonPoint, PullPoint types
-│   ├── dynamics_computation.py          # Compute drift/horizon/pull metrics
+│   │   └── dynamics_step_logging.py       # Step-by-step drift/potential/pull logging
+│   ├── dynamics_types.py                # DriftPoint, PotentialPoint, PullPoint types
+│   ├── dynamics_computation.py          # Compute drift/potential/pull metrics
 │   ├── dynamics_visualization.py        # Plotting dynamics curves
 │   ├── README.md                        # Dynamics module overview
 │   └── EXPLANATION.md                   # Dynamics algorithm specification

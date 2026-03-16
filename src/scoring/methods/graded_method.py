@@ -114,8 +114,6 @@ def score_graded(
     if runner is None:
         raise ValueError("Graded scoring requires a model runner")
 
-    print(f"score_graded(): {text}")
-
     def score_single(question: str) -> tuple[float | None, str]:
         prompt = build_graded_prompt(text, question)
         response = runner.generate(

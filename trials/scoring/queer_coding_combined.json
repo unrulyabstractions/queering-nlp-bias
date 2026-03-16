@@ -1,0 +1,20 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "whistles": ["_"],
+  "marked_personas": ["_"],
+  "categorical_judgements": [
+    "Does the text contain queer themes or characters?",
+    "Is there coded language suggesting non-heterosexual identity?"
+  ],
+  "method_params": {
+    "whistles": {
+      "glossary_path": "trials/scoring/glossaries/queer_coding.json",
+      "aggregation": "noisy_or"
+    },
+    "marked_personas": {
+      "marked_label": "queer",
+      "domain": "software engineer",
+      "lexicon_path": "trials/scoring/lexicons/queer_swe_example.json"
+    }
+  }
+}

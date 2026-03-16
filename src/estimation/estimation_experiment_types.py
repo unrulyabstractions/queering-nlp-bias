@@ -133,59 +133,53 @@ class EstimationArmResult(BaseSchema):
         est = self._get_estimate_or_raise(method)
         return safe_float(est.get("core_diversity"), 0.0)
 
-    def get_orientation_from_root(self, method: str = "prob") -> list[float]:
-        """Get orientation vector relative to root core.
+    def get_orientation(
+        self, reference: str = "trunk", method: str = "prob"
+    ) -> list[float]:
+        """Get orientation vector relative to a reference arm's core.
+
+        Args:
+            reference: Reference arm ("root", "trunk", or "parent").
+            method: Weighting method (default: "prob").
+
+        Returns:
+            Orientation vector (core - reference_core).
 
         Raises:
             KeyError: If the weighting method doesn't exist.
+            ValueError: If the reference is invalid.
         """
         est = self._get_estimate_or_raise(method)
-        return est.get("orientation_from_root", [])
+        key = f"orientation_from_{reference}"
+        if key not in ("orientation_from_root", "orientation_from_trunk", "orientation_from_parent"):
+            raise ValueError(
+                f"Invalid reference '{reference}'. Must be 'root', 'trunk', or 'parent'."
+            )
+        return est.get(key, [])
 
-    def get_orientation_norm_from_root(self, method: str = "prob") -> float:
-        """Get orientation norm (magnitude) relative to root core.
+    def get_orientation_norm(
+        self, reference: str = "trunk", method: str = "prob"
+    ) -> float:
+        """Get orientation norm (magnitude) relative to a reference arm's core.
+
+        Args:
+            reference: Reference arm ("root", "trunk", or "parent").
+            method: Weighting method (default: "prob").
+
+        Returns:
+            L2 norm of the orientation vector.
 
         Raises:
             KeyError: If the weighting method doesn't exist.
+            ValueError: If the reference is invalid.
         """
         est = self._get_estimate_or_raise(method)
-        return safe_float(est.get("orientation_norm_from_root"), 0.0)
-
-    def get_orientation_from_trunk(self, method: str = "prob") -> list[float]:
-        """Get orientation vector relative to trunk core.
-
-        Raises:
-            KeyError: If the weighting method doesn't exist.
-        """
-        est = self._get_estimate_or_raise(method)
-        return est.get("orientation_from_trunk", [])
-
-    def get_orientation_norm_from_trunk(self, method: str = "prob") -> float:
-        """Get orientation norm (magnitude) relative to trunk core.
-
-        Raises:
-            KeyError: If the weighting method doesn't exist.
-        """
-        est = self._get_estimate_or_raise(method)
-        return safe_float(est.get("orientation_norm_from_trunk"), 0.0)
-
-    def get_orientation_from_parent(self, method: str = "prob") -> list[float]:
-        """Get orientation vector relative to parent branch core (for twigs).
-
-        Raises:
-            KeyError: If the weighting method doesn't exist.
-        """
-        est = self._get_estimate_or_raise(method)
-        return est.get("orientation_from_parent", [])
-
-    def get_orientation_norm_from_parent(self, method: str = "prob") -> float:
-        """Get orientation norm relative to parent branch core (for twigs).
-
-        Raises:
-            KeyError: If the weighting method doesn't exist.
-        """
-        est = self._get_estimate_or_raise(method)
-        return safe_float(est.get("orientation_norm_from_parent"), 0.0)
+        key = f"orientation_norm_from_{reference}"
+        if key not in ("orientation_norm_from_root", "orientation_norm_from_trunk", "orientation_norm_from_parent"):
+            raise ValueError(
+                f"Invalid reference '{reference}'. Must be 'root', 'trunk', or 'parent'."
+            )
+        return safe_float(est.get(key), 0.0)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any], index: int = 0) -> EstimationArmResult:
@@ -231,7 +225,9 @@ class EstimationResult(BaseSchema):
         with open(paths.estimation) as f:
             est_data = json.load(f)
 
-        arms = [EstimationArmResult.from_dict(a, i) for i, a in enumerate(est_data["arms"])]
+        arms = [
+            EstimationArmResult.from_dict(a, i) for i, a in enumerate(est_data["arms"])
+        ]
 
         return cls(
             method=method,

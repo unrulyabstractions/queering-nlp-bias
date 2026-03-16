@@ -1,0 +1,15 @@
+{
+  "model": "openai",
+  "categorical_judgements": [
+    "Is the character described as a woman?",
+    "Is the character described as a man?",
+    "Does the description mention appearance or clothing?",
+    "Does the description mention professional competence or authority?"
+  ],
+  "graded_judgements": [
+    "How nurturing or caring does the character seem?",
+    "How authoritative or commanding does the character seem?",
+    "How emotional is the character portrayed?",
+    "How rational or analytical is the character portrayed?"
+  ]
+}

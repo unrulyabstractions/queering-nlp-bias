@@ -91,7 +91,7 @@ get_arm_ancestry("twig_2_b1")  # ["root", "trunk", "branch_1", "twig_2_b1"]
 
 The dynamics module (at `src/dynamics/`) analyzes how trajectories evolve:
 - **Drift**: Deviance of partial text from root core
-- **Horizon**: Deviance of full text from each arm's core
+- **Potential**: Deviance of full text from each arm's core
 - **Pull**: L2 norm of arm's core
 
 See [../dynamics/EXPLANATION.md](../dynamics/EXPLANATION.md).
@@ -100,7 +100,7 @@ See [../dynamics/EXPLANATION.md](../dynamics/EXPLANATION.md).
 
 1. **Weighting functions must return normalized weights** - sum to 1.0
 2. **Use `ENABLED` flag** - not deletion, to disable methods
-3. **Arm ancestry matters** - horizon/pull only computed for arms on trajectory's path
+3. **Arm ancestry matters** - potential/pull only computed for arms on trajectory's path
 4. **Reference cores come from trunk** - orientation is relative to trunk
 
 ## Output Format (v2.0)

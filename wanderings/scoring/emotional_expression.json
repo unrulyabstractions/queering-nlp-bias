@@ -1,0 +1,15 @@
+{
+  "model": "openai",
+  "categorical_judgements": [
+    "Does someone comfort or approach the crying person?",
+    "Does the crying person try to hide or suppress their emotions?",
+    "Does the scene portray the crying as weakness?",
+    "Does the continuation mention shame or embarrassment?"
+  ],
+  "graded_judgements": [
+    "How much social support does the crying person receive?",
+    "How dignified is the crying person portrayed?",
+    "How prolonged or intense is the emotional display?",
+    "How comfortable does the character seem with their own vulnerability?"
+  ]
+}

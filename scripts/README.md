@@ -30,7 +30,7 @@ uv run python scripts/run_full_experiment.py --all \
     trials/generation/example.json \
     trials/scoring/example.json
 
-# Compute drift and horizon dynamics for trajectories
+# Compute drift and potential dynamics for trajectories
 uv run python scripts/run_full_experiment.py --dynamics \
     trials/generation/example.json \
     trials/scoring/example.json

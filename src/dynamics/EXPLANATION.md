@@ -18,7 +18,7 @@ The dynamics module tracks how trajectories evolve by scoring partial text at ea
 
 - **Pull x(k)**: How strong is the normative characterization at position k?
 - **Drift y(k)**: How far has the trajectory deviated from its initial state?
-- **Horizon z(k)**: How far is the trajectory from its final state?
+- **Potential z(k)**: How far is the trajectory from its final state?
 
 ## Mathematical Definitions
 
@@ -61,9 +61,9 @@ Where `scores(initial)` is the scores at the first measurement position.
 - Rising drift indicates the trajectory is evolving away from its starting state
 - Stable drift indicates the trajectory has settled into a consistent pattern
 
-### Horizon z(k)
+### Potential z(k)
 
-Horizon measures how far the current scores are from the final scores:
+Potential measures how far the current scores are from the final scores:
 
 ```
 z(k) = ||scores(k) - scores(final)||_2
@@ -72,9 +72,9 @@ z(k) = ||scores(k) - scores(final)||_2
 Where `scores(final)` is the scores at the last measurement position (full text).
 
 **Interpretation**:
-- Horizon ends at 0 (by definition, final deviance from final is zero)
-- Decreasing horizon indicates the trajectory is converging toward its final state
-- High initial horizon with rapid decrease suggests late-emerging normative patterns
+- Potential ends at 0 (by definition, final deviance from final is zero)
+- Decreasing potential indicates the trajectory is converging toward its final state
+- High initial potential with rapid decrease suggests late-emerging normative patterns
 
 ## Computation Algorithm
 
@@ -109,7 +109,7 @@ def compute_dynamics(trajectories, config, runner, embedder, step):
                 scores=scores,
                 pull=l2_norm(scores),
                 drift=deviance(scores, initial_scores),
-                horizon=deviance(scores, final_scores),
+                potential=deviance(scores, final_scores),
             ))
 
         results.append(TrajectoryDynamics(...))
@@ -173,11 +173,11 @@ Each trajectory gets a single plot with three curves:
 
 1. **Pull curve** (orange, triangles): `x(k)` vs token position
 2. **Drift curve** (purple, circles): `y(k)` vs token position
-3. **Horizon curve** (blue, squares): `z(k)` vs token position
+3. **Potential curve** (blue, squares): `z(k)` vs token position
 
 ### Aggregate Plots
 
-3-column layout (Pull | Drift | Horizon) with all trajectories for that arm overlaid. Useful for comparing trajectories within the same arm.
+3-column layout (Pull | Drift | Potential) with all trajectories for that arm overlaid. Useful for comparing trajectories within the same arm.
 
 ## JSON Output Format
 
@@ -192,7 +192,7 @@ Each trajectory gets a single plot with three curves:
       "n_tokens": 64,
       "pull": [[4, 1.12], [8, 1.62], [12, 1.45], ...],
       "drift": [[4, 0.0], [8, 0.8], [12, 1.2], ...],
-      "horizon": [[4, 1.5], [8, 1.2], [12, 0.8], ...]
+      "potential": [[4, 1.5], [8, 1.2], [12, 0.8], ...]
     }
   ]
 }
@@ -213,7 +213,7 @@ Each trajectory gets a single plot with three curves:
 - **Plateau**: Trajectory has stabilized
 - **Continued rise**: Trajectory continues to evolve throughout
 
-### Reading Horizon Curves
+### Reading Potential Curves
 
 - **High initial value**: Final state is very different from initial state
 - **Gradual decrease**: Smooth convergence to final state
@@ -224,8 +224,8 @@ Each trajectory gets a single plot with three curves:
 
 - **Pull high, drift low**: Strong but stable normative content
 - **Pull low, drift high**: Neutral content that varies significantly
-- **Horizon >> Drift**: Trajectory changes more toward the end
-- **Drift >> Horizon**: Trajectory changed more at the beginning
+- **Potential >> Drift**: Trajectory changes more toward the end
+- **Drift >> Potential**: Trajectory changed more at the beginning
 
 ## Performance Considerations
 

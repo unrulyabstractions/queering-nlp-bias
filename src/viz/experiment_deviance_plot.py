@@ -322,25 +322,20 @@ def plot_orientation_for_reference(
     for i, arm in enumerate(other_arms):
         ax = axes[i]
 
-        # Use pre-computed orientation based on reference type
+        # Determine reference type for orientation lookup
         arm_kind = classify_arm(arm.name)
-        if reference_arm_name == "root":
-            orientation = arm.get_orientation_from_root(weighting_method)
-            orient_norm = arm.get_orientation_norm_from_root(weighting_method)
-        elif reference_arm_name == "trunk":
-            orientation = arm.get_orientation_from_trunk(weighting_method)
-            orient_norm = arm.get_orientation_norm_from_trunk(weighting_method)
+        if reference_arm_name in ("root", "trunk"):
+            ref_type = reference_arm_name
         elif arm_kind == ArmKind.TWIG:
-            # For twigs relative to parent branch, use parent orientation
-            orientation = arm.get_orientation_from_parent(weighting_method)
-            orient_norm = arm.get_orientation_norm_from_parent(weighting_method)
+            ref_type = "parent"
         else:
-            # Non-twig arm relative to a branch - this shouldn't happen
-            # (branches can only have twigs as downstream, not other branches)
             raise ValueError(
                 f"Cannot compute orientation for arm '{arm.name}' (kind={arm_kind}) "
                 f"relative to '{reference_arm_name}'. Only twigs can be downstream of branches."
             )
+
+        orientation = arm.get_orientation(ref_type, weighting_method)
+        orient_norm = arm.get_orientation_norm(ref_type, weighting_method)
 
         # Validate orientation data exists
         if not orientation:

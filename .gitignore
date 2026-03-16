@@ -213,3 +213,6 @@ out/
 generation_compare/
 tmp/
 temp/
+
+# Webapp outputs
+webapp/out/

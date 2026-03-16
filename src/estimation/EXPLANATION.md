@@ -262,7 +262,7 @@ run_estimation_pipeline(data, judgment_file)
     |               compute_weighted_estimate(reference_core=trunk_core)
     |
     v
-PipelineResult
+EstimationPipelineResult
     +-- output: EstimationOutput
     +-- arms: list[ArmEstimate]
     +-- trunk_cores: dict[str, list[float]]
@@ -302,11 +302,11 @@ out/simple-sampling/example/example/viz/dynamics/  # Dynamics plots
 ### Trajectory Text Field
 
 Each `TrajectoryScoringData` now includes a `text` field containing the continuation text. This is used for:
-- Dynamics analysis (drift and horizon computation)
+- Dynamics analysis (drift and potential computation)
 - Output storage for downstream processing
 - Visualization and reporting
 
-## Dynamics Analysis: Drift, Horizon, and Pull
+## Dynamics Analysis: Drift, Potential, and Pull
 
 **Files**: `dynamics/dynamics_types.py`, `dynamics/dynamics_computation.py`, `dynamics/dynamics_visualization.py`
 
@@ -317,18 +317,18 @@ The dynamics module analyzes how trajectories evolve relative to reference cores
 - Shows how far a trajectory has deviated from root as text develops
 - Plotted as a continuous curve over token position (purple)
 
-**Horizon z(arm)**: Deviance of FULL trajectory relative to each arm's core along trajectory's path
+**Potential z(arm)**: Deviance of FULL trajectory relative to each arm's core along trajectory's path
 - Uses pre-computed full trajectory scores (no re-scoring)
 - Only computes for arms on the trajectory's ancestry path (see below)
 - Plotted at each arm's prefix token count (blue, connected line)
 
 **Pull x(arm)**: L2 norm of arm's core at each arm's prefix position
 - Represents the "strength" of normative characterization at each arm
-- Plotted alongside horizon for comparison (orange, connected line)
+- Plotted alongside potential for comparison (orange, connected line)
 
 ### Arm Ancestry
 
-A trajectory only computes horizon and pull for arms on its **ancestry path**. This is determined by `get_arm_ancestry()` from `arm_types.py`:
+A trajectory only computes potential and pull for arms on its **ancestry path**. This is determined by `get_arm_ancestry()` from `arm_types.py`:
 
 | Trajectory Arm | Ancestry Path |
 |----------------|---------------|
@@ -347,7 +347,7 @@ out/<method>/<gen_name>/<scoring_name>/viz/dynamics/traj_{idx}_{arm}.png
 
 Each plot shows three curves:
 - Drift (purple): deviance from root as text develops
-- Horizon (blue): deviance from each arm's core at arm prefix positions
+- Potential (blue): deviance from each arm's core at arm prefix positions
 - Pull (orange): L2 norm of arm's core at arm prefix positions
 
 ### Example Usage
@@ -369,10 +369,10 @@ for traj_dyn in dynamics_result.trajectories:
     for drift_point in traj_dyn.drift_points:
         print(f"  Drift @{drift_point.token_position}: deviance={drift_point.deviance:.4f}")
 
-    # Horizon points (full text vs each arm's core on ancestry path)
-    for hp in traj_dyn.horizon_points:
+    # Potential points (full text vs each arm's core on ancestry path)
+    for hp in traj_dyn.potential_points:
         marker = "*" if hp.arm_name == traj_dyn.arm_name else ""
-        print(f"  Horizon({hp.arm_name}, @{hp.arm_prefix_tokens}): {hp.deviance:.4f}{marker}")
+        print(f"  Potential({hp.arm_name}, @{hp.arm_prefix_tokens}): {hp.deviance:.4f}{marker}")
 
     # Pull points (L2 norm of each arm's core)
     for pp in traj_dyn.pull_points:

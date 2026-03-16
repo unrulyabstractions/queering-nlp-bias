@@ -1,0 +1,11 @@
+{
+  "model": "",
+  "marked_personas": ["_"],
+  "method_params": {
+    "marked_personas": {
+      "marked_label": "queer",
+      "domain": "software engineer",
+      "lexicon_path": "trials/scoring/lexicons/queer_swe_example.json"
+    }
+  }
+}

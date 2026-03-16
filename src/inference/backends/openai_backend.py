@@ -14,6 +14,15 @@ from .api_tokenizer import APITokenizer
 from .model_backend import Backend
 
 
+# Instruction to simulate prefill behavior since OpenAI doesn't support true assistant prefill.
+# This is appended to the user message when a prefill is requested.
+# Research indicates that explicit, direct instructions work best for continuation.
+OPENAI_PREFILL_INSTRUCTION = (
+    "Continue from the following text exactly as written, without repeating it. "
+    "Your response must seamlessly continue from this starting point:\n\n{prefill}"
+)
+
+
 class OpenAIBackend(Backend):
     """Backend using OpenAI API for inference."""
 
@@ -218,3 +227,85 @@ class OpenAIBackend(Backend):
             all_logprobs.extend([0.0] * len(generated_ids))
 
         return all_token_ids, all_logprobs
+
+    def generate_trajectory_from_prompt(
+        self,
+        prompt: str,
+        max_new_tokens: int,
+        temperature: float,
+        prefilling: str = "",
+    ) -> tuple[list[int], list[float], str, str]:
+        """Generate trajectory with prefill handling for OpenAI.
+
+        OpenAI doesn't support true prefill like Anthropic, so we include
+        the prefill instruction in the user message and prepend it to the result.
+
+        Args:
+            prompt: User prompt text
+            max_new_tokens: Maximum tokens to generate
+            temperature: Sampling temperature (0.0 = greedy)
+            prefilling: Text to prefill the assistant response with
+
+        Returns:
+            Tuple of (all_token_ids, logprobs, prefill_text, generated_text)
+            Note: logprobs for prefill tokens are 0.0 (not from model).
+        """
+        client = self._get_client()
+
+        # Use temperature=0 for greedy
+        temp = temperature if temperature > 0 else 0
+
+        # OpenAI doesn't support true prefill, so include instruction in the prompt
+        full_prompt = prompt
+        if prefilling:
+            instruction = OPENAI_PREFILL_INSTRUCTION.format(prefill=prefilling)
+            full_prompt = f"{prompt}\n\n{instruction}"
+
+        response = client.chat.completions.create(
+            model=self._model,
+            messages=[{"role": "user", "content": full_prompt}],
+            max_tokens=max_new_tokens,
+            temperature=temp,
+            logprobs=True,
+        )
+
+        choice = response.choices[0]
+        raw_response = choice.message.content or ""
+
+        # The model should have started with the prefill, but we ensure it
+        # by prepending if needed (and avoiding duplication)
+        if prefilling and raw_response.startswith(prefilling):
+            continuation = raw_response[len(prefilling) :]
+        else:
+            continuation = raw_response
+
+        full_response = prefilling + continuation
+
+        # Tokenize prompt and full response
+        prompt_ids = self._tokenizer.encode(prompt)
+        prefill_ids = self._tokenizer.encode(prefilling) if prefilling else []
+
+        # Build token IDs: prompt + prefill (with 0.0 logprobs) + generated (with real logprobs if available)
+        all_token_ids = prompt_ids + prefill_ids
+        all_logprobs = [0.0] * len(all_token_ids)
+
+        # Extract generated tokens and logprobs from API response
+        if choice.logprobs and choice.logprobs.content:
+            for token_info in choice.logprobs.content:
+                token_bytes = token_info.bytes
+                if token_bytes:
+                    try:
+                        token_str = bytes(token_bytes).decode("utf-8")
+                        token_id = self._tokenizer.encode(token_str)
+                        if token_id:
+                            all_token_ids.append(token_id[0])
+                            all_logprobs.append(token_info.logprob)
+                    except (UnicodeDecodeError, IndexError):
+                        pass
+        else:
+            # Fallback: tokenize continuation and use 0.0 logprobs
+            continuation_ids = self._tokenizer.encode(continuation)
+            all_token_ids.extend(continuation_ids)
+            all_logprobs.extend([0.0] * len(continuation_ids))
+
+        return all_token_ids, all_logprobs, prefilling, continuation

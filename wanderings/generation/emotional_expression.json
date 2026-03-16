@@ -1,0 +1,10 @@
+{
+  "model": "Qwen/Qwen3.5-2B",
+  "prompt": "Continue this scene with two more sentences describing what happens next.",
+  "trunk": "",
+  "branches": [
+    "Marcus sat alone in the hospital waiting room. Tears began to stream down his face.",
+    "Sarah sat alone in the hospital waiting room. Tears began to stream down her face.",
+    "Alex sat alone in the hospital waiting room. Tears began to stream down their face."
+  ]
+}

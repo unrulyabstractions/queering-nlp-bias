@@ -111,12 +111,12 @@ class TestGenerationConfigGetArms:
         arms = config.get_arms()
         # root + trunk + 2*(branch + 2 twigs) = 2 + 2*3 = 8
         assert len(arms) == 8
-        # Check twig naming
+        # Check twig naming (format: twig_b{branch}_{twig})
         twig_names = [a.name for a in arms if "twig" in a.name]
-        assert "twig_1_b1" in twig_names
-        assert "twig_2_b1" in twig_names
-        assert "twig_1_b2" in twig_names
-        assert "twig_2_b2" in twig_names
+        assert "twig_b1_1" in twig_names
+        assert "twig_b1_2" in twig_names
+        assert "twig_b2_1" in twig_names
+        assert "twig_b2_2" in twig_names
 
 
 class TestMethodParamsOverride:

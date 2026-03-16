@@ -39,7 +39,7 @@ out/{method}/{gen_name}/{scoring_name}/viz/
 
 out/{method}/{gen_name}/{scoring_name}/viz/dynamics/
   - drift.png                   # Drift trajectories
-  - horizon.png                 # Horizon deviance plots
+  - potential.png                 # Potential deviance plots
 ```
 
 ### `visualize_generation_comparison(results, output_dir=None)`

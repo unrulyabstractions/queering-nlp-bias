@@ -1,0 +1,13 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "marked_personas": ["_"],
+  "method_params": {
+    "marked_personas": {
+      "marked_label": "queer",
+      "domain": "software engineer",
+      "lexicon_path": "trials/scoring/lexicons/queer_swe.json",
+      "n_samples": 50,
+      "max_tokens": 300
+    }
+  }
+}

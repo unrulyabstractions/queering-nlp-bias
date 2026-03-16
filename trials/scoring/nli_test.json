@@ -1,0 +1,16 @@
+{
+  "model": "",
+  "nli_hypotheses": [
+    "This text contains queer subtext.",
+    "A character in this text violates gender norms.",
+    "This text emphasizes vanity, flamboyance, or aesthetic refinement.",
+    "This text contains a hidden or secret identity.",
+    "This text describes an unusually intense same-gender emotional bond.",
+    "The relationship between characters has romantic undertones."
+  ],
+  "method_params": {
+    "nli": {
+      "aggregation": "mean"
+    }
+  }
+}

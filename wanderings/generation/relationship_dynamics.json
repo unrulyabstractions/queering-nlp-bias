@@ -1,0 +1,15 @@
+{
+  "model": "Qwen/Qwen3.5-2B",
+  "prompt": "Write a short scene about the couple in three sentences.",
+  "trunk": "After ten years of marriage, ",
+  "branches": [
+    "John and Mary",
+    "John and Michael",
+    "Sarah and Emily",
+    "Jordan and Taylor"
+  ],
+  "twig_variations": [
+    " had built a life together.",
+    " faced their biggest challenge yet."
+  ]
+}

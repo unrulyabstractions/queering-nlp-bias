@@ -13,7 +13,7 @@ from __future__ import annotations
 DYNAMICS_COLORS = {
     "pull": "#E67E22",      # Orange - normative strength
     "drift": "#8E44AD",     # Purple - deviation from initial
-    "horizon": "#2980B9",   # Blue - distance to final
+    "potential": "#2980B9",   # Blue - distance to final
 }
 
 # Dynamics line/marker styling

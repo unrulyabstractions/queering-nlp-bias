@@ -30,7 +30,6 @@ from src.common.default_config import DEFAULT_WEIGHTING_METHOD, STRING_SELECTION
 from src.common.logging import log
 
 from .experiment_breakdown_plot import plot_structure_breakdown
-from .experiment_forking_plot import plot_orientation_tree, plot_structure_forking
 from .experiment_core_barplot import (
     plot_cores_barplot,
     plot_cores_comparison,
@@ -44,6 +43,7 @@ from .experiment_deviance_plot import (
     plot_mutual_deviance_by_arm,
     plot_orientation_by_branch,
 )
+from .experiment_forking_plot import plot_orientation_tree, plot_structure_forking
 from .experiment_tree_plot import create_tree_plots, load_structure_labels
 from .experiment_variants_plot import plot_generalized_cores, plot_generalized_deviance
 
@@ -97,7 +97,9 @@ def visualize_result(
             break
 
     # Load arm metadata for tree plots
-    arm_descriptions, arm_texts, arm_n_traj, metadata, arm_suffix_probs = _load_arm_metadata(result.paths)
+    arm_descriptions, arm_texts, arm_n_traj, metadata, arm_suffix_probs = (
+        _load_arm_metadata(result.paths)
+    )
 
     # Per-estimation-method plots in subfolders (skip if summaries_only)
     if not summaries_only:
@@ -107,7 +109,10 @@ def visualize_result(
 
             created_files.extend(
                 _create_est_method_plots(
-                    result, method, structure_labels, est_dir,
+                    result,
+                    method,
+                    structure_labels,
+                    est_dir,
                     arm_n_traj=arm_n_traj,
                     arm_texts=arm_texts,
                     arm_suffix_probs=arm_suffix_probs,
@@ -187,17 +192,23 @@ def _create_est_method_plots(
     stats_dir.mkdir(parents=True, exist_ok=True)
 
     # Excess deviance
-    saved = plot_excess_deviance_by_arm(result, method, stats_dir / "excess_deviance.png")
+    saved = plot_excess_deviance_by_arm(
+        result, method, stats_dir / "excess_deviance.png"
+    )
     if saved:
         created.append(saved)
 
     # Deficit deviance
-    saved = plot_deficit_deviance_by_arm(result, method, stats_dir / "deficit_deviance.png")
+    saved = plot_deficit_deviance_by_arm(
+        result, method, stats_dir / "deficit_deviance.png"
+    )
     if saved:
         created.append(saved)
 
     # Mutual deviance
-    saved = plot_mutual_deviance_by_arm(result, method, stats_dir / "mutual_deviance.png")
+    saved = plot_mutual_deviance_by_arm(
+        result, method, stats_dir / "mutual_deviance.png"
+    )
     if saved:
         created.append(saved)
 
@@ -209,7 +220,9 @@ def _create_est_method_plots(
         created.append(saved)
 
     # Generalized deviance line plots
-    saved = plot_generalized_deviance(result, method, stats_dir / "generalized_deviance.png")
+    saved = plot_generalized_deviance(
+        result, method, stats_dir / "generalized_deviance.png"
+    )
     if saved:
         created.append(saved)
 
@@ -217,7 +230,7 @@ def _create_est_method_plots(
 
 
 def _create_orientation_tree_plots(
-    result: "EstimationResult",
+    result: EstimationResult,
     method: str,
     structure_labels: list[str],
     est_dir: Path,
@@ -227,21 +240,22 @@ def _create_orientation_tree_plots(
     Like summary_core_evolution.png but shows orientation vectors instead of core values.
     Saved to orientation/evolution_{ref_arm}.png
     """
-    from src.estimation.arm_types import ArmKind, classify_arm, get_branch_index
 
     created: list[Path] = []
 
     # Load arm metadata
-    arm_descriptions, arm_texts, arm_n_traj, metadata, arm_suffix_probs = _load_arm_metadata(result.paths)
+    arm_descriptions, arm_texts, arm_n_traj, metadata, arm_suffix_probs = (
+        _load_arm_metadata(result.paths)
+    )
 
     # Get all arm names
     all_arm_names = [a.name for a in result.arms]
 
     # Find arms with downstream children (these will be reference arms)
     from .experiment_deviance_plot import has_downstream_arms
+
     reference_arms = [
-        name for name in all_arm_names
-        if has_downstream_arms(name, all_arm_names)
+        name for name in all_arm_names if has_downstream_arms(name, all_arm_names)
     ]
 
     # Create orientation subfolder
@@ -255,14 +269,9 @@ def _create_orientation_tree_plots(
         n_structures = len(structure_labels)
 
         for arm in result.arms:
-            # Get orientation relative to this reference
-            if ref_name == "root":
-                orientation = arm.get_orientation_from_root(method)
-            elif ref_name == "trunk":
-                orientation = arm.get_orientation_from_trunk(method)
-            else:
-                # For branch references, get orientation from parent
-                orientation = arm.get_orientation_from_parent(method)
+            # Determine reference type for orientation lookup
+            ref_type = ref_name if ref_name in ("root", "trunk") else "parent"
+            orientation = arm.get_orientation(ref_type, method)
 
             if orientation:
                 arm_orientations[arm.name] = orientation
@@ -292,7 +301,7 @@ def _create_orientation_tree_plots(
 
 
 def _create_cross_method_plots(
-    result: "EstimationResult",
+    result: EstimationResult,
     weighting_methods: list[str],
     structure_labels: list[str],
     gen_dir: Path,
@@ -301,7 +310,9 @@ def _create_cross_method_plots(
     created: list[Path] = []
 
     # Load arm metadata from scoring.json and generation_cfg.json
-    arm_descriptions, arm_texts, arm_n_traj, metadata, arm_suffix_probs = _load_arm_metadata(result.paths)
+    arm_descriptions, arm_texts, arm_n_traj, metadata, arm_suffix_probs = (
+        _load_arm_metadata(result.paths)
+    )
 
     # Estimation comparison - needs arm_descriptions for legend
     saved = plot_cores_comparison(
@@ -351,7 +362,7 @@ def _create_cross_method_plots(
 
 
 def _compute_arm_weighted_cores(
-    result: "EstimationResult",
+    result: EstimationResult,
     method: str = DEFAULT_WEIGHTING_METHOD,
 ) -> dict[str, list[float]]:
     """Compute weighted core values for each arm using the estimation method.
@@ -378,7 +389,7 @@ def _compute_arm_weighted_cores(
 
 
 def _compute_arm_suffix_probs(
-    paths: "Any",
+    paths: Any,
     arm_names: list[str],
 ) -> dict[str, float]:
     """Compute P(arm_suffix | parent_prefix) for each arm using generation data.
@@ -506,8 +517,10 @@ def _compute_arm_suffix_probs(
 
 
 def _load_arm_metadata(
-    paths: "Any",
-) -> tuple[dict[str, str], dict[str, str], dict[str, int], dict[str, str], dict[str, float]]:
+    paths: Any,
+) -> tuple[
+    dict[str, str], dict[str, str], dict[str, int], dict[str, str], dict[str, float]
+]:
     """Load arm data from scoring.json and generation_cfg.json.
 
     Returns:

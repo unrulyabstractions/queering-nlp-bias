@@ -189,3 +189,62 @@ class AnthropicBackend(Backend):
         all_logprobs = [0.0] * len(all_token_ids)
 
         return all_token_ids, all_logprobs
+
+    def generate_trajectory_from_prompt(
+        self,
+        prompt: str,
+        max_new_tokens: int,
+        temperature: float,
+        prefilling: str = "",
+    ) -> tuple[list[int], list[float], str, str]:
+        """Generate trajectory with proper prefill handling for Anthropic.
+
+        Uses assistant message to implement true prefill - the API returns
+        only the continuation after the prefill.
+
+        Args:
+            prompt: User prompt text
+            max_new_tokens: Maximum tokens to generate
+            temperature: Sampling temperature (0.0 = greedy)
+            prefilling: Text to prefill the assistant response with
+
+        Returns:
+            Tuple of (all_token_ids, logprobs, prefill_text, generated_text)
+            where logprobs are all 0.0 (Anthropic doesn't provide them).
+        """
+        client = self._get_client()
+
+        # Anthropic requires temperature > 0, use small value for near-greedy
+        temp = temperature if temperature > 0 else 0.0
+
+        # Build messages with prefill as assistant message
+        messages = [{"role": "user", "content": prompt}]
+        if prefilling:
+            messages.append({"role": "assistant", "content": prefilling})
+
+        response = client.messages.create(
+            model=self._model,
+            max_tokens=max_new_tokens,
+            temperature=temp,
+            messages=messages,
+        )
+
+        # Extract continuation (text after prefill)
+        continuation = ""
+        if response.content and len(response.content) > 0:
+            continuation = response.content[0].text
+
+        # Full response = prefill + continuation
+        full_response = prefilling + continuation
+
+        # Tokenize prompt and full response
+        prompt_ids = self._tokenizer.encode(prompt)
+        response_ids = self._tokenizer.encode(full_response)
+
+        # Build full token sequence
+        all_token_ids = prompt_ids + response_ids
+
+        # All logprobs are 0.0 (Anthropic doesn't provide them)
+        all_logprobs = [0.0] * len(all_token_ids)
+
+        return all_token_ids, all_logprobs, prefilling, continuation

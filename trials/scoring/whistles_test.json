@@ -1,0 +1,10 @@
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "whistles": ["_"],
+  "method_params": {
+    "whistles": {
+      "glossary_path": "trials/scoring/glossaries/queer_coding.json",
+      "aggregation": "noisy_or"
+    }
+  }
+}

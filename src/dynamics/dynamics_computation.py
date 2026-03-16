@@ -62,10 +62,10 @@ def _compute_trajectory_dynamics(
     result_positions: list[PositionScores] = []
 
     for k, scores in scored:
-        pull, drift, horizon = l2_norm(scores), l2_distance(scores, initial), l2_distance(scores, final)
-        result_positions.append(PositionScores(k=k, scores=scores, pull=pull, drift=drift, horizon=horizon))
+        pull, drift, potential = l2_norm(scores), l2_distance(scores, initial), l2_distance(scores, final)
+        result_positions.append(PositionScores(k=k, scores=scores, pull=pull, drift=drift, potential=potential))
         if log_fn:
-            log_fn(f"      @{k:3d}: pull={pull:.3f} drift={drift:.3f} horizon={horizon:.3f}")
+            log_fn(f"      @{k:3d}: pull={pull:.3f} drift={drift:.3f} potential={potential:.3f}")
 
     return TrajectoryDynamics(
         traj_idx=traj_idx, arm_name=arm_name, text=text, n_tokens=n_tokens, positions=result_positions
@@ -88,7 +88,7 @@ def compute_dynamics(
         log_fn: Logging callback
 
     Returns:
-        DynamicsResult with pull/drift/horizon at each position
+        DynamicsResult with pull/drift/potential at each position
     """
     if isinstance(scorer, ScoringConfig):
         scorer = Scorer(scorer)

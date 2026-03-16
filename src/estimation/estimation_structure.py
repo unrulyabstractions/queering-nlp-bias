@@ -184,50 +184,58 @@ class ArmEstimate(BaseSchema):
         """
         return self._get_estimate_or_raise(method).core_diversity
 
-    def get_orientation_from_root(self, method: str = "prob") -> list[float]:
-        """Get orientation vector relative to root core.
+    def get_orientation(
+        self, reference: str = "trunk", method: str = "prob"
+    ) -> list[float]:
+        """Get orientation vector relative to a reference arm's core.
+
+        Args:
+            reference: Reference arm ("root", "trunk", or "parent").
+            method: Weighting method (default: "prob").
+
+        Returns:
+            Orientation vector (core - reference_core).
 
         Raises:
             KeyError: If the weighting method doesn't exist.
+            ValueError: If the reference is invalid.
         """
-        return self._get_estimate_or_raise(method).orientation_from_root
+        est = self._get_estimate_or_raise(method)
+        if reference == "root":
+            return est.orientation_from_root
+        elif reference == "trunk":
+            return est.orientation_from_trunk
+        elif reference == "parent":
+            return est.orientation_from_parent
+        else:
+            raise ValueError(
+                f"Invalid reference '{reference}'. Must be 'root', 'trunk', or 'parent'."
+            )
 
-    def get_orientation_norm_from_root(self, method: str = "prob") -> float:
-        """Get orientation norm (magnitude) relative to root core.
+    def get_orientation_norm(
+        self, reference: str = "trunk", method: str = "prob"
+    ) -> float:
+        """Get orientation norm (magnitude) relative to a reference arm's core.
+
+        Args:
+            reference: Reference arm ("root", "trunk", or "parent").
+            method: Weighting method (default: "prob").
+
+        Returns:
+            L2 norm of the orientation vector.
 
         Raises:
             KeyError: If the weighting method doesn't exist.
+            ValueError: If the reference is invalid.
         """
-        return self._get_estimate_or_raise(method).orientation_norm_from_root
-
-    def get_orientation_from_trunk(self, method: str = "prob") -> list[float]:
-        """Get orientation vector relative to trunk core.
-
-        Raises:
-            KeyError: If the weighting method doesn't exist.
-        """
-        return self._get_estimate_or_raise(method).orientation_from_trunk
-
-    def get_orientation_norm_from_trunk(self, method: str = "prob") -> float:
-        """Get orientation norm (magnitude) relative to trunk core.
-
-        Raises:
-            KeyError: If the weighting method doesn't exist.
-        """
-        return self._get_estimate_or_raise(method).orientation_norm_from_trunk
-
-    def get_orientation_from_parent(self, method: str = "prob") -> list[float]:
-        """Get orientation vector relative to parent branch core (for twigs).
-
-        Raises:
-            KeyError: If the weighting method doesn't exist.
-        """
-        return self._get_estimate_or_raise(method).orientation_from_parent
-
-    def get_orientation_norm_from_parent(self, method: str = "prob") -> float:
-        """Get orientation norm relative to parent branch core (for twigs).
-
-        Raises:
-            KeyError: If the weighting method doesn't exist.
-        """
-        return self._get_estimate_or_raise(method).orientation_norm_from_parent
+        est = self._get_estimate_or_raise(method)
+        if reference == "root":
+            return est.orientation_norm_from_root
+        elif reference == "trunk":
+            return est.orientation_norm_from_trunk
+        elif reference == "parent":
+            return est.orientation_norm_from_parent
+        else:
+            raise ValueError(
+                f"Invalid reference '{reference}'. Must be 'root', 'trunk', or 'parent'."
+            )
