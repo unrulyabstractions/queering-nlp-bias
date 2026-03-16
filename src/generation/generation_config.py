@@ -106,7 +106,7 @@ class GenerationConfig(BaseSchema):
             for twig_num, twig in enumerate(self.twig_variations, start=1):
                 result.append(
                     GenerationArm(
-                        name=f"twig_{twig_num}_b{branch_num}",
+                        name=f"twig_b{branch_num}_{twig_num}",
                         prefill=branch_prefill + twig,
                         parent_idx=branch_idx,
                     )

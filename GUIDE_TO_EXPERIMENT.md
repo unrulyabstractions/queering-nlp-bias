@@ -186,7 +186,7 @@ Create a JSON file in `trials/scoring/`:
 
 | Field | Default | Description |
 |-------|---------|-------------|
-| `string_selection` | `"WholeContinuation"` | Which text portion to score |
+| `string_selection` | `"NonThinkingContinuation"` | Which text portion to score |
 | `max_tokens` | `10` | Max tokens for judge response |
 | `embedding_model` | `"all-MiniLM-L6-v2"` | Model for similarity scoring |
 
@@ -194,10 +194,11 @@ Create a JSON file in `trials/scoring/`:
 
 | Value | Scores |
 |-------|--------|
-| `"WholeTrajectory"` | Prompt + generated text |
-| `"WholeContinuation"` | Generated text only (default) |
-| `"AfterTrunk"` | Generated text minus trunk |
-| `"AfterBranch"` | Generated text minus trunk and branch |
+| `"WholeContinuation"` | All arm prefills + generated text (`<think>` blocks kept) |
+| `"NonThinkingContinuation"` | All arm prefills + generated text, `<think>` blocks removed (default) |
+| `"AfterTrunk"` | Branch + twig + generated text (`<think>` blocks stripped) |
+| `"AfterBranch"` | Twig + generated text (`<think>` blocks stripped) |
+| `"AfterTwig"` | Raw generated text only — no arm prefills (`<think>` blocks kept) |
 
 ---
 

@@ -159,12 +159,12 @@ Answer with just a number between 0.0 and 1.0:
    This extracts `TrajectoryData` objects containing:
    - `traj_idx`: Index in the generation batch
    - `arm_name`: Which arm the trajectory came from (e.g., "trunk", "branch_1")
-   - `generated_text`: The full generated text
-   - `continuation_text`: Generated text only (excluding prefill)
-   - `continuation_text_no_thinking`: Generated text with `<think>...</think>` blocks removed
-   - `text_after_trunk`: Text after trunk arm tokens
-   - `text_after_branch`: Text after branch arm tokens
-   - `text_after_twig`: Text after twig arm tokens (full continuation)
+   - `generated_text`: The raw generated text (no arm prefills)
+   - `continuation_text`: All arm prefill text + generated text
+   - `continuation_text_no_thinking`: All arm prefill text + generated text, `<think>` blocks removed
+   - `text_after_trunk`: Continuation (thinking-stripped) after trunk arm prefix ends
+   - `text_after_branch`: Continuation (thinking-stripped) after branch arm prefix ends
+   - `text_after_twig`: Raw generated text (same as `generated_text`; `<think>` blocks not stripped)
    - `conditional_logprobs`: Log probabilities conditioned on each arm (see below)
 
    **Conditional Logprob Computation**:
@@ -178,11 +178,12 @@ Answer with just a number between 0.0 and 1.0:
 
 2. **Text Selection**:
    The `string_selection` config option determines which text portion to score:
-   - `WholeContinuation`: Full generated continuation (default)
-   - `NonThinkingContinuation`: Continuation with `<think>...</think>` blocks removed
-   - `AfterTrunk`: Generated text excluding trunk arm tokens
-   - `AfterBranch`: Generated text excluding trunk and branch arm tokens
-   - `AfterTwig`: Generated text excluding trunk, branch, and twig arm tokens
+   - `WholeContinuation`: All arm prefills + generated text (`<think>` blocks not stripped)
+   - `NonThinkingContinuation`: All arm prefills + generated text, `<think>` blocks removed (default)
+   - `AfterTrunk`: Text after trunk arm prefix — branch + twig + generated (`<think>` stripped)
+   - `AfterBranch`: Text after branch arm prefix — twig + generated (`<think>` stripped)
+   - `AfterTwig`: Raw generated text only, no arm prefils (`<think>` blocks not stripped)
+   - `WholeTrajectory`: Not dispatched; falls through to `NonThinkingContinuation`
 
 3. **EOS Token Stripping**:
    The pipeline strips EOS tokens from text before scoring to avoid artifacts.
@@ -377,7 +378,7 @@ The flat list of individual scores is stored in `method_scores`, while the struc
 |-------|------|---------|-------------|
 | `model` | str | "" | LLM for judge-based methods |
 | `embedding_model` | str | "all-MiniLM-L6-v2" | Model for similarity scoring |
-| `string_selection` | StringSelection | WholeContinuation | Which text portion to score |
+| `string_selection` | StringSelection | NonThinkingContinuation | Which text portion to score |
 | `max_tokens` | int | 10 | Max tokens for LLM responses |
 | `method_params` | dict | {} | Per-method parameter overrides |
 | `scoring_data` | dict | {} | Method items (auto-populated from flat config keys) |
@@ -388,7 +389,7 @@ The flat list of individual scores is stored in `method_scores`, while the struc
 {
   "model": "gpt-4o-mini",
   "embedding_model": "all-MiniLM-L6-v2",
-  "string_selection": "WholeContinuation",
+  "string_selection": "NonThinkingContinuation",
   "max_tokens": 15,
 
   "categorical_judgements": [
@@ -429,11 +430,12 @@ The flat list of individual scores is stored in `method_scores`, while the struc
 
 | Value | Description |
 |-------|-------------|
-| `WholeContinuation` | Full generated continuation (default) |
-| `NonThinkingContinuation` | Continuation with `<think>...</think>` blocks removed |
-| `AfterTrunk` | Generated text excluding trunk arm tokens |
-| `AfterBranch` | Generated text excluding trunk and branch arm tokens |
-| `AfterTwig` | Generated text excluding trunk, branch, and twig arm tokens |
+| `WholeContinuation` | All arm prefills + generated text (`<think>` blocks not stripped) |
+| `NonThinkingContinuation` | All arm prefills + generated text, `<think>` blocks removed **(default)** |
+| `AfterTrunk` | Text after trunk arm prefix — branch + twig + generated (`<think>` stripped) |
+| `AfterBranch` | Text after branch arm prefix — twig + generated (`<think>` stripped) |
+| `AfterTwig` | Raw generated text only — no arm prefills (`<think>` blocks not stripped) |
+| `WholeTrajectory` | Not dispatched; falls through to `NonThinkingContinuation` |
 
 ---
 

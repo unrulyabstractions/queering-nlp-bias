@@ -26,7 +26,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.common.default_config import DEFAULT_WEIGHTING_METHOD
+from src.common.default_config import DEFAULT_WEIGHTING_METHOD, STRING_SELECTION
 from src.common.logging import log
 
 from .experiment_breakdown_plot import plot_structure_breakdown
@@ -545,6 +545,16 @@ def _load_arm_metadata(
         metadata["judge"] = scoring_meta.get("judge_model", "")
     except (OSError, json.JSONDecodeError, KeyError):
         pass
+
+    # Load string_selection from scoring_cfg.json (saved alongside scoring.json)
+    # Fall back to the default value so it always shows in the visualization
+    try:
+        scoring_cfg_path = paths.judgment.parent / "scoring_cfg.json"
+        with open(scoring_cfg_path) as f:
+            scoring_cfg = json.load(f)
+        metadata["string_selection"] = scoring_cfg.get("string_selection", STRING_SELECTION)
+    except (OSError, json.JSONDecodeError, KeyError):
+        metadata["string_selection"] = STRING_SELECTION
 
     # Load arm descriptions, model, and prompt from generation_cfg.json
     try:

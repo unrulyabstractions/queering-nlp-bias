@@ -44,6 +44,7 @@ The pipeline supports multiple arm types with a defined ordering:
 | `root` | Prompt-only conditioning (no trunk text) | 0 |
 | `trunk` | Trunk-only conditioning (reference for orientation) | 1 |
 | `branch_N` | Branch conditioning (diverges from trunk) | 2+ |
+| `twig_bN_M` or `twig_M_bN` | Twig variation under branch `N` with twig index `M` | n/a |
 
 Use `arm_types.py` for centralized arm handling:
 

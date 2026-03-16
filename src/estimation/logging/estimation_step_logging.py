@@ -10,6 +10,7 @@ import math
 
 from src.common.logging import fmt_prob, log, log_divider, log_step
 from src.common.viz_utils import escape_newlines, preview
+from src.estimation.arm_types import get_parent_branch
 
 from ..estimation_scoring_data import ScoringData
 from ..estimation_structure import TrajectoryScoringData
@@ -183,8 +184,7 @@ def log_arm_statistics(
             if "twig_" in arm_name:
                 lp = twig_lps.get(arm_name)
                 if lp is not None:
-                    parts = arm_name.split("_b")
-                    parent = f"branch_{parts[-1]}" if len(parts) > 1 else "?"
+                    parent = get_parent_branch(arm_name) or "?"
                     cond_labels.append((f"p({arm_name}|{parent})", lp))
 
         # Find max label width and print aligned
