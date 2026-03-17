@@ -12,7 +12,7 @@ let ws=null, currentMode=null;
 let treeState={nodes:[],questions:[]}, dynamicsState={positions:[],questions:[],continuation:''}, judgeState={texts:[],questions:[],results:[]};
 let judgeAddingMore=false;  // Flag to prevent results reset when adding texts
 let showOrientation=false, showMagnitudes=false, referenceNode='root', highlightedQuestion=null, highlightedMagnitude=null;
-let appConfig={anthropic_key:'',openai_key:'',models:{anthropic:[],openai:[]},defaults:{}};
+let appConfig={anthropic_key:'',openai_key:'',models:{anthropic:[],openai:[],huggingface:[]},defaults:{}};
 let settings={gen_provider:'openai',gen_model:'gpt-4o-mini',judge_provider:'openai',judge_model:'gpt-4o-mini',temperature:1.0,max_tokens:300,judge_prompt:''};
 const colors=['#FF6B9D','#C678DD','#56B6C2','#E5C07B','#98C379','#61AFEF','#E06C75','#D19A66'];
 
@@ -62,7 +62,7 @@ function hideSettings(){
 }
 function saveSettings(){settings.gen_provider=document.getElementById('settingsGenProvider').value;settings.gen_model=document.getElementById('settingsGenModel').value;settings.judge_provider=document.getElementById('settingsJudgeProvider').value;settings.judge_model=document.getElementById('settingsJudgeModel').value;settings.temperature=parseFloat(document.getElementById('settingsTemp').value);settings.max_tokens=parseInt(document.getElementById('settingsMaxTokens').value);settings.judge_prompt=getSyntaxEditorValue('settingsJudgePrompt');appConfig.anthropic_key=document.getElementById('settingsAnthropicKey').value;appConfig.openai_key=document.getElementById('settingsOpenaiKey').value;initSyntaxEditor('judgePromptFormat',settings.judge_prompt);hideSettings();resetExperiment()}
 function resetSettings(){loadConfig();hideSettings()}
-function getApiKeys(){return {openai: appConfig.openai_key, anthropic: appConfig.anthropic_key}}
+function getApiKeys(){return {openai: appConfig.openai_key, anthropic: appConfig.anthropic_key, huggingface: ''}}
 
 // ════════════════════════════════════════════════════════════════════════════════
 // WEBSOCKET

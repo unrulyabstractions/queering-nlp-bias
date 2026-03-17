@@ -1,4 +1,4 @@
-"""LLM provider clients for Anthropic and OpenAI with parallel processing support."""
+"""LLM provider clients for Anthropic, OpenAI, and HuggingFace with parallel processing support."""
 
 from __future__ import annotations
 
@@ -11,8 +11,20 @@ import anthropic
 from anthropic import RateLimitError as AnthropicRateLimitError
 import openai
 from openai import RateLimitError as OpenAIRateLimitError
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from webapp.common.normativity_types import Scoring, parse_judge_score
+
+
+# ════════════════════════════════════════════════════════════════════════════════
+# HuggingFace Model Cache - Singleton pattern to avoid reloading models
+# ════════════════════════════════════════════════════════════════════════════════
+
+_huggingface_model_cache: dict[str, tuple[Any, Any]] = {}
+
+# Skip thinking prefix for Qwen3.5 instruct models
+SKIP_THINKING_PREFIX = "<think>\n</think>\n\n"
 
 # Retry settings for rate limits
 MAX_RETRIES = 5  # Increased from 3
@@ -159,10 +171,63 @@ class JudgeResult:
 # ════════════════════════════════════════════════════════════════════════════════
 
 
+def get_huggingface_model(model_name: str) -> tuple[Any, Any]:
+    """Load or retrieve cached HuggingFace model and tokenizer.
+
+    Returns:
+        Tuple of (model, tokenizer)
+    """
+    if model_name in _huggingface_model_cache:
+        print(f"▓ Using cached HuggingFace model: {model_name}")
+        return _huggingface_model_cache[model_name]
+
+    print(f"▓ Loading HuggingFace model: {model_name}...")
+
+    # Determine device and dtype
+    if torch.cuda.is_available():
+        device = "cuda"
+        dtype = torch.float16
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        device = "mps"
+        dtype = torch.float16
+    else:
+        device = "cpu"
+        dtype = torch.float32
+
+    print(f"▓ Using device: {device}, dtype: {dtype}")
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_name,
+        torch_dtype=dtype,
+        device_map=device,
+        trust_remote_code=True,
+    )
+    model.eval()
+
+    _huggingface_model_cache[model_name] = (model, tokenizer)
+    print(f"▓ Model loaded successfully: {model_name}")
+
+    return model, tokenizer
+
+
+def is_base_model(model_name: str) -> bool:
+    """Check if model is a base model (not instruct/chat)."""
+    name_lower = model_name.lower()
+    return "-base" in name_lower or "_base" in name_lower
+
+
 def get_client(provider: str, api_key: str) -> Any:
-    """Create client for the specified provider."""
+    """Create client for the specified provider.
+
+    For HuggingFace, api_key is ignored (uses local models).
+    """
     if provider == "openai":
         return openai.OpenAI(api_key=api_key)
+    if provider == "huggingface":
+        # HuggingFace doesn't need a client object, return None
+        # The model is loaded separately via get_huggingface_model
+        return None
     return anthropic.Anthropic(api_key=api_key)
 
 
@@ -308,6 +373,142 @@ async def generate_from_llm_openai(
 
 
 # ════════════════════════════════════════════════════════════════════════════════
+# HuggingFace Completion
+# ════════════════════════════════════════════════════════════════════════════════
+
+
+def _apply_chat_template_for_generation(
+    tokenizer: Any, prompt: str, prefill: str = ""
+) -> str:
+    """Apply chat template for instruct models, adding skip_thinking prefix.
+
+    For Qwen3.5 instruct models, we need to:
+    1. Apply the chat template
+    2. Prefill with <think>\n</think>\n\n to skip thinking mode
+    """
+    if hasattr(tokenizer, "apply_chat_template"):
+        formatted = tokenizer.apply_chat_template(
+            [{"role": "user", "content": prompt}],
+            tokenize=False,
+            add_generation_prompt=True,
+        )
+    else:
+        formatted = prompt
+
+    # Add skip_thinking prefix for reasoning models, then any user prefill
+    return formatted + SKIP_THINKING_PREFIX + prefill
+
+
+def _generate_huggingface_sync(
+    model: Any,
+    tokenizer: Any,
+    input_text: str,
+    max_tokens: int,
+    temperature: float,
+) -> tuple[str, float | None]:
+    """Synchronous HuggingFace generation with logprobs.
+
+    Returns tuple of (generated_text, sum_logprob).
+    """
+    device = next(model.parameters()).device
+
+    # Encode input
+    inputs = tokenizer(input_text, return_tensors="pt").to(device)
+    input_length = inputs.input_ids.shape[1]
+
+    # Generate with sampling
+    with torch.inference_mode():
+        if temperature == 0.0:
+            # Greedy decoding
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=max_tokens,
+                do_sample=False,
+                output_scores=True,
+                return_dict_in_generate=True,
+                pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
+            )
+        else:
+            # Temperature sampling
+            outputs = model.generate(
+                **inputs,
+                max_new_tokens=max_tokens,
+                do_sample=True,
+                temperature=temperature,
+                output_scores=True,
+                return_dict_in_generate=True,
+                pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
+            )
+
+    # Decode only generated tokens
+    generated_ids = outputs.sequences[0, input_length:]
+    generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+
+    # Compute logprobs from scores
+    logprob = None
+    if outputs.scores:
+        logprob = 0.0
+        for i, score in enumerate(outputs.scores):
+            if i >= len(generated_ids):
+                break
+            token_id = generated_ids[i].item()
+            log_softmax = torch.nn.functional.log_softmax(score[0], dim=-1)
+            logprob += log_softmax[token_id].item()
+
+    return generated_text, logprob
+
+
+async def generate_from_llm_huggingface(
+    model_name: str,
+    prompt: str,
+    prefill: str = "",
+    max_tokens: int = 300,
+    temperature: float = 1.0,
+) -> GenerationResult:
+    """Generate text continuation using HuggingFace transformers.
+
+    For instruct models (non-base), applies chat template and skip_thinking prefix.
+    For base models, does direct text completion.
+    """
+    _log_generation_call("huggingface", model_name, prompt, prefill)
+
+    model, tokenizer = get_huggingface_model(model_name)
+
+    # Prepare input text based on model type
+    if is_base_model(model_name):
+        # Base model: direct text continuation
+        input_text = prompt + prefill
+        print(f"█ HuggingFace base: model={model_name} input_len={len(input_text)}")
+    else:
+        # Instruct model: apply chat template + skip_thinking + prefill
+        input_text = _apply_chat_template_for_generation(tokenizer, prompt, prefill)
+        print(f"█ HuggingFace instruct: model={model_name} input_len={len(input_text)}")
+
+    api_start = time.time()
+
+    # Run generation in thread to avoid blocking
+    generated_text, logprob = await asyncio.to_thread(
+        _generate_huggingface_sync,
+        model,
+        tokenizer,
+        input_text,
+        max_tokens,
+        temperature,
+    )
+
+    _profile("HuggingFace gen", api_start)
+
+    # Result includes prefill + generated for consistency with other providers
+    result_text = prefill + generated_text
+
+    lp_str = f"{logprob:.4f}" if logprob is not None else "N/A"
+    print(f"▓ Response: {len(generated_text.split())} words, logprob={lp_str}")
+
+    _log_generation_result(result_text, logprob)
+    return GenerationResult(text=result_text, logprob=logprob)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
 # Unified Completion Interface
 # ════════════════════════════════════════════════════════════════════════════════
 
@@ -323,11 +524,15 @@ async def generate_from_llm(
 ) -> GenerationResult:
     """Generate text continuation. Routes to provider-specific implementation.
 
-    Returns GenerationResult with text and optional logprobs (OpenAI only).
+    Returns GenerationResult with text and optional logprobs (OpenAI and HuggingFace).
     """
     if provider == "openai":
         return await generate_from_llm_openai(
             client, model, prompt, prefill, max_tokens, temperature
+        )
+    if provider == "huggingface":
+        return await generate_from_llm_huggingface(
+            model, prompt, prefill, max_tokens, temperature
         )
     return await generate_from_llm_anthropic(
         client, model, prompt, prefill, max_tokens, temperature
@@ -425,6 +630,92 @@ async def llm_judge_openai(
 
 
 # ════════════════════════════════════════════════════════════════════════════════
+# HuggingFace Judge
+# ════════════════════════════════════════════════════════════════════════════════
+
+
+def _judge_huggingface_sync(
+    model: Any,
+    tokenizer: Any,
+    input_text: str,
+    is_base: bool,
+) -> tuple[str, float | None]:
+    """Synchronous HuggingFace judge with logprobs.
+
+    Returns tuple of (answer_text, sum_logprob).
+    """
+    device = next(model.parameters()).device
+
+    # Encode input
+    inputs = tokenizer(input_text, return_tensors="pt").to(device)
+    input_length = inputs.input_ids.shape[1]
+
+    # Generate with greedy decoding (temperature=0)
+    with torch.inference_mode():
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=100,
+            do_sample=False,
+            output_scores=True,
+            return_dict_in_generate=True,
+            pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
+        )
+
+    # Decode only generated tokens
+    generated_ids = outputs.sequences[0, input_length:]
+    answer = tokenizer.decode(generated_ids, skip_special_tokens=True)
+
+    # Compute logprobs
+    logprob = None
+    if outputs.scores:
+        logprob = 0.0
+        for i, score in enumerate(outputs.scores):
+            if i >= len(generated_ids):
+                break
+            token_id = generated_ids[i].item()
+            log_softmax = torch.nn.functional.log_softmax(score[0], dim=-1)
+            logprob += log_softmax[token_id].item()
+
+    return answer, logprob
+
+
+async def llm_judge_huggingface(
+    model_name: str,
+    text: str,
+    question: str,
+    judge_prompt: str,
+    temperature: float = 0.0,
+) -> JudgeResult:
+    """Score text using HuggingFace model. Includes logprob extraction."""
+    formatted_prompt = judge_prompt.format(text=text[:1500], question=question)
+    _log_judge_call("huggingface", model_name, text, question, formatted_prompt)
+
+    model, tokenizer = get_huggingface_model(model_name)
+    is_base = is_base_model(model_name)
+
+    # Prepare input text based on model type
+    if is_base:
+        # Base model: direct text completion
+        input_text = formatted_prompt
+    else:
+        # Instruct model: apply chat template + skip_thinking
+        input_text = _apply_chat_template_for_generation(tokenizer, formatted_prompt, "")
+
+    # Run generation in thread to avoid blocking
+    answer, logprob = await asyncio.to_thread(
+        _judge_huggingface_sync,
+        model,
+        tokenizer,
+        input_text,
+        is_base,
+    )
+
+    score = parse_judge_score(answer)
+    _log_judge_result(score, answer.strip(), logprob)
+    return JudgeResult(score=score, raw_response=answer.strip(), logprob=logprob)
+
+
+# ════════════════════════════════════════════════════════════════════════════════
 # Unified Judge Interface
 # ════════════════════════════════════════════════════════════════════════════════
 
@@ -442,6 +733,10 @@ async def llm_judge(
     if provider == "openai":
         return await llm_judge_openai(
             client, model, text, question, judge_prompt, temperature
+        )
+    if provider == "huggingface":
+        return await llm_judge_huggingface(
+            model, text, question, judge_prompt, temperature
         )
     return await llm_judge_anthropic(
         client, model, text, question, judge_prompt, temperature

@@ -16,7 +16,7 @@ def get_judge_config_html() -> str:
     <div class="config-card" style="max-width:900px">
         <h2 class="config-title">Judge</h2>
         <div class="config-row" style="gap:15px;margin-bottom:15px">
-            <div class="config-group" style="flex:1"><div class="config-label">Provider</div><select class="config-input" id="judgeProvider" onchange="updateJudgeConfigModels()"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select></div>
+            <div class="config-group" style="flex:1"><div class="config-label">Provider</div><select class="config-input" id="judgeProvider" onchange="updateJudgeConfigModels()"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="huggingface">HuggingFace (Local)</option></select></div>
             <div class="config-group" style="flex:2"><div class="config-label">Model</div><select class="config-input" id="judgeModel" onchange="onJudgeModelChange()"></select></div>
         </div>
         <div class="config-row" style="gap:20px;align-items:stretch">

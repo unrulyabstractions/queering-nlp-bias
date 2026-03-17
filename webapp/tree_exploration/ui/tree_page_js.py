@@ -131,7 +131,12 @@ function getEdgeWidth(nodeId, probabilities) {
 // ════════════════════════════════════════════════════════════════════════════════
 function startTree(){
     const keys=getApiKeys();
-    if(!keys.openai && !keys.anthropic){alert('Configure API key in Settings');showSettings();return}
+    // Check if API keys are needed (huggingface doesn't need them)
+    const genNeedsKey = settings.gen_provider !== 'huggingface';
+    const judgeNeedsKey = settings.judge_provider !== 'huggingface';
+    const genKeyOk = !genNeedsKey || keys[settings.gen_provider];
+    const judgeKeyOk = !judgeNeedsKey || keys[settings.judge_provider];
+    if(!genKeyOk || !judgeKeyOk){alert('Configure API key in Settings');showSettings();return}
     currentMode='tree';
     ws.send(JSON.stringify({
         action:'start_tree',

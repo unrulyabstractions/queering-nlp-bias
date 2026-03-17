@@ -15,7 +15,10 @@ async def run_dynamics(ws: WebSocket, session: dict, data: dict) -> None:
     """Handle dynamics analysis via WebSocket."""
     config = SamplingConfig.from_request(data)
 
-    if not config.gen_api_key and not config.judge_api_key:
+    # HuggingFace doesn't need API keys; others do
+    gen_needs_key = config.gen_provider != "huggingface"
+    judge_needs_key = config.judge_provider != "huggingface"
+    if (gen_needs_key and not config.gen_api_key) or (judge_needs_key and not config.judge_api_key):
         return await ws.send_json({"type": "error", "message": "No API key"})
 
     questions = data.get("questions", [])

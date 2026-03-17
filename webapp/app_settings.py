@@ -78,4 +78,14 @@ AVAILABLE_MODELS = {
         "gpt-4.1-mini",  # GPT-4.1 mini - newer
         "gpt-4.1",  # GPT-4.1 - flagship
     ],
+    "huggingface": [
+        # Instruct models (chat template + skip thinking)
+        "Qwen/Qwen3.5-0.8B",  # Smallest instruct
+        "Qwen/Qwen3.5-4B",  # Medium instruct
+        "Qwen/Qwen3.5-9B",  # Largest instruct
+        # Base models (direct text completion)
+        "Qwen/Qwen3.5-0.8B-Base",  # Smallest base
+        "Qwen/Qwen3.5-4B-Base",  # Medium base
+        "Qwen/Qwen3.5-9B-Base",  # Largest base
+    ],
 }

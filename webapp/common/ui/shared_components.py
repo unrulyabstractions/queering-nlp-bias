@@ -59,11 +59,11 @@ def get_settings_html() -> str:
         <div class="settings-columns">
             <div class="settings-left">
                 <div class="config-row">
-                    <div class="config-group"><div class="config-label">Generation Provider</div><select class="config-input" id="settingsGenProvider" onchange="updateGenModels()"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select></div>
+                    <div class="config-group"><div class="config-label">Generation Provider</div><select class="config-input" id="settingsGenProvider" onchange="updateGenModels()"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="huggingface">HuggingFace (Local)</option></select></div>
                     <div class="config-group"><div class="config-label">Generation Model</div><select class="config-input" id="settingsGenModel"></select></div>
                 </div>
                 <div class="config-row">
-                    <div class="config-group"><div class="config-label">Judge Provider</div><select class="config-input" id="settingsJudgeProvider" onchange="updateJudgeModels()"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option></select></div>
+                    <div class="config-group"><div class="config-label">Judge Provider</div><select class="config-input" id="settingsJudgeProvider" onchange="updateJudgeModels()"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="huggingface">HuggingFace (Local)</option></select></div>
                     <div class="config-group"><div class="config-label">Judge Model</div><select class="config-input" id="settingsJudgeModel"></select></div>
                 </div>
                 <div class="config-row">

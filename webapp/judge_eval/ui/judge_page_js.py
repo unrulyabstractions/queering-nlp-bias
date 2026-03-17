@@ -14,6 +14,7 @@ let judgeModel = 'gpt-4o-mini';
 let axesFlipped = false;
 
 function getJudgeApiKey(){
+    if(judgeProvider==='huggingface')return '';  // HuggingFace doesn't need API key
     return judgeProvider==='openai'?appConfig.openai_key:appConfig.anthropic_key;
 }
 
@@ -21,7 +22,8 @@ function startJudge(){
     judgeProvider=document.getElementById('judgeProvider').value;
     judgeModel=document.getElementById('judgeModel').value;
     const k=getJudgeApiKey();
-    if(!k){alert('Configure '+judgeProvider+' API key in Settings');showSettings();return}
+    // HuggingFace doesn't need API key
+    if(judgeProvider!=='huggingface'&&!k){alert('Configure '+judgeProvider+' API key in Settings');showSettings();return}
     const questions = getColoredEditorLines('judgeQuestions');
     if(!questions.length){alert('Add at least one question');return}
     currentMode='judge';
@@ -39,7 +41,8 @@ function addMoreTexts(){
     if(!t.length){console.log('No texts to evaluate');return}
     const apiKey=getJudgeApiKey();
     console.log('Judge API call:',{provider:judgeProvider,model:judgeModel,apiKey:apiKey?'(set)':'(MISSING)',texts:t.length,questions:judgeState.questions.length});
-    if(!apiKey){alert('Configure '+judgeProvider+' API key in Settings');return}
+    // HuggingFace doesn't need API key
+    if(judgeProvider!=='huggingface'&&!apiKey){alert('Configure '+judgeProvider+' API key in Settings');return}
     // Calculate offset BEFORE adding new texts
     const textOffset=judgeState.texts.length;
     judgeState.texts.push(...t);

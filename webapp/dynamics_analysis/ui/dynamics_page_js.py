@@ -10,7 +10,12 @@ def get_dynamics_page_js() -> str:
 // ════════════════════════════════════════════════════════════════════════════════
 function startDynamics(){
     const keys=getApiKeys();
-    if(!keys.openai && !keys.anthropic){alert('Configure API key in Settings');showSettings();return}
+    // Check if API keys are needed (huggingface doesn't need them)
+    const genNeedsKey = settings.gen_provider !== 'huggingface';
+    const judgeNeedsKey = settings.judge_provider !== 'huggingface';
+    const genKeyOk = !genNeedsKey || keys[settings.gen_provider];
+    const judgeKeyOk = !judgeNeedsKey || keys[settings.judge_provider];
+    if(!genKeyOk || !judgeKeyOk){alert('Configure API key in Settings');showSettings();return}
     currentMode='dynamics';
     const prompt = document.getElementById('dynPrompt').value;
     dynamicsState.prompt = prompt;  // Store prompt for trajectory explorer
