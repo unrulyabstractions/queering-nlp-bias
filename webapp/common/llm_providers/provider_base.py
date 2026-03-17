@@ -14,79 +14,37 @@ from webapp.common.normativity_types import Scoring
 from webapp.common.text_formatting_utils import truncate_for_log
 
 
-# ════════════════════════════════════════════════════════════════════════════════
 # Constants
-# ════════════════════════════════════════════════════════════════════════════════
-
-# Retry settings for rate limits
 MAX_RETRIES = 5
-BASE_RETRY_DELAY = 15  # seconds
+BASE_RETRY_DELAY = 15
+MAX_JUDGE_TEXT_LENGTH = 1500
+JUDGE_MAX_TOKENS = 100
+LOG_TRUNCATE_PROMPT = 100
+LOG_TRUNCATE_PREFILL = 60
 
-# Rate limit exception types by provider
 RATE_LIMIT_EXCEPTIONS: dict[str, type] = {
     "anthropic": AnthropicRateLimitError,
     "openai": OpenAIRateLimitError,
 }
 
-# Judge text truncation (prevents overly long inputs)
-MAX_JUDGE_TEXT_LENGTH = 1500
-
-# Judge response tokens
-JUDGE_MAX_TOKENS = 100
-
-# Logging truncation widths
-LOG_TRUNCATE_DEFAULT = 80
-LOG_TRUNCATE_PROMPT = 100
-LOG_TRUNCATE_PREFILL = 60
-LOG_TRUNCATE_RESPONSE = 30
-
-
-# ════════════════════════════════════════════════════════════════════════════════
-# Result Dataclasses
-# ════════════════════════════════════════════════════════════════════════════════
-
 
 @dataclass
 class GenerationResult:
-    """Result from generating text, optionally with logprobs."""
-
     text: str
     logprob: float | None = None
 
 
 @dataclass
 class JudgeResult:
-    """Result from judging a text against a question."""
-
     score: Scoring
     raw_response: str
     logprob: Scoring | None = None
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# Retry Logic
-# ════════════════════════════════════════════════════════════════════════════════
-
-
 async def retry_on_rate_limit(
-    provider: str,
-    api_call: Any,
-    *args: Any,
-    **kwargs: Any,
+    provider: str, api_call: Any, *args: Any, **kwargs: Any
 ) -> Any:
-    """Execute an API call with exponential backoff retry on rate limits.
-
-    Args:
-        provider: The provider name ('anthropic' or 'openai')
-        api_call: The synchronous API function to call
-        *args, **kwargs: Arguments to pass to the API call
-
-    Returns:
-        The API response
-
-    Raises:
-        The original rate limit error if all retries are exhausted
-    """
+    """Execute API call with exponential backoff on rate limits."""
     rate_limit_error = RATE_LIMIT_EXCEPTIONS.get(provider)
 
     for attempt in range(MAX_RETRIES + 1):
@@ -106,82 +64,26 @@ async def retry_on_rate_limit(
                 raise
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# Logging Helpers
-# ════════════════════════════════════════════════════════════════════════════════
-
-
 def profile(label: str, start_time: float) -> None:
-    """Print profiling info."""
-    elapsed = time.time() - start_time
-    print(f"⏱️  [{label}] {elapsed:.3f}s")
+    print(f"⏱️  [{label}] {time.time() - start_time:.3f}s")
 
 
 def log_generation_call(provider: str, model: str, prompt: str, prefill: str) -> None:
-    """Log a generation API call."""
-    print("\n" + "-" * 60)
-    print("LLM GENERATION CALL")
-    print("-" * 60)
-    print(f"  Provider: {provider}")
-    print(f"  Model: {model}")
-    print(f"  Prompt: {truncate_for_log(prompt, LOG_TRUNCATE_PROMPT)}")
-    if prefill:
-        print(f"  Prefill: {truncate_for_log(prefill, LOG_TRUNCATE_PREFILL)}")
+    pf = f" prefill={truncate_for_log(prefill, LOG_TRUNCATE_PREFILL)}" if prefill else ""
+    print(f"▶ GEN [{provider}/{model}] {truncate_for_log(prompt, LOG_TRUNCATE_PROMPT)}{pf}")
 
 
 def log_generation_result(result: str, logprob: float | None = None) -> None:
-    """Log a generation result with FULL details."""
-    print("=" * 60)
-    print("  ██ GENERATION RESULT ██")
-    print("=" * 60)
-    print(f"  Length: {len(result)} chars, {len(result.split())} words")
-    if logprob is not None:
-        print(f"  Sum logprob: {logprob:.4f}")
-        print(f"  Perplexity: {2 ** (-logprob / max(1, len(result.split()))):.2f}")
-    print()
-    print("  ┌" + "─" * 56 + "┐")
-    print("  │ FULL GENERATED TEXT:".ljust(58) + "│")
-    print("  ├" + "─" * 56 + "┤")
-    for line in result.split("\n"):
-        while len(line) > 54:
-            print(f"  │ {line[:54]} │")
-            line = line[54:]
-        print(f"  │ {line.ljust(54)} │")
-    print("  └" + "─" * 56 + "┘")
-    print("=" * 60)
+    lp = f" logprob={logprob:.2f}" if logprob else ""
+    print(f"◀ GEN result: {len(result)} chars, {len(result.split())} words{lp}")
 
 
 def log_judge_call(
-    provider: str,
-    model: str,
-    text: str,
-    question: str,
-    formatted_prompt: str,
-    call_type: str = "JUDGE",
+    provider: str, model: str, text: str, question: str, formatted_prompt: str
 ) -> None:
-    """Log a judge API call."""
-    print("\n" + "-" * 60)
-    print(f"LLM {call_type} CALL")
-    print("-" * 60)
-    print(f"  Provider: {provider}")
-    print(f"  Model: {model}")
-    print(f"  Question: {truncate_for_log(question, 80)}")
-    print(f"  Text: {truncate_for_log(text, 100)}")
-    print("  Formatted prompt sent to API:")
-    for line in formatted_prompt.split("\n"):
-        print(f"    | {line}")
+    print(f"▶ JUDGE [{provider}/{model}] q={truncate_for_log(question, 60)}")
 
 
-def log_judge_result(
-    score: Scoring, raw_response: str, logprob: Scoring | None = None
-) -> None:
-    """Log a judge result with FULL details."""
-    print("  ┌─────────────────────────────────────┐")
-    print("  │ JUDGE RESULT                        │")
-    print("  ├─────────────────────────────────────┤")
-    print(f"  │ Raw response: '{raw_response[:LOG_TRUNCATE_RESPONSE]}'".ljust(40) + "│")
-    print(f"  │ ★ SCORE: {score:.4f}".ljust(40) + "│")
-    if logprob is not None:
-        print(f"  │ Logprob: {logprob:.4f}".ljust(40) + "│")
-        print(f"  │ Confidence: {100 * (2 ** logprob):.1f}%".ljust(40) + "│")
-    print("  └─────────────────────────────────────┘")
+def log_judge_result(score: Scoring, raw_response: str, logprob: Scoring | None = None) -> None:
+    lp = f" logprob={logprob:.2f}" if logprob else ""
+    print(f"◀ JUDGE score={score:.4f} raw='{raw_response[:30]}'{lp}")
