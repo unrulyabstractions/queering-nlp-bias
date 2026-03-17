@@ -7,7 +7,6 @@ from .provider_base import (
     GenerationResult,
     JUDGE_MAX_TOKENS,
     JudgeResult,
-    MAX_RETRIES,
     format_judge_prompt,
 )
 from .provider_huggingface import (
@@ -24,7 +23,6 @@ __all__ = [
     "GenerationResult",
     "JudgeResult",
     "JUDGE_MAX_TOKENS",
-    "MAX_RETRIES",
     "format_judge_prompt",
     # Anthropic
     "get_anthropic_client",

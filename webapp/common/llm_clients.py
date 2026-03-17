@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+
+import anthropic
+import openai
 
 from .llm_providers import (
     GenerationResult,
     JudgeResult,
     JUDGE_MAX_TOKENS,
-    MAX_RETRIES,
     SKIP_THINKING_PREFIX,
     format_judge_prompt,
     generate_anthropic,
@@ -24,14 +25,16 @@ from .llm_providers import (
     judge_openai,
 )
 
+# Type alias: Anthropic client | OpenAI client | None (for local HuggingFace)
+LLMClient = anthropic.Anthropic | openai.OpenAI | None
 
 __all__ = [
     # Types
     "GenerationResult",
     "JudgeResult",
+    "LLMClient",
     # Constants & Helpers
     "JUDGE_MAX_TOKENS",
-    "MAX_RETRIES",
     "SKIP_THINKING_PREFIX",
     "format_judge_prompt",
     # Factory
@@ -45,23 +48,18 @@ __all__ = [
 ]
 
 
-def get_client(provider: str, api_key: str) -> Any:
+def get_client(provider: str, api_key: str) -> LLMClient:
     """Create client for the specified provider."""
     if provider == "openai":
         return get_openai_client(api_key)
     if provider == "huggingface":
-        return None  # Local models don't need a client
+        return None
     return get_anthropic_client(api_key)
 
 
 async def generate_from_llm(
-    client: Any,
-    provider: str,
-    model: str,
-    prompt: str,
-    prefill: str = "",
-    max_tokens: int = 300,
-    temperature: float = 1.0,
+    client: LLMClient, provider: str, model: str, prompt: str,
+    prefill: str = "", max_tokens: int = 300, temperature: float = 1.0,
 ) -> GenerationResult:
     """Generate text continuation. Routes to provider-specific implementation."""
     if provider == "openai":
@@ -72,13 +70,8 @@ async def generate_from_llm(
 
 
 async def llm_judge(
-    client: Any,
-    provider: str,
-    model: str,
-    text: str,
-    question: str,
-    judge_prompt: str,
-    temperature: float = 0.0,
+    client: LLMClient, provider: str, model: str, text: str,
+    question: str, judge_prompt: str, temperature: float = 0.0,
 ) -> JudgeResult:
     """Score text against question. Routes to provider-specific implementation."""
     if provider == "openai":
@@ -89,12 +82,8 @@ async def llm_judge(
 
 
 async def judge_all_questions(
-    client: Any,
-    provider: str,
-    model: str,
-    text: str,
-    questions: list[str],
-    judge_prompt: str,
+    client: LLMClient, provider: str, model: str, text: str,
+    questions: list[str], judge_prompt: str,
 ) -> list[JudgeResult]:
     """Judge text against all questions sequentially."""
     results = []
