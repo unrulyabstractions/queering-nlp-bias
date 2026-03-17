@@ -15,9 +15,8 @@ async def run_judge(ws: WebSocket, session: dict, data: dict) -> None:
     """Handle judge evaluation via WebSocket."""
     config = SamplingConfig.from_request(data)
 
-    # HuggingFace doesn't need API keys; others do
-    if config.judge_provider != "huggingface" and not config.judge_api_key:
-        return await ws.send_json({"type": "error", "message": "No API key"})
+    if error := config.validate_api_keys(need_gen=False, need_judge=True):
+        return await ws.send_json({"type": "error", "message": error})
 
     texts = data.get("texts", [])
     questions = data.get("questions", [])

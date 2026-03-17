@@ -16,11 +16,8 @@ async def run_tree(ws: WebSocket, session: dict, data: dict) -> None:
     """Handle tree exploration via WebSocket."""
     config = SamplingConfig.from_request(data)
 
-    # HuggingFace doesn't need API keys; others do
-    gen_needs_key = config.gen_provider != "huggingface"
-    judge_needs_key = config.judge_provider != "huggingface"
-    if (gen_needs_key and not config.gen_api_key) or (judge_needs_key and not config.judge_api_key):
-        return await ws.send_json({"type": "error", "message": "No API key"})
+    if error := config.validate_api_keys(need_gen=True, need_judge=True):
+        return await ws.send_json({"type": "error", "message": error})
 
     prefixes = data.get("prefixes", [])
     print(f"\n▓▓▓ TREE HANDLER: Received {len(prefixes)} prefixes:")

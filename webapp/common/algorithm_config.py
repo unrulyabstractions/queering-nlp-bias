@@ -15,6 +15,10 @@ class AlgorithmEvent:
     data: dict
 
 
+# Providers that don't require API keys (local models)
+LOCAL_PROVIDERS = {"huggingface"}
+
+
 @dataclass
 class SamplingConfig:
     """Configuration for all sampling algorithms."""
@@ -28,6 +32,25 @@ class SamplingConfig:
     temperature: float
     max_tokens: int
     judge_prompt: str
+
+    def validate_api_keys(self, need_gen: bool = True, need_judge: bool = True) -> str | None:
+        """Validate that required API keys are present.
+
+        Args:
+            need_gen: Whether generation API key is required
+            need_judge: Whether judge API key is required
+
+        Returns:
+            Error message if validation fails, None if valid
+        """
+        gen_needs_key = need_gen and self.gen_provider not in LOCAL_PROVIDERS
+        judge_needs_key = need_judge and self.judge_provider not in LOCAL_PROVIDERS
+
+        if gen_needs_key and not self.gen_api_key:
+            return f"Configure {self.gen_provider} API key in Settings"
+        if judge_needs_key and not self.judge_api_key:
+            return f"Configure {self.judge_provider} API key in Settings"
+        return None
 
     @classmethod
     def from_request(cls, data: dict) -> SamplingConfig:

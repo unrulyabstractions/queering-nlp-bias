@@ -15,6 +15,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from webapp.common.normativity_types import Scoring, parse_judge_score
+from webapp.common.text_formatting_utils import format_logprob, truncate_for_log
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -27,8 +28,8 @@ _huggingface_model_cache: dict[str, tuple[Any, Any]] = {}
 SKIP_THINKING_PREFIX = "<think>\n</think>\n\n"
 
 # Retry settings for rate limits
-MAX_RETRIES = 5  # Increased from 3
-BASE_RETRY_DELAY = 15  # seconds (increased from 10)
+MAX_RETRIES = 5
+BASE_RETRY_DELAY = 15  # seconds
 
 
 def _profile(label: str, start_time: float) -> None:
@@ -36,46 +37,22 @@ def _profile(label: str, start_time: float) -> None:
     elapsed = time.time() - start_time
     print(f"⏱️  [{label}] {elapsed:.3f}s")
 
-# ════════════════════════════════════════════════════════════════════════════════
-# Logging Helpers
-# ════════════════════════════════════════════════════════════════════════════════
-
-
-def _truncate(text: str, max_len: int = 80) -> str:
-    """Truncate text for logging, adding ellipsis if needed."""
-    text = text.replace("\n", " ").strip()
-    if len(text) <= max_len:
-        return text
-    return text[: max_len - 3] + "..."
-
 
 # ════════════════════════════════════════════════════════════════════════════════
-# Print Formatting Helpers
+# Constants
 # ════════════════════════════════════════════════════════════════════════════════
 
+# Judge text truncation (prevents overly long inputs)
+MAX_JUDGE_TEXT_LENGTH = 1500
 
-def _print_header(title: str, char: str = "█", width: int = 70) -> None:
-    """Print a prominent header block."""
-    print("\n" + char * width)
-    print(f"{char}  {title}")
-    print(char * width)
+# Judge response tokens
+JUDGE_MAX_TOKENS = 100
 
-
-def _print_section(title: str, char: str = "▓", width: int = 70) -> None:
-    """Print a section separator."""
-    print(char + "─" * (width - 1))
-    print(f"{char}  {title}:")
-
-
-def _print_line(text: str, char: str = "▓") -> None:
-    """Print a line with prefix character."""
-    print(f"{char}  {text}")
-
-
-def _print_kv(key: str, value: Any, char: str = "▓", indent: int = 2) -> None:
-    """Print a key-value pair."""
-    spaces = " " * indent
-    print(f"{char}{spaces}{key}: {value}")
+# Logging truncation widths
+LOG_TRUNCATE_DEFAULT = 80
+LOG_TRUNCATE_PROMPT = 100
+LOG_TRUNCATE_PREFILL = 60
+LOG_TRUNCATE_RESPONSE = 30
 
 
 def _log_generation_call(provider: str, model: str, prompt: str, prefill: str) -> None:
@@ -85,9 +62,9 @@ def _log_generation_call(provider: str, model: str, prompt: str, prefill: str) -
     print("-" * 60)
     print(f"  Provider: {provider}")
     print(f"  Model: {model}")
-    print(f"  Prompt: {_truncate(prompt, 100)}")
+    print(f"  Prompt: {truncate_for_log(prompt, LOG_TRUNCATE_PROMPT)}")
     if prefill:
-        print(f"  Prefill: {_truncate(prefill, 60)}")
+        print(f"  Prefill: {truncate_for_log(prefill, LOG_TRUNCATE_PREFILL)}")
 
 
 def _log_generation_result(result: str, logprob: float | None = None) -> None:
@@ -127,8 +104,8 @@ def _log_judge_call(
     print("-" * 60)
     print(f"  Provider: {provider}")
     print(f"  Model: {model}")
-    print(f"  Question: {_truncate(question, 80)}")
-    print(f"  Text: {_truncate(text, 100)}")
+    print(f"  Question: {truncate_for_log(question, 80)}")
+    print(f"  Text: {truncate_for_log(text, 100)}")
     print("  Formatted prompt sent to API:")
     for line in formatted_prompt.split("\n"):
         print(f"    | {line}")
@@ -141,7 +118,7 @@ def _log_judge_result(
     print("  ┌─────────────────────────────────────┐")
     print("  │ JUDGE RESULT                        │")
     print("  ├─────────────────────────────────────┤")
-    print(f"  │ Raw response: '{raw_response[:30]}'".ljust(40) + "│")
+    print(f"  │ Raw response: '{raw_response[:LOG_TRUNCATE_RESPONSE]}'".ljust(40) + "│")
     print(f"  │ ★ SCORE: {score:.4f}".ljust(40) + "│")
     if logprob is not None:
         print(f"  │ Logprob: {logprob:.4f}".ljust(40) + "│")
@@ -399,6 +376,30 @@ def _apply_chat_template_for_generation(
     return formatted + SKIP_THINKING_PREFIX + prefill
 
 
+def _compute_huggingface_logprob(
+    outputs: Any, generated_ids: Any
+) -> float | None:
+    """Compute sum of logprobs from HuggingFace generation output scores.
+
+    Args:
+        outputs: The generation output with .scores attribute
+        generated_ids: Tensor of generated token IDs
+
+    Returns:
+        Sum of logprobs, or None if scores are not available
+    """
+    if not outputs.scores:
+        return None
+    logprob = 0.0
+    for i, score in enumerate(outputs.scores):
+        if i >= len(generated_ids):
+            break
+        token_id = generated_ids[i].item()
+        log_softmax = torch.nn.functional.log_softmax(score[0], dim=-1)
+        logprob += log_softmax[token_id].item()
+    return logprob
+
+
 def _generate_huggingface_sync(
     model: Any,
     tokenizer: Any,
@@ -444,17 +445,7 @@ def _generate_huggingface_sync(
     generated_ids = outputs.sequences[0, input_length:]
     generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
 
-    # Compute logprobs from scores
-    logprob = None
-    if outputs.scores:
-        logprob = 0.0
-        for i, score in enumerate(outputs.scores):
-            if i >= len(generated_ids):
-                break
-            token_id = generated_ids[i].item()
-            log_softmax = torch.nn.functional.log_softmax(score[0], dim=-1)
-            logprob += log_softmax[token_id].item()
-
+    logprob = _compute_huggingface_logprob(outputs, generated_ids)
     return generated_text, logprob
 
 
@@ -553,7 +544,7 @@ async def llm_judge_anthropic(
     temperature: float = 0.0,
 ) -> JudgeResult:
     """Score text using Anthropic API."""
-    formatted_prompt = judge_prompt.format(text=text[:1500], question=question)
+    formatted_prompt = judge_prompt.format(text=text[:MAX_JUDGE_TEXT_LENGTH], question=question)
     _log_judge_call("anthropic", model, text, question, formatted_prompt)
 
     # Retry loop for rate limits
@@ -562,7 +553,7 @@ async def llm_judge_anthropic(
             response = await asyncio.to_thread(
                 client.messages.create,
                 model=model,
-                max_tokens=100,
+                max_tokens=JUDGE_MAX_TOKENS,
                 messages=[{"role": "user", "content": formatted_prompt}],
                 temperature=temperature,
             )
@@ -596,7 +587,7 @@ async def llm_judge_openai(
     temperature: float = 0.0,
 ) -> JudgeResult:
     """Score text using OpenAI API. Includes logprob extraction."""
-    formatted_prompt = judge_prompt.format(text=text[:1500], question=question)
+    formatted_prompt = judge_prompt.format(text=text[:MAX_JUDGE_TEXT_LENGTH], question=question)
 
     # Retry loop for rate limits
     for attempt in range(MAX_RETRIES + 1):
@@ -605,7 +596,7 @@ async def llm_judge_openai(
                 client.chat.completions.create,
                 model=model,
                 messages=[{"role": "user", "content": formatted_prompt}],
-                max_tokens=100,
+                max_tokens=JUDGE_MAX_TOKENS,
                 temperature=temperature,
                 logprobs=True,
                 top_logprobs=5,
@@ -654,7 +645,7 @@ def _judge_huggingface_sync(
     with torch.inference_mode():
         outputs = model.generate(
             **inputs,
-            max_new_tokens=100,
+            max_new_tokens=JUDGE_MAX_TOKENS,
             do_sample=False,
             output_scores=True,
             return_dict_in_generate=True,
@@ -665,17 +656,7 @@ def _judge_huggingface_sync(
     generated_ids = outputs.sequences[0, input_length:]
     answer = tokenizer.decode(generated_ids, skip_special_tokens=True)
 
-    # Compute logprobs
-    logprob = None
-    if outputs.scores:
-        logprob = 0.0
-        for i, score in enumerate(outputs.scores):
-            if i >= len(generated_ids):
-                break
-            token_id = generated_ids[i].item()
-            log_softmax = torch.nn.functional.log_softmax(score[0], dim=-1)
-            logprob += log_softmax[token_id].item()
-
+    logprob = _compute_huggingface_logprob(outputs, generated_ids)
     return answer, logprob
 
 
@@ -687,7 +668,7 @@ async def llm_judge_huggingface(
     temperature: float = 0.0,
 ) -> JudgeResult:
     """Score text using HuggingFace model. Includes logprob extraction."""
-    formatted_prompt = judge_prompt.format(text=text[:1500], question=question)
+    formatted_prompt = judge_prompt.format(text=text[:MAX_JUDGE_TEXT_LENGTH], question=question)
     _log_judge_call("huggingface", model_name, text, question, formatted_prompt)
 
     model, tokenizer = get_huggingface_model(model_name)

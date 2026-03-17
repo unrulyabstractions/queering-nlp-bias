@@ -21,26 +21,7 @@ from webapp.common.sampling_loop import (
     build_state,
     run_sampling_loop,
 )
-
-
-# ════════════════════════════════════════════════════════════════════════════════
-# Logging Helpers
-# ════════════════════════════════════════════════════════════════════════════════
-
-
-def _truncate(text: str, max_len: int = 80) -> str:
-    """Truncate text for logging, adding ellipsis if needed."""
-    text = text.replace("\n", " ").strip()
-    if len(text) <= max_len:
-        return text
-    return text[: max_len - 3] + "..."
-
-
-def _format_system(system: System) -> str:
-    """Format a System (list of scores) for display."""
-    if not system:
-        return "[]"
-    return "[" + ", ".join(f"{s:.2f}" if isinstance(s, float) else str(s) for s in system) + "]"
+from webapp.common.text_formatting_utils import format_scores, truncate_for_log
 
 
 def _extract_last_word(text: str) -> str:
@@ -56,7 +37,7 @@ def build_dynamics_state(
     print("\n" + "=" * 60)
     print("BUILDING DYNAMICS STATE")
     print("=" * 60)
-    print(f"  Continuation: {_truncate(continuation, 100)}")
+    print(f"  Continuation: {truncate_for_log(continuation, 100)}")
 
     positions = get_word_positions(continuation)
     print(f"  Word positions found: {len(positions)}")
@@ -123,7 +104,7 @@ async def _judge_prefix(
     config: SamplingConfig,
 ) -> System:
     """Judge a single prefix text."""
-    print(f"  -> Judging prefix: '{_truncate(prefix, 50)}'")
+    print(f"  -> Judging prefix: '{truncate_for_log(prefix, 50)}'")
     results = await judge_all_questions(
         judge_client,
         config.judge_provider,
@@ -133,7 +114,7 @@ async def _judge_prefix(
         config.judge_prompt,
     )
     scores = [r.score for r in results]
-    print(f"     Prefix scores: {_format_system(scores)}")
+    print(f"     Prefix scores: {format_scores(scores)}")
     return scores
 
 
@@ -210,7 +191,7 @@ async def track_text_dynamics(
     print("\n" + "=" * 60)
     print("STARTING DYNAMICS ANALYSIS")
     print("=" * 60)
-    print(f"  Prompt: {_truncate(prompt, 100)}")
+    print(f"  Prompt: {truncate_for_log(prompt, 100)}")
     print(f"  Max tokens: {max_tokens}")
     print(f"  Max rounds: {max_rounds}")
     print(f"  Questions: {len(questions)}")
@@ -229,9 +210,9 @@ async def track_text_dynamics(
             config.temperature,
         )
         continuation = gen_result.text
-        print(f"  -> Generated: {_truncate(continuation, 100)}")
+        print(f"  -> Generated: {truncate_for_log(continuation, 100)}")
     else:
-        print(f"  Continuation provided: {_truncate(continuation, 100)}")
+        print(f"  Continuation provided: {truncate_for_log(continuation, 100)}")
 
     yield AlgorithmEvent(
         "continuation", {"text": continuation, "length": len(continuation)}
@@ -289,8 +270,8 @@ async def track_text_dynamics(
         final=prefix_systems_dict.get(last_node_id, []),
     )
 
-    print(f"  Initial prefix system: {_format_system(prefix_systems.initial)}")
-    print(f"  Final prefix system: {_format_system(prefix_systems.final)}")
+    print(f"  Initial prefix system: {format_scores(prefix_systems.initial)}")
+    print(f"  Final prefix system: {format_scores(prefix_systems.final)}")
 
     # Now run sampling loop for trajectory scores
     print("\n  -> Starting sampling loop for dynamics...")

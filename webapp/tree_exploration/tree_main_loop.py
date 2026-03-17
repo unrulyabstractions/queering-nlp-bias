@@ -6,15 +6,8 @@ from collections.abc import AsyncIterator, Callable
 
 from webapp.common.algorithm_config import AlgorithmEvent, SamplingConfig
 from webapp.common.sampling_loop import build_state, run_sampling_loop
+from webapp.common.text_formatting_utils import truncate_for_log
 from webapp.tree_exploration.tree_builder import build_prefix_tree
-
-
-def _truncate(text: str, max_len: int = 80) -> str:
-    """Truncate text for logging, adding ellipsis if needed."""
-    text = text.replace("\n", " ").strip()
-    if len(text) <= max_len:
-        return text
-    return text[: max_len - 3] + "..."
 
 
 async def explore_prefix_tree(
@@ -29,10 +22,10 @@ async def explore_prefix_tree(
     print("\n" + "=" * 60)
     print("STARTING TREE EXPLORATION")
     print("=" * 60)
-    print(f"  Prompt: {_truncate(prompt, 100)}")
+    print(f"  Prompt: {truncate_for_log(prompt, 100)}")
     print(f"  Prefixes: {len(prefixes)} total")
     for i, p in enumerate(prefixes[:5], 1):
-        print(f"    {i}. {_truncate(p, 60)}")
+        print(f"    {i}. {truncate_for_log(p, 60)}")
     if len(prefixes) > 5:
         print(f"    ... and {len(prefixes) - 5} more")
     print(f"  Questions: {len(questions)}")

@@ -23,22 +23,7 @@ from webapp.common.normativity_types import (
     compute_system_means,
 )
 from webapp.common.rate_limited_executor import ExecutorConfig, RateLimitedExecutor
-
-
-# ════════════════════════════════════════════════════════════════════════════════
-# Logging
-# ════════════════════════════════════════════════════════════════════════════════
-
-
-def _truncate(text: str, max_len: int = 80) -> str:
-    text = text.replace("\n", " ").strip()
-    return text if len(text) <= max_len else text[: max_len - 3] + "..."
-
-
-def _format_scores(scores: list) -> str:
-    if not scores:
-        return "[]"
-    return "[" + ", ".join(f"{s:.3f}" for s in scores) + "]"
+from webapp.common.text_formatting_utils import format_scores, truncate_for_log
 
 
 def _log(msg: str) -> None:
@@ -253,7 +238,7 @@ async def run_sampling_loop(
         state.total_api_calls += 1 + len(state.questions)
 
         normativity = state.normativities[node_id]
-        _log(f"★ Node [{node_id}] complete: {_format_scores(scores)}")
+        _log(f"★ Node [{node_id}] complete: {format_scores(scores)}")
 
         # Yield event
         await event_queue.put(AlgorithmEvent("point_update", {

@@ -8,12 +8,7 @@ Handles any tree shape: chains, wide trees, deep trees, etc.
 from __future__ import annotations
 
 from webapp.common.normativity_types import GenerationNode
-
-
-def _truncate(text: str, max_len: int = 80) -> str:
-    """Truncate text for logging."""
-    text = text.replace("\n", " ").strip()
-    return text if len(text) <= max_len else text[: max_len - 3] + "..."
+from webapp.common.text_formatting_utils import truncate_for_log
 
 
 def _find_common_prefix(strings: list[str]) -> str:
@@ -187,6 +182,6 @@ def build_prefix_tree(sentences: list[str]) -> list[GenerationNode]:
     for node in nodes:
         indent = "    " + "  " * node.depth
         parent_str = f"(parent={node.parent})" if node.parent is not None else "(root)"
-        print(f"{indent}[{node.node_id}] {node.name}: '{_truncate(node.label, 30)}' {parent_str}")
+        print(f"{indent}[{node.node_id}] {node.name}: '{truncate_for_log(node.label, 30)}' {parent_str}")
 
     return nodes
