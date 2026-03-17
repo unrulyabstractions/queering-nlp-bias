@@ -31,6 +31,52 @@ SKIP_THINKING_PREFIX = "<think>\n</think>\n\n"
 MAX_RETRIES = 5
 BASE_RETRY_DELAY = 15  # seconds
 
+# Rate limit exception types by provider
+RATE_LIMIT_EXCEPTIONS = {
+    "anthropic": AnthropicRateLimitError,
+    "openai": OpenAIRateLimitError,
+}
+
+
+async def _retry_on_rate_limit(
+    provider: str,
+    api_call: Any,
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
+    """Execute an API call with exponential backoff retry on rate limits.
+
+    Args:
+        provider: The provider name ('anthropic' or 'openai')
+        api_call: The synchronous API function to call
+        *args, **kwargs: Arguments to pass to the API call
+
+    Returns:
+        The API response
+
+    Raises:
+        The original rate limit error if all retries are exhausted
+    """
+    rate_limit_error = RATE_LIMIT_EXCEPTIONS.get(provider)
+
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            return await asyncio.to_thread(api_call, *args, **kwargs)
+        except Exception as e:
+            # Check if it's a rate limit error for this provider
+            if rate_limit_error and isinstance(e, rate_limit_error):
+                if attempt < MAX_RETRIES:
+                    delay = BASE_RETRY_DELAY * (2 ** attempt)
+                    print(f"⚠️ {provider} RATE_LIMIT: {str(e)[:100]}")
+                    print(f"⚠️ Retrying in {delay}s (attempt {attempt + 1}/{MAX_RETRIES})")
+                    await asyncio.sleep(delay)
+                else:
+                    print(f"❌ {provider} RATE_LIMIT_EXCEEDED after {MAX_RETRIES} retries")
+                    raise
+            else:
+                # Non-rate-limit error, don't retry
+                raise
+
 
 def _profile(label: str, start_time: float) -> None:
     """Print profiling info."""
@@ -232,33 +278,18 @@ async def generate_from_llm_anthropic(
     messages = [{"role": "user", "content": prompt}]
     if prefill:
         # Anthropic API rejects assistant messages ending with whitespace
-        # Strip trailing whitespace but preserve it for the result
         prefill_stripped = prefill.rstrip()
         if prefill_stripped:
             messages.append({"role": "assistant", "content": prefill_stripped})
 
-    # Retry loop for rate limits
-    last_error = None
-    for attempt in range(MAX_RETRIES + 1):
-        try:
-            response = await asyncio.to_thread(
-                client.messages.create,
-                model=model,
-                max_tokens=max_tokens,
-                messages=messages,
-                temperature=temperature,
-            )
-            break
-        except AnthropicRateLimitError as e:
-            last_error = str(e)
-            if attempt < MAX_RETRIES:
-                delay = BASE_RETRY_DELAY * (2 ** attempt)
-                print(f"⚠️ Anthropic RATE_LIMIT: {last_error[:100]}")
-                print(f"⚠️ Retrying in {delay}s (attempt {attempt + 1}/{MAX_RETRIES})")
-                await asyncio.sleep(delay)
-            else:
-                print(f"❌ Anthropic RATE_LIMIT_EXCEEDED: {last_error}")
-                raise
+    response = await _retry_on_rate_limit(
+        "anthropic",
+        client.messages.create,
+        model=model,
+        max_tokens=max_tokens,
+        messages=messages,
+        temperature=temperature,
+    )
 
     continuation = response.content[0].text if response.content else ""
     result = prefill + continuation
@@ -299,35 +330,17 @@ async def generate_from_llm_openai(
 
     print(f"█ OpenAI gen: model={model} prompt_len={len(full_prompt)}")
 
-    # Retry loop for rate limits
-    last_error = None
-    for attempt in range(MAX_RETRIES + 1):
-        try:
-            api_start = time.time()
-            response = await asyncio.to_thread(
-                client.chat.completions.create,
-                model=model,
-                messages=[{"role": "user", "content": full_prompt}],
-                max_tokens=max_tokens,
-                temperature=temperature,
-                logprobs=True,
-            )
-            _profile("OpenAI gen API", api_start)
-            break
-        except OpenAIRateLimitError as e:
-            last_error = str(e)
-            if attempt < MAX_RETRIES:
-                delay = BASE_RETRY_DELAY * (2 ** attempt)
-                print(f"⚠️ RATE_LIMIT: {last_error[:100]}")
-                print(f"⚠️ Retrying in {delay}s (attempt {attempt + 1}/{MAX_RETRIES})")
-                await asyncio.sleep(delay)
-            else:
-                print(f"❌ RATE_LIMIT_EXCEEDED: {last_error}")
-                raise
-        except Exception as e:
-            last_error = str(e)
-            print(f"❌ API_ERROR: {type(e).__name__}: {last_error[:100]}")
-            raise
+    api_start = time.time()
+    response = await _retry_on_rate_limit(
+        "openai",
+        client.chat.completions.create,
+        model=model,
+        messages=[{"role": "user", "content": full_prompt}],
+        max_tokens=max_tokens,
+        temperature=temperature,
+        logprobs=True,
+    )
+    _profile("OpenAI gen API", api_start)
 
     content = response.choices[0].message.content or ""
     result_text = prefill + content
@@ -547,24 +560,14 @@ async def llm_judge_anthropic(
     formatted_prompt = judge_prompt.format(text=text[:MAX_JUDGE_TEXT_LENGTH], question=question)
     _log_judge_call("anthropic", model, text, question, formatted_prompt)
 
-    # Retry loop for rate limits
-    for attempt in range(MAX_RETRIES + 1):
-        try:
-            response = await asyncio.to_thread(
-                client.messages.create,
-                model=model,
-                max_tokens=JUDGE_MAX_TOKENS,
-                messages=[{"role": "user", "content": formatted_prompt}],
-                temperature=temperature,
-            )
-            break
-        except AnthropicRateLimitError as e:
-            if attempt < MAX_RETRIES:
-                delay = BASE_RETRY_DELAY * (2 ** attempt)
-                print(f"⚠️ Anthropic judge rate limit, retrying in {delay}s...")
-                await asyncio.sleep(delay)
-            else:
-                raise
+    response = await _retry_on_rate_limit(
+        "anthropic",
+        client.messages.create,
+        model=model,
+        max_tokens=JUDGE_MAX_TOKENS,
+        messages=[{"role": "user", "content": formatted_prompt}],
+        temperature=temperature,
+    )
 
     answer = response.content[0].text if response.content else ""
     score = parse_judge_score(answer)
@@ -589,26 +592,16 @@ async def llm_judge_openai(
     """Score text using OpenAI API. Includes logprob extraction."""
     formatted_prompt = judge_prompt.format(text=text[:MAX_JUDGE_TEXT_LENGTH], question=question)
 
-    # Retry loop for rate limits
-    for attempt in range(MAX_RETRIES + 1):
-        try:
-            response = await asyncio.to_thread(
-                client.chat.completions.create,
-                model=model,
-                messages=[{"role": "user", "content": formatted_prompt}],
-                max_tokens=JUDGE_MAX_TOKENS,
-                temperature=temperature,
-                logprobs=True,
-                top_logprobs=5,
-            )
-            break
-        except OpenAIRateLimitError as e:
-            if attempt < MAX_RETRIES:
-                delay = BASE_RETRY_DELAY * (2 ** attempt)
-                print(f"⚠️ Judge rate limit, retrying in {delay}s...")
-                await asyncio.sleep(delay)
-            else:
-                raise
+    response = await _retry_on_rate_limit(
+        "openai",
+        client.chat.completions.create,
+        model=model,
+        messages=[{"role": "user", "content": formatted_prompt}],
+        max_tokens=JUDGE_MAX_TOKENS,
+        temperature=temperature,
+        logprobs=True,
+        top_logprobs=5,
+    )
 
     answer = response.choices[0].message.content or ""
     logprob = None
