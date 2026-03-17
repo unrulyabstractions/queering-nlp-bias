@@ -109,11 +109,7 @@ async def generate_huggingface(
 ) -> GenerationResult:
     log_generation_call("huggingface", model_name, prompt, prefill)
     model, tokenizer = get_huggingface_model(model_name)
-
-    if is_base_model(model_name):
-        input_text = prompt + prefill
-    else:
-        input_text = _apply_chat_template(tokenizer, prompt, prefill)
+    input_text = prompt + prefill if is_base_model(model_name) else _apply_chat_template(tokenizer, prompt, prefill)
 
     api_start = time.time()
     generated_text, logprob = await asyncio.to_thread(

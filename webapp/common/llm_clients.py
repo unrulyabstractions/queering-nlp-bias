@@ -85,11 +85,10 @@ async def judge_all_questions(
     client: LLMClient, provider: str, model: str, text: str,
     questions: list[str], judge_prompt: str,
 ) -> list[JudgeResult]:
-    """Judge text against all questions sequentially."""
+    """Judge text against all questions sequentially with rate limiting."""
     results = []
     for i, q in enumerate(questions):
-        result = await llm_judge(client, provider, model, text, q, judge_prompt)
-        results.append(result)
-        if i < len(questions) - 1:
+        if i > 0:
             await asyncio.sleep(0.1)
+        results.append(await llm_judge(client, provider, model, text, q, judge_prompt))
     return results
