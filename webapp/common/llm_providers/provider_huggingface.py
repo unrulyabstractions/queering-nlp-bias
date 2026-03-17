@@ -15,7 +15,7 @@ from .provider_base import (
     GenerationResult,
     JudgeResult,
     JUDGE_MAX_TOKENS,
-    MAX_JUDGE_TEXT_LENGTH,
+    format_judge_prompt,
     log_generation_call,
     log_generation_result,
     log_judge_call,
@@ -127,8 +127,8 @@ async def judge_huggingface(
     model_name: str, text: str, question: str,
     judge_prompt: str, temperature: float = 0.0,
 ) -> JudgeResult:
-    formatted = judge_prompt.format(text=text[:MAX_JUDGE_TEXT_LENGTH], question=question)
-    log_judge_call("huggingface", model_name, text, question, formatted)
+    formatted = format_judge_prompt(judge_prompt, text, question)
+    log_judge_call("huggingface", model_name, question)
 
     model, tokenizer = get_huggingface_model(model_name)
     input_text = formatted if is_base_model(model_name) else _apply_chat_template(tokenizer, formatted, "")

@@ -9,9 +9,9 @@ from .llm_providers import (
     GenerationResult,
     JudgeResult,
     JUDGE_MAX_TOKENS,
-    MAX_JUDGE_TEXT_LENGTH,
     MAX_RETRIES,
     SKIP_THINKING_PREFIX,
+    format_judge_prompt,
     generate_anthropic,
     generate_huggingface,
     generate_openai,
@@ -29,11 +29,11 @@ __all__ = [
     # Types
     "GenerationResult",
     "JudgeResult",
-    # Constants
+    # Constants & Helpers
     "JUDGE_MAX_TOKENS",
-    "MAX_JUDGE_TEXT_LENGTH",
     "MAX_RETRIES",
     "SKIP_THINKING_PREFIX",
+    "format_judge_prompt",
     # Factory
     "get_client",
     "get_huggingface_model",

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import anthropic
@@ -12,11 +13,12 @@ from .provider_base import (
     GenerationResult,
     JudgeResult,
     JUDGE_MAX_TOKENS,
-    MAX_JUDGE_TEXT_LENGTH,
+    format_judge_prompt,
     log_generation_call,
     log_generation_result,
     log_judge_call,
     log_judge_result,
+    profile,
     retry_on_rate_limit,
 )
 
@@ -36,10 +38,12 @@ async def generate_anthropic(
     if prefill and (stripped := prefill.rstrip()):
         messages.append({"role": "assistant", "content": stripped})
 
+    api_start = time.time()
     response = await retry_on_rate_limit(
         "anthropic", client.messages.create,
         model=model, max_tokens=max_tokens, messages=messages, temperature=temperature,
     )
+    profile("Anthropic gen", api_start)
 
     continuation = response.content[0].text if response.content else ""
     result = prefill + continuation
@@ -51,8 +55,8 @@ async def judge_anthropic(
     client: Any, model: str, text: str, question: str,
     judge_prompt: str, temperature: float = 0.0,
 ) -> JudgeResult:
-    formatted = judge_prompt.format(text=text[:MAX_JUDGE_TEXT_LENGTH], question=question)
-    log_judge_call("anthropic", model, text, question, formatted)
+    formatted = format_judge_prompt(judge_prompt, text, question)
+    log_judge_call("anthropic", model, question)
 
     response = await retry_on_rate_limit(
         "anthropic", client.messages.create,
@@ -62,5 +66,5 @@ async def judge_anthropic(
 
     answer = response.content[0].text if response.content else ""
     score = parse_judge_score(answer)
-    log_judge_result(score, answer.strip())
+    log_judge_result(score, answer.strip(), None)  # Anthropic API doesn't provide logprobs
     return JudgeResult(score=score, raw_response=answer.strip(), logprob=None)

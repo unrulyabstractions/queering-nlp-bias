@@ -13,9 +13,11 @@ from .provider_base import (
     GenerationResult,
     JudgeResult,
     JUDGE_MAX_TOKENS,
-    MAX_JUDGE_TEXT_LENGTH,
+    format_judge_prompt,
     log_generation_call,
     log_generation_result,
+    log_judge_call,
+    log_judge_result,
     profile,
     retry_on_rate_limit,
 )
@@ -67,7 +69,8 @@ async def judge_openai(
     client: Any, model: str, text: str, question: str,
     judge_prompt: str, temperature: float = 0.0,
 ) -> JudgeResult:
-    formatted = judge_prompt.format(text=text[:MAX_JUDGE_TEXT_LENGTH], question=question)
+    formatted = format_judge_prompt(judge_prompt, text, question)
+    log_judge_call("openai", model, question)
 
     response = await retry_on_rate_limit(
         "openai", client.chat.completions.create,
@@ -78,4 +81,5 @@ async def judge_openai(
     answer = response.choices[0].message.content or ""
     logprob = _extract_logprob(response.choices[0])
     score = parse_judge_score(answer)
+    log_judge_result(score, answer.strip(), logprob)
     return JudgeResult(score=score, raw_response=answer.strip(), logprob=logprob)

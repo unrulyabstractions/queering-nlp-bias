@@ -1,7 +1,6 @@
 """Core shared components: config, types, LLM clients, and shared UI."""
 
 from webapp.common.algorithm_config import AlgorithmEvent, SamplingConfig
-from webapp.app_settings import AVAILABLE_MODELS, DEFAULT_JUDGE_PROMPT, DEFAULT_SETTINGS
 from webapp.common.llm_clients import (
     JudgeResult,
     generate_from_llm,

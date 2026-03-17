@@ -14,13 +14,14 @@ from webapp.common.normativity_types import Scoring
 from webapp.common.text_formatting_utils import truncate_for_log
 
 
-# Constants
+# Public constants
 MAX_RETRIES = 5
-BASE_RETRY_DELAY = 15
 MAX_JUDGE_TEXT_LENGTH = 1500
 JUDGE_MAX_TOKENS = 100
-LOG_TRUNCATE_PROMPT = 100
-LOG_TRUNCATE_PREFILL = 60
+
+# Internal constants
+_BASE_RETRY_DELAY = 15
+_LOG_TRUNCATE = 80
 
 RATE_LIMIT_EXCEPTIONS: dict[str, type] = {
     "anthropic": AnthropicRateLimitError,
@@ -53,7 +54,7 @@ async def retry_on_rate_limit(
         except Exception as e:
             if rate_limit_error and isinstance(e, rate_limit_error):
                 if attempt < MAX_RETRIES:
-                    delay = BASE_RETRY_DELAY * (2 ** attempt)
+                    delay = _BASE_RETRY_DELAY * (2 ** attempt)
                     print(f"⚠️ {provider} RATE_LIMIT: {str(e)[:100]}")
                     print(f"⚠️ Retrying in {delay}s (attempt {attempt + 1}/{MAX_RETRIES})")
                     await asyncio.sleep(delay)
@@ -68,9 +69,14 @@ def profile(label: str, start_time: float) -> None:
     print(f"⏱️  [{label}] {time.time() - start_time:.3f}s")
 
 
+def format_judge_prompt(judge_prompt: str, text: str, question: str) -> str:
+    """Format judge prompt with text truncation."""
+    return judge_prompt.format(text=text[:MAX_JUDGE_TEXT_LENGTH], question=question)
+
+
 def log_generation_call(provider: str, model: str, prompt: str, prefill: str) -> None:
-    pf = f" prefill={truncate_for_log(prefill, LOG_TRUNCATE_PREFILL)}" if prefill else ""
-    print(f"▶ GEN [{provider}/{model}] {truncate_for_log(prompt, LOG_TRUNCATE_PROMPT)}{pf}")
+    pf = f" prefill={truncate_for_log(prefill, _LOG_TRUNCATE)}" if prefill else ""
+    print(f"▶ GEN [{provider}/{model}] {truncate_for_log(prompt, _LOG_TRUNCATE)}{pf}")
 
 
 def log_generation_result(result: str, logprob: float | None = None) -> None:
@@ -78,10 +84,8 @@ def log_generation_result(result: str, logprob: float | None = None) -> None:
     print(f"◀ GEN result: {len(result)} chars, {len(result.split())} words{lp}")
 
 
-def log_judge_call(
-    provider: str, model: str, text: str, question: str, formatted_prompt: str
-) -> None:
-    print(f"▶ JUDGE [{provider}/{model}] q={truncate_for_log(question, 60)}")
+def log_judge_call(provider: str, model: str, question: str) -> None:
+    print(f"▶ JUDGE [{provider}/{model}] q={truncate_for_log(question, _LOG_TRUNCATE)}")
 
 
 def log_judge_result(score: Scoring, raw_response: str, logprob: Scoring | None = None) -> None:
