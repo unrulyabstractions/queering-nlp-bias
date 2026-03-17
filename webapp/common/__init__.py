@@ -7,6 +7,8 @@ from webapp.common.llm_clients import (
     get_client,
     judge_all_questions,
     llm_judge,
+    multi_judge,
+    multi_judge_all_questions,
 )
 from webapp.common.normativity_types import (
     GenerationNode,

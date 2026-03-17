@@ -1,7 +1,7 @@
 """
-Queering NLP Bias! - Web Server
+Web Server for interactive NLP bias exploration.
 
-Three modes: Forking and Localizing Normativity | Dynamics of Meaning | Judge
+Three modes: Forking and Localizing Normativity | Dynamics of Meaning | Judge LLM
 Run: ./webapp/run.sh or uv run uvicorn webapp.web_server:app --reload --port 8000
 """
 
@@ -16,13 +16,14 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from webapp.app_settings import AVAILABLE_MODELS, DEFAULT_SETTINGS
+from webapp.app_settings import AVAILABLE_MODELS, DEFAULT_SETTINGS, PROVIDER_DISPLAY_NAMES
 from webapp.common.ui.html_template import get_html_template
+from webapp.common.ui.ui_text_config import APP_TITLE
 from webapp.dynamics_analysis.dynamics_websocket_handler import run_dynamics
 from webapp.judge_eval.judge_websocket_handler import run_judge
 from webapp.tree_exploration.tree_websocket_handler import run_tree
 
-app = FastAPI(title="Queering NLP Bias!")
+app = FastAPI(title=APP_TITLE)
 
 # Serve static files (images, etc.)
 static_dir = Path(__file__).parent / "static"
@@ -38,6 +39,7 @@ async def get_config():
             "anthropic_key": os.environ.get("ANTHROPIC_API_KEY", ""),
             "openai_key": os.environ.get("OPENAI_API_KEY", ""),
             "models": AVAILABLE_MODELS,
+            "provider_names": PROVIDER_DISPLAY_NAMES,
             "defaults": DEFAULT_SETTINGS,
         }
     )

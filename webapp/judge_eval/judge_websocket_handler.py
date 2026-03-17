@@ -28,7 +28,8 @@ async def run_judge(ws: WebSocket, session: dict, data: dict) -> None:
         return await ws.send_json({"type": "error", "message": "Need ≥1 question"})
 
     session.update(running=True, stop=False, mode="judge")
-    log_section(f"Judge ({config.judge_provider}/{config.judge_model})")
+    judge_models_str = ", ".join(f"{m.provider}/{m.model}" for m in config.judge_models)
+    log_section(f"Judge ({judge_models_str})")
 
     try:
         async for event in run_judge_algorithm(
@@ -39,9 +40,9 @@ async def run_judge(ws: WebSocket, session: dict, data: dict) -> None:
             text_offset=text_offset,
         ):
             if event.type == "text_scored":
-                log_timestamped(
-                    f"  text {event.data['text_idx']}: {[f'{s:.2f}' for s in event.data['scores']]}"
-                )
+                # Handle None scores in logging
+                scores_str = [f'{s:.2f}' if s is not None else 'ERR' for s in event.data['scores']]
+                log_timestamped(f"  text {event.data['text_idx']}: {scores_str}")
                 await ws.send_json({"type": event.type, "data": event.data})
             else:
                 await ws.send_json({"type": event.type, **event.data})

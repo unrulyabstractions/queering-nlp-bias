@@ -3,15 +3,24 @@
 from __future__ import annotations
 
 from webapp.app_settings import DEFAULT_JUDGE_PROMPT, DEFAULT_JUDGE_TEXT
+from webapp.common.ui.ui_text_config import (
+    APP_TITLE_HTML,
+    GITHUB_URL,
+    MODE_TITLE_DYNAMICS,
+    MODE_TITLE_JUDGE,
+    MODE_TITLE_TREE,
+    SETTINGS_JUDGE_PROMPT_HINT,
+    SETTINGS_TITLE,
+)
 
 
 def get_landing_html() -> str:
-    return """
+    return f"""
 <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-<style>.hero-title, .mode-card .mode-name, .config-title { font-family: 'Roboto Mono', monospace !important; }</style>
+<style>.hero-title, .mode-card .mode-name, .config-title {{ font-family: 'Roboto Mono', monospace !important; }}</style>
 <div class="landing" id="landing">
     <div class="landing-header">
-        <img class="landing-logo" src="https://images.squarespace-cdn.com/content/v1/628d3c30b420d16dfbab5863/dfab906c-7535-4b9b-a4bf-fd6869226dba/QiAI_lateral_RGB_1200x284.png" alt="Queer in AI">
+        <a href="https://www.queerinai.com" target="_blank"><img class="landing-logo" src="https://images.squarespace-cdn.com/content/v1/628d3c30b420d16dfbab5863/dfab906c-7535-4b9b-a4bf-fd6869226dba/QiAI_lateral_RGB_1200x284.png" alt="Queer in AI"></a>
         <button class="landing-settings" onclick="showSettings()">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="3"></circle>
@@ -24,23 +33,22 @@ def get_landing_html() -> str:
             <div class="mode-card mode-card-large mode-card-forking" onclick="selectMode('tree')">
                 <div class="mode-card-banner" style="background-image: url('/static/forking_banner.png')"></div>
                 <div class="mode-card-overlay">
-                    <div class="mode-name">Forking and Localizing Normativity</div>
+                    <div class="mode-name">{MODE_TITLE_TREE}</div>
                 </div>
             </div>
             <div class="mode-card mode-card-large mode-card-dynamics" onclick="selectMode('dynamics')">
                 <div class="mode-card-banner" style="background-image: url('/static/dynamics_banner.png')"></div>
                 <div class="mode-card-overlay">
-                    <div class="mode-name">Dynamics of Meaning</div>
+                    <div class="mode-name">{MODE_TITLE_DYNAMICS}</div>
                 </div>
             </div>
             <div class="mode-card mode-card-small" onclick="selectMode('judge')">
-                <div class="mode-name">Judge</div>
-                <div class="mode-desc">Evaluate Judge LLM</div>
+                <div class="mode-name">{MODE_TITLE_JUDGE}</div>
             </div>
         </div>
         <div class="landing-hero">
-            <a href="https://github.com/unrulyabstractions/queering-nlp-bias" target="_blank" class="hero-link">
-                <h1 class="hero-title">Queering<br>NLP<br>Bias</h1>
+            <a href="{GITHUB_URL}" target="_blank" class="hero-link">
+                <h1 class="hero-title">{APP_TITLE_HTML}</h1>
             </a>
         </div>
     </div>
@@ -53,22 +61,23 @@ def get_settings_html() -> str:
     prompt_escaped = DEFAULT_JUDGE_PROMPT.replace("{", "{{").replace("}", "}}")
     return f"""
 <div class="config-panel" id="settingsModal">
-    <button class="config-back" onclick="hideSettings()">&larr; Back</button>
+    <button class="config-back" onclick="hideSettings()"><span class="back-arrow">←</span><span class="back-text">BACK</span></button>
     <div class="config-card" style="max-width:1000px">
-        <h2 class="config-title">Settings</h2>
+        <h2 class="config-title">{SETTINGS_TITLE}</h2>
         <div class="settings-columns">
             <div class="settings-left">
                 <div class="config-row">
-                    <div class="config-group"><div class="config-label">Generation Provider</div><select class="config-input" id="settingsGenProvider" onchange="updateGenModels()"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="huggingface">HuggingFace (Local)</option></select></div>
-                    <div class="config-group"><div class="config-label">Generation Model</div><select class="config-input" id="settingsGenModel"></select></div>
+                    <div class="config-group" style="flex:1"><div class="config-label">Generation Model <span style="font-weight:normal;opacity:0.6">(select one)</span></div><div class="model-checkbox-list" id="settingsGenModelList" style="max-height:100px"></div></div>
                 </div>
                 <div class="config-row">
-                    <div class="config-group"><div class="config-label">Judge Provider</div><select class="config-input" id="settingsJudgeProvider" onchange="updateJudgeModels()"><option value="openai">OpenAI</option><option value="anthropic">Anthropic</option><option value="huggingface">HuggingFace (Local)</option></select></div>
-                    <div class="config-group"><div class="config-label">Judge Model</div><select class="config-input" id="settingsJudgeModel"></select></div>
+                    <div class="config-group" style="flex:1"><div class="config-label">Judge Models <span style="font-weight:normal;opacity:0.6">(select any)</span></div><div class="model-checkbox-list" id="settingsJudgeModelList" style="max-height:100px"></div></div>
                 </div>
                 <div class="config-row">
-                    <div class="config-group"><div class="config-label">Temperature: <span id="tempVal">1.0</span></div><input type="range" class="config-input" id="settingsTemp" min="0" max="1" step="0.1" value="1.0" style="padding:0" oninput="document.getElementById('tempVal').textContent=this.value"></div>
-                    <div class="config-group"><div class="config-label">Max Tokens: <span id="maxTokensVal">300</span></div><input type="range" class="config-input" id="settingsMaxTokens" min="50" max="1000" step="50" value="300" style="padding:0" oninput="document.getElementById('maxTokensVal').textContent=this.value"></div>
+                    <div class="config-group"><div class="config-label">Gen Temp: <span id="genTempVal">1.0</span></div><input type="range" class="config-input" id="settingsGenTemp" min="0" max="1" step="0.1" value="1.0" style="padding:0" oninput="document.getElementById('genTempVal').textContent=this.value"></div>
+                    <div class="config-group"><div class="config-label">Judge Temp: <span id="judgeTempVal">0.0</span></div><input type="range" class="config-input" id="settingsJudgeTemp" min="0" max="1" step="0.1" value="0.0" style="padding:0" oninput="document.getElementById('judgeTempVal').textContent=this.value"></div>
+                </div>
+                <div class="config-row">
+                    <div class="config-group"><div class="config-label">Max Tokens: <span id="maxTokensVal">300</span></div><input type="range" class="config-input" id="settingsMaxTokens" min="4" max="1000" step="1" value="300" style="padding:0" oninput="document.getElementById('maxTokensVal').textContent=this.value"></div>
                 </div>
                 <div class="config-row">
                     <div class="config-group"><div class="config-label">Anthropic Key</div><input type="password" class="config-input" id="settingsAnthropicKey" placeholder="sk-ant-..."></div>
@@ -77,7 +86,7 @@ def get_settings_html() -> str:
             </div>
             <div class="settings-right" id="settingsJudgePromptSection">
                 <div class="config-group" style="height:100%;display:flex;flex-direction:column">
-                    <div class="config-label">Judge Prompt <span style="font-weight:normal;opacity:0.6">(for Forking &amp; Dynamics modes)</span></div>
+                    <div class="config-label">Judge Prompt <span style="font-weight:normal;opacity:0.6">({SETTINGS_JUDGE_PROMPT_HINT})</span></div>
                     <div class="syntax-editor" id="settingsJudgePrompt" data-init="{prompt_escaped}" style="flex:1;min-height:280px"></div>
                     <div class="config-hint">Placeholders: <span style="color:var(--cyan)">{{text}}</span> and <span style="color:var(--pink)">{{question}}</span>. Not used in Judge mode.</div>
                 </div>
@@ -100,13 +109,15 @@ def get_controls_html() -> str:
 <div class="floating-stats" id="floatingStats">
     <div class="stat-card"><div class="stat-value" id="statValue1">0</div><div class="stat-label" id="statLabel1">Samples</div></div>
     <div class="stat-card"><div class="stat-value" id="statValue2">0</div><div class="stat-label" id="statLabel2">Arms</div></div>
+    <div class="stat-card stat-errors" id="errorStatCard" style="display:none"><div class="stat-value" id="statErrors">0</div><div class="stat-label">Errors</div></div>
     <div class="live-badge" id="liveBadge"><span class="live-dot"></span><span class="live-text" id="liveText">Sampling</span></div>
 </div>
 
 <div class="mode-toggle" id="modeToggle"><button class="mode-btn active" id="btnCore">Core</button><button class="mode-btn" id="btnOrient">Orientation</button></div>
-<div class="view-toggle" id="viewToggle"><button class="mode-btn active" id="btnEvolution">Evolution</button><button class="mode-btn" id="btnMagnitudes">Magnitudes</button></div>
+<div class="view-toggle" id="viewToggle"><button class="mode-btn active" id="btnEvolution">Evolution</button><button class="mode-btn" id="btnMagnitudes">Magnitudes</button><button class="mode-btn" id="btnConvergence">Convergence</button></div>
 <div class="evolution-mode-toggle" id="evolutionModeToggle"><button class="mode-btn small active" id="btnEvolutionCore">Core</button><button class="mode-btn small" id="btnEvolutionDrift">Drift</button><button class="mode-btn small" id="btnEvolutionPotential">Potential</button></div>
 <div class="diversity-toggle" id="diversityToggle"><label class="toggle-label"><input type="checkbox" id="diversityCheckbox" onchange="toggleDiversity()"><span class="toggle-slider"></span><span class="toggle-text">Diversity</span></label></div>
+<div class="judge-model-toggle" id="judgeModelToggle"></div>
 <div class="legend" id="legend"></div>
 <div class="control-buttons" id="controlButtons">
     <button class="control-btn back" onclick="goBack()">&larr; Back</button>
@@ -160,6 +171,15 @@ def get_controls_html() -> str:
             </div>
             <svg class="traj-explorer-chart" id="trajExplorerChart"></svg>
             <div class="traj-explorer-legend" id="trajExplorerLegend"></div>
+        </div>
+    </div>
+</div>
+
+<div class="convergence-panel" id="convergencePanel">
+    <div class="convergence-position-slider">
+        <div class="convergence-slider-label">Word Position: <span id="convPositionLabel">0</span> / <span id="convPositionMax">0</span></div>
+        <div class="convergence-slider-track" id="convSliderTrack">
+            <div class="convergence-slider-ball" id="convSliderBall"></div>
         </div>
     </div>
 </div>

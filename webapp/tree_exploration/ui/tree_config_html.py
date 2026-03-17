@@ -8,6 +8,7 @@ from webapp.app_settings import (
     DEFAULT_QUESTIONS,
     DEFAULT_SAMPLES_PER_NODE,
 )
+from webapp.common.ui.ui_text_config import MODE_TITLE_TREE
 
 
 def get_tree_config_html() -> str:
@@ -17,9 +18,9 @@ def get_tree_config_html() -> str:
     return f"""
 <div class="config-panel config-panel-forking" id="treeConfig">
     <div class="config-panel-bg" style="background-image: url('/static/forking_banner.png')"></div>
-    <button class="config-back" onclick="showLanding()">&larr; Back</button>
+    <button class="config-back" onclick="showLanding()"><span class="back-arrow">←</span><span class="back-text">BACK</span></button>
     <div class="config-card" style="max-width:1100px">
-        <h2 class="config-title">Forking and Localizing Normativity</h2>
+        <h2 class="config-title">{MODE_TITLE_TREE}</h2>
         <div class="config-row" style="gap:20px;align-items:stretch">
             <div class="config-group" style="flex:1;display:flex;flex-direction:column">
                 <div class="config-label">Prompt</div>

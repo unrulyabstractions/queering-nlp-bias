@@ -14,10 +14,38 @@ from webapp.common.normativity_types import Scoring
 from webapp.common.text_formatting_utils import truncate_for_log
 
 
-# Public constant (used by providers for judge max tokens)
-JUDGE_MAX_TOKENS = 100
+JUDGE_MAX_TOKENS = 32
+DEFAULT_MAX_TOKENS = 300
 
-# Internal constants
+MODEL_MAX_TOKENS: dict[str, int] = {
+    # OpenAI models
+    "gpt-4o-mini": 16384,
+    "gpt-4o": 16384,
+    "gpt-4-turbo": 4096,
+    "gpt-4": 8192,
+    "gpt-3.5-turbo": 4096,
+    # Anthropic models
+    "claude-3-5-sonnet-20241022": 8192,
+    "claude-3-5-haiku-20241022": 8192,
+    "claude-3-opus-20240229": 4096,
+    "claude-3-sonnet-20240229": 4096,
+    "claude-3-haiku-20240307": 4096,
+    # HuggingFace Qwen models (instruct)
+    "Qwen/Qwen3-0.6B": 32768,
+    "Qwen/Qwen3-1.7B": 32768,
+    "Qwen/Qwen3-4B": 32768,
+    "Qwen/Qwen3-8B": 32768,
+    "Qwen/Qwen3-14B": 32768,
+    "Qwen/Qwen3-32B": 32768,
+}
+
+
+def get_max_tokens_for_model(model: str, requested: int | None) -> int:
+    """Get max tokens for generation, using model default if requested is None or 0."""
+    if requested is not None and requested > 0:
+        return requested
+    return MODEL_MAX_TOKENS.get(model, DEFAULT_MAX_TOKENS)
+
 _MAX_RETRIES = 5
 _MAX_JUDGE_TEXT_LENGTH = 1500
 _BASE_RETRY_DELAY = 15
@@ -89,5 +117,6 @@ def log_judge_call(provider: str, model: str, question: str) -> None:
 
 
 def log_judge_result(score: Scoring, raw_response: str, logprob: Scoring | None = None) -> None:
-    lp = f" logprob={logprob:.2f}" if logprob else ""
-    print(f"◀ JUDGE score={score:.4f} raw='{raw_response[:30]}'{lp}")
+    lp = f" logprob={logprob:.2f}" if logprob is not None else ""
+    score_str = f"{score:.4f}" if score is not None else "ERROR"
+    print(f"◀ JUDGE score={score_str} raw='{raw_response[:30]}'{lp}")

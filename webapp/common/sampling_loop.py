@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from webapp.common.algorithm_config import AlgorithmEvent, SamplingConfig
-from webapp.common.llm_clients import generate_from_llm, get_client, llm_judge
+from webapp.common.llm_clients import generate_from_llm, get_client, multi_provider_judge
 from webapp.common.normativity_types import (
     GenerationNode,
     NormativityEstimate,
@@ -23,7 +23,7 @@ from webapp.common.normativity_types import (
     compute_system_means,
 )
 from webapp.common.rate_limited_executor import ExecutorConfig, RateLimitedExecutor
-from webapp.common.text_formatting_utils import format_scores, truncate_for_log
+from webapp.common.text_formatting_utils import combine_prefill_generated, format_scores, truncate_for_log
 
 
 def _log(msg: str) -> None:
@@ -112,12 +112,13 @@ def serialize_node(node: GenerationNode, state: SamplingState) -> dict:
     }
 
 
-def serialize_state(state: SamplingState) -> dict:
+def serialize_state(state: SamplingState, total_errors: int = 0) -> dict:
     return {
         "nodes": [serialize_node(n, state) for n in state.nodes],
         "questions": state.questions,
         "total_samples": state.total_samples,
         "total_api_calls": state.total_api_calls,
+        "total_errors": total_errors,
     }
 
 
@@ -136,11 +137,11 @@ async def run_sampling_loop(
     """Streaming pipeline: generation and judging flow through one queue."""
 
     _log(f"Starting {mode} | {len(state.nodes)} nodes | max_rounds={max_rounds}")
-    yield AlgorithmEvent("started", {"mode": mode, "data": serialize_state(state)})
+    yield AlgorithmEvent("started", {"mode": mode, "data": serialize_state(state, 0)})
 
-    # Clients - each uses its own API key
+    # Client for generation
     gen_client = get_client(config.gen_provider, config.gen_api_key)
-    judge_client = get_client(config.judge_provider, config.judge_api_key)
+    # Judge uses multi_provider_judge which creates clients internally
 
     # Separate executors for gen and judge (may be different APIs)
     gen_executor = RateLimitedExecutor(ExecutorConfig(max_concurrent=3, max_retries=5))
@@ -152,8 +153,11 @@ async def run_sampling_loop(
     # Track pending work per node
     pending_judges: dict[int, int] = {}  # node_id -> remaining judge count
     node_scores: dict[int, dict[int, float]] = defaultdict(dict)  # node_id -> {q_idx: score}
+    node_errors: dict[int, int] = defaultdict(int)  # node_id -> error count for this sample
     node_texts: dict[int, str] = {}  # node_id -> generated text
     node_logprobs: dict[int, float | None] = {}  # node_id -> logprob
+    total_errors = 0  # Track total judge parse errors across all samples
+    active_judge_tasks: list[asyncio.Task] = []  # Track judge tasks for cancellation
 
     async def do_generate(node: GenerationNode) -> None:
         """Generate for a node, then queue its judge tasks."""
@@ -166,8 +170,8 @@ async def run_sampling_loop(
                 config.gen_model,
                 state.prompt,
                 node.prefix,
-                config.max_tokens,
-                config.temperature,
+                config.gen_max_tokens,
+                config.gen_temperature,
             )
 
             if not result.success:
@@ -176,31 +180,37 @@ async def run_sampling_loop(
                 return
 
             gen_output = result.result
-            node_texts[node.node_id] = gen_output.text
-            node_logprobs[node.node_id] = gen_output.logprob
-            _log(f"✓ Gen [{node.node_id}]: {len(gen_output.text)} chars")
+            full_text = combine_prefill_generated(node.prefix, gen_output.text)
 
-            # Immediately queue judge tasks
+            node_texts[node.node_id] = full_text
+            node_logprobs[node.node_id] = gen_output.logprob
+            _log(f"✓ Gen [{node.node_id}]: {len(full_text)} chars")
+
+            # Immediately queue judge tasks (track for cancellation)
             pending_judges[node.node_id] = len(state.questions)
             for q_idx, question in enumerate(state.questions):
-                asyncio.create_task(do_judge(node.node_id, q_idx, question, gen_output.text))
+                task = asyncio.create_task(do_judge(node.node_id, q_idx, question, full_text))
+                active_judge_tasks.append(task)
 
         except Exception as e:
             _log(f"✗ Gen [{node.node_id}] exception: {e}")
             await event_queue.put(AlgorithmEvent("error", {"message": str(e)}))
 
     async def do_judge(node_id: int, q_idx: int, question: str, text: str) -> None:
-        """Judge one question, check if node is complete."""
+        """Judge one question, check if node is complete.
+
+        Uses multi_provider_judge to average scores across all judge models (potentially from different providers).
+        """
         try:
             result = await judge_executor.execute(
                 ("judge", node_id, q_idx),
-                llm_judge,
-                judge_client,
-                config.judge_provider,
-                config.judge_model,
+                multi_provider_judge,
+                config.api_keys,
+                config.judge_models,
                 text,
                 question,
                 config.judge_prompt,
+                config.judge_temperature,
             )
 
             if not result.success:
@@ -209,7 +219,15 @@ async def run_sampling_loop(
                 pending_judges[node_id] -= 1
                 return
 
-            node_scores[node_id][q_idx] = result.result.score
+            score = result.result.score
+            # Handle None/error scores: treat as 0.0 for tree/dynamics but count the error
+            if score is None:
+                nonlocal total_errors
+                total_errors += 1
+                node_errors[node_id] += 1
+                _log(f"⚠️ JUDGE PARSE ERROR [{node_id}][Q{q_idx}]: treating as 0.0 | raw: {result.result.raw_response[:50]}...")
+                score = 0.0
+            node_scores[node_id][q_idx] = score
             pending_judges[node_id] -= 1
 
             # Check if all judges for this node are done
@@ -226,6 +244,7 @@ async def run_sampling_loop(
         node = state.get_node(node_id)
         text = node_texts[node_id]
         logprob = node_logprobs.get(node_id)
+        errors_this_sample = node_errors.get(node_id, 0)
 
         # Build ordered scores
         scores = [node_scores[node_id][i] for i in range(len(state.questions))]
@@ -238,7 +257,8 @@ async def run_sampling_loop(
         state.total_api_calls += 1 + len(state.questions)
 
         normativity = state.normativities[node_id]
-        _log(f"★ Node [{node_id}] complete: {format_scores(scores)}")
+        errors_str = f" [{errors_this_sample} ERR]" if errors_this_sample > 0 else ""
+        _log(f"★ Node [{node_id}] complete: {format_scores(scores)}{errors_str}")
 
         # Yield event
         await event_queue.put(AlgorithmEvent("point_update", {
@@ -253,6 +273,8 @@ async def run_sampling_loop(
             "scores": scores,
             "trajectory": text,
             "logprob": normativity.mean_logprob,
+            "errors_this_sample": errors_this_sample,
+            "total_errors": total_errors,
         }))
 
         # Clear per-round tracking for this node
@@ -260,6 +282,8 @@ async def run_sampling_loop(
         del node_texts[node_id]
         if node_id in node_logprobs:
             del node_logprobs[node_id]
+        if node_id in node_errors:
+            del node_errors[node_id]
 
     async def run_round() -> int:
         """Run one sampling round. Returns number of successful samples."""
@@ -268,6 +292,7 @@ async def run_sampling_loop(
         node_scores.clear()
         node_texts.clear()
         node_logprobs.clear()
+        node_errors.clear()
 
         # Check stop before starting
         if should_stop():
@@ -280,19 +305,32 @@ async def run_sampling_loop(
         done, pending = await asyncio.wait(gen_tasks, timeout=0.1)
         while pending:
             if should_stop():
-                # Cancel pending tasks
+                # Cancel pending gen tasks
                 for task in pending:
                     task.cancel()
-                _log("Stop requested - cancelling generation tasks")
+                # Cancel all active judge tasks
+                for task in active_judge_tasks:
+                    if not task.done():
+                        task.cancel()
+                active_judge_tasks.clear()
+                _log("Stop requested - cancelling generation and judge tasks")
                 return 0
             done, pending = await asyncio.wait(pending, timeout=0.1)
 
         # Wait for any remaining judge tasks, checking stop
         while any(pending_judges.values()):
             if should_stop():
-                _log("Stop requested - abandoning judge tasks")
+                # Cancel all active judge tasks
+                for task in active_judge_tasks:
+                    if not task.done():
+                        task.cancel()
+                active_judge_tasks.clear()
+                _log("Stop requested - cancelling judge tasks")
                 return 0
             await asyncio.sleep(0.05)
+
+        # Clear completed judge tasks
+        active_judge_tasks.clear()
 
         return len([n for n in state.nodes if state.normativities[n.node_id].n_samples > 0])
 
@@ -318,6 +356,11 @@ async def run_sampling_loop(
             # Check stop during event consumption
             if should_stop():
                 round_task.cancel()
+                # Also cancel any active judge tasks
+                for task in active_judge_tasks:
+                    if not task.done():
+                        task.cancel()
+                active_judge_tasks.clear()
                 _log("Stop requested - breaking out of round")
                 break
             try:
@@ -338,5 +381,5 @@ async def run_sampling_loop(
 
         _log(f"Round {round_num} complete | samples/node: {state.min_samples}")
 
-    _log(f"Sampling complete | total: {state.total_samples}")
-    yield AlgorithmEvent("complete", {"mode": mode, "data": serialize_state(state)})
+    _log(f"Sampling complete | total: {state.total_samples} | errors: {total_errors}")
+    yield AlgorithmEvent("complete", {"mode": mode, "data": serialize_state(state, total_errors)})

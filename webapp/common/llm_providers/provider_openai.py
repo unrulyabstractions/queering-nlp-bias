@@ -10,10 +10,11 @@ from openai.types.chat.chat_completion import Choice
 from webapp.common.normativity_types import parse_judge_score
 
 from .provider_base import (
+    JUDGE_MAX_TOKENS,
     GenerationResult,
     JudgeResult,
-    JUDGE_MAX_TOKENS,
     format_judge_prompt,
+    get_max_tokens_for_model,
     log_generation_call,
     log_generation_result,
     log_judge_call,
@@ -39,43 +40,78 @@ def _extract_logprob(choice: Choice) -> float | None:
 
 
 async def generate_openai(
-    client: openai.OpenAI, model: str, prompt: str, prefill: str = "",
-    max_tokens: int = 300, temperature: float = 1.0,
+    client: openai.OpenAI,
+    model: str,
+    prompt: str,
+    prefill: str = "",
+    max_tokens: int | None = 300,
+    temperature: float = 1.0,
 ) -> GenerationResult:
-    """Generate with OpenAI. Simulates prefill via instruction."""
+    """Generate with OpenAI. Simulates prefill via instruction.
+
+    Args:
+        client: OpenAI client
+        model: Model name
+        prompt: User prompt
+        prefill: Text to prefill the response with
+        max_tokens: Max tokens to generate (None = use model default)
+        temperature: Sampling temperature
+    """
     log_generation_call("openai", model, prompt, prefill)
 
     full_prompt = prompt
     if prefill:
-        full_prompt = f"{prompt}\n\n{OPENAI_PREFILL_INSTRUCTION.format(prefill=prefill)}"
+        full_prompt = (
+            f"{prompt}\n\n{OPENAI_PREFILL_INSTRUCTION.format(prefill=prefill)}"
+        )
+
+    # Resolve max_tokens using model defaults
+    effective_max_tokens = get_max_tokens_for_model(model, max_tokens)
 
     api_start = time.time()
     response = await retry_on_rate_limit(
-        "openai", client.chat.completions.create,
-        model=model, messages=[{"role": "user", "content": full_prompt}],
-        max_tokens=max_tokens, temperature=temperature, logprobs=True,
+        "openai",
+        client.chat.completions.create,
+        model=model,
+        messages=[{"role": "user", "content": full_prompt}],
+        max_tokens=effective_max_tokens,
+        temperature=temperature,
+        logprobs=True,
     )
     profile("OpenAI gen", api_start)
 
     content = response.choices[0].message.content or ""
     logprob = _extract_logprob(response.choices[0])
-    result = prefill + content
 
-    log_generation_result(result, logprob)
-    return GenerationResult(text=result, logprob=logprob)
+    # Strip prefill if model repeated it (common with instruction-based prefill)
+    if prefill and content.startswith(prefill):
+        content = content[len(prefill):]
+
+    log_generation_result(content, logprob)
+    return GenerationResult(text=content, logprob=logprob)
 
 
 async def judge_openai(
-    client: openai.OpenAI, model: str, text: str, question: str,
-    judge_prompt: str, temperature: float = 0.0,
+    client: openai.OpenAI,
+    model: str,
+    text: str,
+    question: str,
+    judge_prompt: str,
+    temperature: float = 0.0,
+    max_tokens: int | None = None,
 ) -> JudgeResult:
     formatted = format_judge_prompt(judge_prompt, text, question)
     log_judge_call("openai", model, question)
 
+    tokens = max_tokens if max_tokens else JUDGE_MAX_TOKENS
     response = await retry_on_rate_limit(
-        "openai", client.chat.completions.create,
-        model=model, messages=[{"role": "user", "content": formatted}],
-        max_tokens=JUDGE_MAX_TOKENS, temperature=temperature, logprobs=True,
+        "openai",
+        client.chat.completions.create,
+        model=model,
+        messages=[{"role": "user", "content": formatted}],
+        max_tokens=tokens,
+        temperature=temperature,
+        logprobs=True,
     )
 
     answer = response.choices[0].message.content or ""

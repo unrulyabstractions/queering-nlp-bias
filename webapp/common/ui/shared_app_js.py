@@ -9,11 +9,11 @@ def get_shared_app_js() -> str:
 // APPLICATION STATE
 // ════════════════════════════════════════════════════════════════════════════════
 let ws=null, currentMode=null;
-let treeState={nodes:[],questions:[]}, dynamicsState={positions:[],questions:[],continuation:''}, judgeState={texts:[],questions:[],results:[]};
+let treeState={nodes:[],questions:[]}, dynamicsState={positions:[],questions:[],continuation:'',prefill:'',generated:''}, judgeState={texts:[],questions:[],results:[]};
 let judgeAddingMore=false;  // Flag to prevent results reset when adding texts
 let showOrientation=false, showMagnitudes=false, referenceNode='root', highlightedQuestion=null, highlightedMagnitude=null;
-let appConfig={anthropic_key:'',openai_key:'',models:{anthropic:[],openai:[],huggingface:[]},defaults:{}};
-let settings={gen_provider:'openai',gen_model:'gpt-4o-mini',judge_provider:'openai',judge_model:'gpt-4o-mini',temperature:1.0,max_tokens:300,judge_prompt:''};
+let appConfig={anthropic_key:'',openai_key:'',models:{},provider_names:{},defaults:{}};
+let settings={gen_provider:'openai',gen_model:'gpt-4o-mini',judge_model:[{provider:'openai',model:'gpt-4o-mini'}],gen_temperature:1.0,judge_temperature:0.0,max_tokens:300,judge_prompt:''};
 const colors=['#FF6B9D','#C678DD','#56B6C2','#E5C07B','#98C379','#61AFEF','#E06C75','#D19A66'];
 
 // ════════════════════════════════════════════════════════════════════════════════
@@ -22,29 +22,198 @@ const colors=['#FF6B9D','#C678DD','#56B6C2','#E5C07B','#98C379','#61AFEF','#E06C
 async function loadConfig(){
     try{const r=await fetch('/config');appConfig=await r.json();
     settings={...appConfig.defaults};
-    document.getElementById('settingsGenProvider').value=settings.gen_provider;
-    document.getElementById('settingsJudgeProvider').value=settings.judge_provider;
-    updateGenModels();updateJudgeModels();
-    document.getElementById('settingsGenModel').value=settings.gen_model;
-    document.getElementById('settingsJudgeModel').value=settings.judge_model;
-    document.getElementById('settingsTemp').value=settings.temperature;
-    document.getElementById('tempVal').textContent=settings.temperature;
+
+    // Auto-select provider based on available API keys
+    const autoProvider = autoSelectProvider();
+    if (autoProvider) {
+        settings.gen_provider = autoProvider.provider;
+        settings.gen_model = autoProvider.model;
+        settings.judge_model = [{provider: autoProvider.provider, model: autoProvider.model}];
+        console.log('🔑 Auto-selected provider:', autoProvider.provider, 'model:', autoProvider.model);
+    }
+
+    // Populate generation model list (single-select)
+    populateSingleSelectModelList('settingsGenModelList', {provider: settings.gen_provider, model: settings.gen_model});
+    // Populate judge model list (multi-select)
+    populateMultiProviderModelList('settingsJudgeModelList', settings.judge_model);
+    document.getElementById('settingsGenTemp').value=settings.gen_temperature||1.0;
+    document.getElementById('genTempVal').textContent=settings.gen_temperature||1.0;
+    document.getElementById('settingsJudgeTemp').value=settings.judge_temperature||0.0;
+    document.getElementById('judgeTempVal').textContent=settings.judge_temperature||0.0;
     document.getElementById('settingsMaxTokens').value=settings.max_tokens||300;
     document.getElementById('maxTokensVal').textContent=settings.max_tokens||300;
     initSyntaxEditor('settingsJudgePrompt',settings.judge_prompt);
     document.getElementById('settingsAnthropicKey').value=appConfig.anthropic_key;
     document.getElementById('settingsOpenaiKey').value=appConfig.openai_key;
     initSyntaxEditor('judgePromptFormat',settings.judge_prompt);
-    // Init judge config screen dropdowns from global settings
-    document.getElementById('judgeProvider').value=settings.judge_provider;
-    updateJudgeConfigModels();
-    document.getElementById('judgeModel').value=settings.judge_model;
+    // Init judge config screen from global settings
+    populateMultiProviderModelList('judgeModelList', settings.judge_model);
+    // Init temperature slider in judge config
+    const judgeTempConfig = document.getElementById('judgeTemperatureConfig');
+    if(judgeTempConfig) {
+        judgeTempConfig.value = settings.judge_temperature || 0.0;
+        document.getElementById('judgeTempValConfig').textContent = settings.judge_temperature || 0.0;
+    }
+
+    // Show toast if no API keys found and falling back to local
+    if (autoProvider && isLocalProvider(autoProvider.provider)) {
+        showToast('info', 'Using Local Models', 'No API keys found. Using HuggingFace models (requires local GPU).', 5000);
+    } else if (!autoProvider) {
+        showToast('warning', 'No API Keys', 'Configure API keys in Settings or use HuggingFace local models.', 8000);
+    }
     }catch(e){console.error(e)}}
 
-function updateGenModels(){const p=document.getElementById('settingsGenProvider').value,m=document.getElementById('settingsGenModel'),models=appConfig.models[p]||[];m.innerHTML='';models.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;m.appendChild(o)})}
-function updateJudgeModels(){const p=document.getElementById('settingsJudgeProvider').value,m=document.getElementById('settingsJudgeModel'),models=appConfig.models[p]||[];m.innerHTML='';models.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;m.appendChild(o)})}
-function updateJudgeConfigModels(){const p=document.getElementById('judgeProvider').value,m=document.getElementById('judgeModel'),models=appConfig.models[p]||[];m.innerHTML='';models.forEach(n=>{const o=document.createElement('option');o.value=n;o.textContent=n;m.appendChild(o)});settings.judge_provider=p;settings.judge_model=models[0]||''}
-function onJudgeModelChange(){settings.judge_model=document.getElementById('judgeModel').value}
+// Auto-select provider based on available API keys
+// Priority: OpenAI (smallest) > Anthropic (haiku) > HuggingFace Instruct (local)
+function autoSelectProvider() {
+    const openaiKey = appConfig.openai_key?.trim();
+    const anthropicKey = appConfig.anthropic_key?.trim();
+
+    if (openaiKey && openaiKey.length > 0) {
+        const models = appConfig.models?.openai || [];
+        const smallestModel = models.find(m => m.includes('mini')) || models[0] || 'gpt-4o-mini';
+        return { provider: 'openai', model: smallestModel };
+    }
+
+    if (anthropicKey && anthropicKey.length > 0) {
+        const models = appConfig.models?.anthropic || [];
+        const haikuModel = models.find(m => m.includes('haiku')) || models[0] || 'claude-haiku-4-5';
+        return { provider: 'anthropic', model: haikuModel };
+    }
+
+    // No API keys - fall back to local HuggingFace Instruct
+    const hfModels = appConfig.models?.huggingface_instruct || [];
+    const smallestModel = hfModels.find(m => m.includes('0.8B')) || hfModels[0];
+    if (smallestModel) {
+        return { provider: 'huggingface_instruct', model: smallestModel };
+    }
+
+    return null;
+}
+
+// Populate single-select model list (for generation - only one can be selected)
+function populateSingleSelectModelList(containerId, selectedModel=null){
+    const container=document.getElementById(containerId);
+    if(!container)return;
+    container.innerHTML='';
+
+    const allProviders=getAllProviders();
+    const providerColors={openai:'#10a37f',anthropic:'#cc785c',huggingface_base:'#ffd21e',huggingface_instruct:'#ffd21e',huggingface_reasoning:'#ffd21e'};
+
+    // Convert selected to key format
+    const selectedKey=selectedModel?`${selectedModel.provider}/${selectedModel.model}`:null;
+
+    allProviders.forEach(provider=>{
+        const models=appConfig.models[provider]||[];
+        if(!models.length)return;
+
+        // Provider header
+        const header=document.createElement('div');
+        header.className='model-provider-header';
+        const color=providerColors[provider]||'#888';
+        header.style.cssText=`width:100%;font-size:10px;font-weight:600;color:${color};margin-top:8px;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em;`;
+        header.textContent=appConfig.provider_names[provider]||provider;
+        container.appendChild(header);
+
+        // Models for this provider
+        models.forEach(model=>{
+            const modelKey=`${provider}/${model}`;
+            const isSelected=modelKey===selectedKey;
+            const item=document.createElement('label');
+            item.className='model-checkbox-item'+(isSelected?' selected':'');
+            item.dataset.provider=provider;
+            item.dataset.model=model;
+            item.innerHTML=`<input type="radio" name="${containerId}" value="${modelKey}" ${isSelected?'checked':''}><span class="check-icon">\u2713</span><span>${model}</span>`;
+            item.querySelector('input').addEventListener('change',function(){
+                // Deselect all others
+                container.querySelectorAll('.model-checkbox-item').forEach(i=>i.classList.remove('selected'));
+                item.classList.add('selected');
+            });
+            container.appendChild(item);
+        });
+    });
+}
+
+// Get single selected model as {provider, model}
+function getSelectedModelFromList(containerId){
+    const container=document.getElementById(containerId);
+    if(!container)return null;
+    const checked=container.querySelector('input:checked');
+    if(!checked)return null;
+    const item=checked.closest('.model-checkbox-item');
+    return {provider:item.dataset.provider,model:item.dataset.model};
+}
+
+// Get all providers from config
+function getAllProviders(){
+    return Object.keys(appConfig.models||{});
+}
+
+// Check if provider is local (doesn't need API key)
+function isLocalProvider(provider){
+    return provider.startsWith('huggingface_');
+}
+
+// Populate multi-provider judge model list (shows all providers)
+function populateMultiProviderModelList(containerId, selectedModels=[]){
+    const container=document.getElementById(containerId);
+    if(!container)return;
+    container.innerHTML='';
+
+    const allProviders=getAllProviders();
+    const providerColors={openai:'#10a37f',anthropic:'#cc785c',huggingface_base:'#ffd21e',huggingface_instruct:'#ffd21e',huggingface_reasoning:'#ffd21e'};
+
+    // Convert selectedModels to Set of "provider/model" strings for easy lookup
+    const selectedSet=new Set(selectedModels.map(m=>typeof m==='object'?`${m.provider}/${m.model}`:m));
+
+    allProviders.forEach(provider=>{
+        const models=appConfig.models[provider]||[];
+        if(!models.length)return;
+
+        // Provider header with display name
+        const header=document.createElement('div');
+        header.className='model-provider-header';
+        const color=providerColors[provider]||'#888';
+        header.style.cssText=`width:100%;font-size:10px;font-weight:600;color:${color};margin-top:8px;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em;`;
+        header.textContent=appConfig.provider_names[provider]||provider;
+        container.appendChild(header);
+
+        // Models for this provider
+        models.forEach(model=>{
+            const modelKey=`${provider}/${model}`;
+            const isSelected=selectedSet.has(modelKey);
+            const item=document.createElement('label');
+            item.className='model-checkbox-item'+(isSelected?' selected':'');
+            item.dataset.provider=provider;
+            item.dataset.model=model;
+            item.innerHTML=`<input type="checkbox" value="${modelKey}" ${isSelected?'checked':''}><span class="check-icon">\u2713</span><span>${model}</span>`;
+            item.querySelector('input').addEventListener('change',function(){
+                item.classList.toggle('selected',this.checked);
+            });
+            container.appendChild(item);
+        });
+    });
+}
+
+// Get selected models as [{provider, model}] format
+function getSelectedModelsFromList(containerId){
+    const container=document.getElementById(containerId);
+    if(!container)return[];
+    return Array.from(container.querySelectorAll('input:checked')).map(cb=>{
+        const item=cb.closest('.model-checkbox-item');
+        return {provider:item.dataset.provider,model:item.dataset.model};
+    });
+}
+
+function updateJudgeModels(){
+    // Refresh judge model list with all available providers
+    populateMultiProviderModelList('settingsJudgeModelList', settings.judge_model);
+}
+
+function updateJudgeConfigModels(){
+    // Refresh judge model list with all available providers
+    populateMultiProviderModelList('judgeModelList', settings.judge_model);
+}
 function showSettings(){
     console.log('showSettings: opening settings modal');
     document.getElementById('settingsModal').classList.add('visible');
@@ -60,9 +229,34 @@ function hideSettings(){
         document.getElementById('landing').classList.remove('hidden');
     }
 }
-function saveSettings(){settings.gen_provider=document.getElementById('settingsGenProvider').value;settings.gen_model=document.getElementById('settingsGenModel').value;settings.judge_provider=document.getElementById('settingsJudgeProvider').value;settings.judge_model=document.getElementById('settingsJudgeModel').value;settings.temperature=parseFloat(document.getElementById('settingsTemp').value);settings.max_tokens=parseInt(document.getElementById('settingsMaxTokens').value);settings.judge_prompt=getSyntaxEditorValue('settingsJudgePrompt');appConfig.anthropic_key=document.getElementById('settingsAnthropicKey').value;appConfig.openai_key=document.getElementById('settingsOpenaiKey').value;initSyntaxEditor('judgePromptFormat',settings.judge_prompt);hideSettings();resetExperiment()}
+function saveSettings(){
+    // Get selected generation model (single-select)
+    const genModel=getSelectedModelFromList('settingsGenModelList');
+    if(genModel){
+        settings.gen_provider=genModel.provider;
+        settings.gen_model=genModel.model;
+    }
+    // Get selected judge models (multi-select)
+    settings.judge_model=getSelectedModelsFromList('settingsJudgeModelList');
+    settings.gen_temperature=parseFloat(document.getElementById('settingsGenTemp').value);
+    settings.judge_temperature=parseFloat(document.getElementById('settingsJudgeTemp').value);
+    settings.max_tokens=parseInt(document.getElementById('settingsMaxTokens').value);
+    settings.judge_prompt=getSyntaxEditorValue('settingsJudgePrompt');
+    appConfig.anthropic_key=document.getElementById('settingsAnthropicKey').value;
+    appConfig.openai_key=document.getElementById('settingsOpenaiKey').value;
+    initSyntaxEditor('judgePromptFormat',settings.judge_prompt);
+    // Sync judge config screen to match Settings modal
+    populateMultiProviderModelList('judgeModelList',settings.judge_model);
+    const judgeTempConfig=document.getElementById('judgeTemperatureConfig');
+    if(judgeTempConfig){
+        judgeTempConfig.value=settings.judge_temperature;
+        document.getElementById('judgeTempValConfig').textContent=settings.judge_temperature;
+    }
+    hideSettings();
+    resetExperiment();
+}
 function resetSettings(){loadConfig();hideSettings()}
-function getApiKeys(){return {openai: appConfig.openai_key, anthropic: appConfig.anthropic_key, huggingface: ''}}
+function getApiKeys(){return {openai: appConfig.openai_key, anthropic: appConfig.anthropic_key, huggingface_base: '', huggingface_instruct: '', huggingface_reasoning: ''}}
 
 // ════════════════════════════════════════════════════════════════════════════════
 // WEBSOCKET
@@ -133,9 +327,25 @@ function handleMessage(e){
         else if(m.type==='position_update')updateDynamicsPosition(m.data);
         else if(m.type==='text_scored')updateJudgeResult(m.data);
         else if(m.type==='continuation'){
-            console.log('📊 Continuation received:', m.text?.length, 'chars');
+            console.log('📊 Continuation received:', m.text?.length, 'chars, prefill:', m.prefill?.length, 'generated:', m.generated?.length);
             dynamicsState.continuation=m.text;
-            document.getElementById('textContent').textContent=m.text;
+            dynamicsState.prefill=m.prefill||'';
+            dynamicsState.generated=m.generated||'';
+            // Show with prefill dimmed, generated normal
+            const tc = document.getElementById('textContent');
+            tc.innerHTML = '';
+            if (m.prefill) {
+                const pf = document.createElement('span');
+                pf.className = 'trajectory-prefill';
+                pf.textContent = m.prefill;
+                tc.appendChild(pf);
+            }
+            if (m.generated) {
+                const gen = document.createElement('span');
+                gen.className = 'trajectory-generated';
+                gen.textContent = m.generated;
+                tc.appendChild(gen);
+            }
         }
         else if(m.type==='complete'){
             console.log('✅ Complete event');
@@ -163,16 +373,24 @@ function goBack(){
 }
 function resetExperiment(){
     console.log('resetExperiment: currentMode=', currentMode);
+    // In judge mode, just clear results instead of full reset
+    if(currentMode==='judge'){
+        resetJudgeResults();
+        return;
+    }
     stopSampling();
-    ['floatingStats','modeToggle','viewToggle','evolutionModeToggle','diversityToggle','controlButtons','legend','textDisplay','addTextsPanel','trajectoriesPanel','pieChartPanel','zoomControls'].forEach(id=>{
+    ['floatingStats','modeToggle','viewToggle','evolutionModeToggle','diversityToggle','judgeModelToggle','controlButtons','legend','textDisplay','addTextsPanel','trajectoriesPanel','pieChartPanel','zoomControls','convergencePanel','trajExplorer'].forEach(id=>{
         const el=document.getElementById(id);
         if(el)el.classList.remove('visible');
     });
     document.getElementById('progressBar').style.width='0%';
     d3.select('#canvas').selectAll('*').remove();
     treeState={nodes:[],questions:[]};
-    dynamicsState={positions:[],questions:[],continuation:''};
+    dynamicsState={positions:[],questions:[],continuation:'',prefill:'',generated:''};
     judgeState={texts:[],questions:[],results:[]};
+    judgeAddingMore=false;  // Reset flag on experiment reset
+    // Reset judge-specific state (defined in judge_page_js)
+    if(typeof resetJudgeState === 'function') resetJudgeState();
     document.getElementById('liveBadge').classList.remove('paused');
     document.getElementById('liveText').textContent='Sampling';
     // Reset diversity toggle state
@@ -184,6 +402,25 @@ function resetExperiment(){
         // No mode selected, show landing
         document.getElementById('landing').classList.remove('hidden');
     }
+}
+
+function resetJudgeResults(){
+    // Just clear judge results without leaving the UI or changing model selection
+    stopSampling();
+    judgeState.texts=[];
+    judgeState.results=[];
+    judgeAddingMore=false;
+    // Only reset results-related state, NOT model selection (judgeModels preserved)
+    if(typeof resultsByModel !== 'undefined') resultsByModel={};
+    if(typeof currentModelView !== 'undefined') currentModelView='averaged';
+    document.getElementById('progressBar').style.width='0%';
+    document.getElementById('liveBadge').classList.remove('paused');
+    document.getElementById('liveText').textContent='Ready';
+    // Redraw empty heatmap and pie
+    d3.select('#canvas').selectAll('*').remove();
+    if(typeof drawPieChart === 'function') drawPieChart();
+    // Update model toggle (will show based on judgeModels which is preserved)
+    if(typeof updateModelToggle === 'function') updateModelToggle();
 }
 function stopSampling(){if(ws&&ws.readyState===1)ws.send(JSON.stringify({action:'stop'}));document.getElementById('liveBadge').classList.add('paused');document.getElementById('liveText').textContent='Stopped'}
 function hideTooltip(){document.getElementById('tooltip').classList.remove('visible')}
@@ -375,10 +612,13 @@ function initSyntaxEditor(id, initialText) {
 function highlightSyntax(text) {
     // Escape HTML first, preserve newlines
     const escaped = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\n/g,'<br>');
-    // Highlight {text} and {question}
+    // Highlight {text}, {question}, ANSWER:, and <answer> tags
     return escaped
         .replace(/\\{text\\}/g, '<span class="hl-text">{text}</span>')
-        .replace(/\\{question\\}/g, '<span class="hl-question">{question}</span>');
+        .replace(/\\{question\\}/g, '<span class="hl-question">{question}</span>')
+        .replace(/ANSWER:/gi, '<span class="hl-answer">ANSWER:</span>')
+        .replace(/&lt;answer&gt;/gi, '<span class="hl-answer">&lt;answer&gt;</span>')
+        .replace(/&lt;\\/answer&gt;/gi, '<span class="hl-answer">&lt;/answer&gt;</span>');
 }
 
 function handleSyntaxKeydown(e) {

@@ -26,11 +26,25 @@ async def run_dynamics(ws: WebSocket, session: dict, data: dict) -> None:
     log_section(f"Dynamics ({config.gen_provider}/{config.gen_model})")
 
     try:
+        # Ensure gen_max_tokens has a sensible default (used by both initial gen and sampling loop)
+        if not config.gen_max_tokens:
+            config = SamplingConfig(
+                gen_provider=config.gen_provider,
+                gen_model=config.gen_model,
+                gen_api_key=config.gen_api_key,
+                gen_temperature=config.gen_temperature,
+                gen_max_tokens=300,  # Default for dynamics
+                judge_models=config.judge_models,
+                judge_temperature=config.judge_temperature,
+                judge_max_tokens=config.judge_max_tokens,
+                judge_prompt=config.judge_prompt,
+                api_keys=config.api_keys,
+            )
         async for event in track_text_dynamics(
             prompt=data.get("prompt", ""),
+            prefill=data.get("prefill", ""),
             continuation=data.get("continuation", ""),
             questions=questions,
-            max_tokens=data.get("max_tokens", 300),
             max_rounds=data.get("max_rounds", 10),
             config=config,
             should_stop=lambda: session.get("stop", False),

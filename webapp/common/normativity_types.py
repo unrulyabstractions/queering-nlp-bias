@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 # Type Aliases
 # ════════════════════════════════════════════════════════════════════════════════
 
-Scoring = float  # Single judge score for one question
+Scoring = float | None  # Single judge score for one question (None = parse error)
 Structure = Scoring  # Alias for use in judge evaluation context
 System = list[Structure]  # Scores for all questions in one trajectory sample
 
@@ -121,33 +121,107 @@ def parse_judge_score(answer: str) -> Scoring:
     """Parse judge response to 0-1 score.
 
     Robust parsing that handles reasoning traces by prioritizing:
-    1. Final line/word of response
-    2. Standalone YES/NO/TRUE/FALSE (word boundaries)
-    3. Numbers anywhere in text
+    1. Strip <think>...</think> blocks (reasoning model output)
+    2. Extract <answer>...</answer> tags if present
+    3. Extract content after "ANSWER:" if present
+    4. Check if last word/token is a clear answer (number, YES/NO)
+    5. Check last line for clear answer
+    6. Conservative fallback - only accept standalone answers, not numbers in reasoning
 
     Handles:
         - YES/TRUE → 1.0, NO/FALSE → 0.0
         - Floats in 0-1 range used directly (0.0, 0.5, 0.75, 1.0)
         - Integers 0-1 used directly
         - Numbers 2-10 scaled to 0-1 (e.g., 7 → 0.7)
-        - Defaults to 0.5 if unparseable
+        - Returns None if unparseable (ERROR state)
     """
     text = answer.strip()
     if not text:
-        return 0.5
+        print("❌ JUDGE PARSE ERROR: Empty response")
+        return None
 
-    # First, check the last line (most likely to be the final answer)
+    # Strip <think>...</think> blocks from reasoning models (e.g., Qwen)
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
+    if not text:
+        print("❌ JUDGE PARSE ERROR: Only thinking block, no answer")
+        return None
+
+    # FIRST: Check if entire response is just a number (simplest case)
+    # Handles: "0.5", ".5", "1", "0.75", etc.
+    clean_text = text.strip()
+    if re.match(r"^(\d+\.?\d*|\.\d+)$", clean_text):
+        value = float(clean_text)
+        if 0.0 <= value <= 1.0:
+            return value
+        if 1.0 < value <= 10.0:
+            return value / 10.0
+        return max(0.0, min(1.0, value))
+
+    # Check for <answer>...</answer> tags - most reliable
+    answer_tag_match = re.search(r"<answer>(.*?)</answer>", text, flags=re.DOTALL | re.IGNORECASE)
+    if answer_tag_match:
+        text = answer_tag_match.group(1).strip()
+        if not text:
+            print("❌ JUDGE PARSE ERROR: Empty <answer> tag")
+            return None
+        # With explicit answer tags, parse the content directly
+        return _parse_answer_content(text)
+
+    # Check for "ANSWER:" prefix - also reliable
+    answer_prefix_match = re.search(r"ANSWER:\s*(.+)", text, flags=re.IGNORECASE)
+    if answer_prefix_match:
+        text = answer_prefix_match.group(1).strip()
+        if not text:
+            print("❌ JUDGE PARSE ERROR: Empty ANSWER: content")
+            return None
+        # With explicit ANSWER: marker, parse the content directly
+        return _parse_answer_content(text)
+
+    # Get lines and check for incomplete response (ends mid-sentence)
     lines = [l.strip() for l in text.split("\n") if l.strip()]
-    last_line = lines[-1].upper() if lines else text.upper()
+    if not lines:
+        print("❌ JUDGE PARSE ERROR: No content found")
+        return None
 
-    # Check last line for standalone YES/NO (word boundaries)
-    if re.search(r"\bYES\b", last_line) or re.search(r"\bTRUE\b", last_line):
+    last_line = lines[-1]
+
+    # Check if last word is a number first (most common case: model just outputs "0.7")
+    last_word = last_line.split()[-1].strip(".,!?:;\"'") if last_line.split() else ""
+    if re.match(r"^(\d+\.?\d*|\.\d+)$", last_word):
+        value = float(last_word)
+        if 0.0 <= value <= 1.0:
+            return value
+        if 1.0 < value <= 10.0:
+            return value / 10.0
+        return max(0.0, min(1.0, value))
+
+    # Check if response looks incomplete (ends without punctuation or answer)
+    if not last_line.rstrip().endswith((".", "!", "?", "0", "1", "YES", "NO", "yes", "no", "Yes", "No")):
+        # Response might be cut off - be very conservative
+        last_word_upper = last_word.upper()
+        if last_word_upper in ("YES", "TRUE"):
+            return 1.0
+        if last_word_upper in ("NO", "FALSE"):
+            return 0.0
+        print(f"❌ JUDGE PARSE ERROR: Incomplete response, no clear answer: ...{last_line[-50:]}")
+        return None
+
+    # Check if last line is a standalone answer (very short, just the answer)
+    last_line_clean = last_line.strip(".,!?:;\"' ").upper()
+    if last_line_clean in ("YES", "TRUE"):
         return 1.0
-    if re.search(r"\bNO\b", last_line) or re.search(r"\bFALSE\b", last_line):
+    if last_line_clean in ("NO", "FALSE"):
         return 0.0
 
-    # Check last line for a number
-    match = re.search(r"\b(\d+\.?\d*)\b", last_line)
+    # Check last word for YES/NO (number already checked above)
+    last_word_upper = last_word.upper()
+    if last_word_upper in ("YES", "TRUE"):
+        return 1.0
+    if last_word_upper in ("NO", "FALSE"):
+        return 0.0
+
+    # Check if last line ends with a standalone number (after punctuation like "Answer: 0.7.")
+    match = re.search(r"[:\s](\d+\.?\d*|\.\d+)\s*[.!?]?\s*$", last_line)
     if match:
         value = float(match.group(1))
         if 0.0 <= value <= 1.0:
@@ -156,24 +230,34 @@ def parse_judge_score(answer: str) -> Scoring:
             return value / 10.0
         return max(0.0, min(1.0, value))
 
-    # Fall back to checking full text with word boundaries
-    full_upper = text.upper()
-    if re.search(r"\bYES\b", full_upper) or re.search(r"\bTRUE\b", full_upper):
+    # Do NOT fall back to searching for numbers in full text - too error prone
+    # Numbers in reasoning (like "1 or 0", "between 0 and 1") should not be extracted
+    print(f"❌ JUDGE PARSE ERROR: No clear answer found in: ...{text[-100:]}")
+    return None
+
+
+def _parse_answer_content(text: str) -> Scoring:
+    """Parse answer content when we have explicit answer markers."""
+    text = text.strip().upper()
+
+    # YES/NO/TRUE/FALSE
+    if text in ("YES", "TRUE"):
         return 1.0
-    if re.search(r"\bNO\b", full_upper) or re.search(r"\bFALSE\b", full_upper):
+    if text in ("NO", "FALSE"):
         return 0.0
 
-    # Try to extract any number from full text
-    match = re.search(r"-?\d+\.?\d*", text)
+    # Try to extract number (handles both "0.5" and ".5")
+    match = re.search(r"(\d+\.?\d*|\.\d+)", text)
     if match:
-        value = float(match.group())
+        value = float(match.group(1))
         if 0.0 <= value <= 1.0:
             return value
         if 1.0 < value <= 10.0:
             return value / 10.0
         return max(0.0, min(1.0, value))
 
-    return 0.5
+    print(f"❌ JUDGE PARSE ERROR: Cannot parse answer content: {text}")
+    return None
 
 
 # ════════════════════════════════════════════════════════════════════════════════
@@ -182,16 +266,15 @@ def parse_judge_score(answer: str) -> Scoring:
 
 
 def get_word_positions(text: str) -> list[int]:
-    """Character positions at end of each word (for measuring at word boundaries)."""
+    """Character positions at end of each word (for measuring at word boundaries).
+
+    Uses regex to find actual word boundaries, handling punctuation correctly.
+    """
     if not text:
         return []
-    positions = []
-    for i, char in enumerate(text):
-        if char == " " and i > 0:
-            positions.append(i)
-    if text and len(text) not in positions:
-        positions.append(len(text))
-    return positions
+    # Find all word matches and return the end position of each
+    import re
+    return [m.end() for m in re.finditer(r'\S+', text)]
 
 
 # ════════════════════════════════════════════════════════════════════════════════

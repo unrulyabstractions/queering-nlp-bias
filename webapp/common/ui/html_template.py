@@ -10,6 +10,7 @@ from webapp.common.ui.shared_components import (
     get_landing_html,
     get_settings_html,
 )
+from webapp.common.ui.ui_text_config import APP_TITLE
 from webapp.dynamics_analysis.ui import get_dynamics_config_html, get_dynamics_page_js
 from webapp.judge_eval.ui import get_judge_config_html, get_judge_page_js
 from webapp.tree_exploration.ui import get_tree_config_html, get_tree_page_js
@@ -21,7 +22,7 @@ def get_html_template() -> str:
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Queering NLP Bias!</title>
+    <title>{APP_TITLE}</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>{get_css()}</style>
 </head>

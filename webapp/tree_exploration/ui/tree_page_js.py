@@ -131,12 +131,20 @@ function getEdgeWidth(nodeId, probabilities) {
 // ════════════════════════════════════════════════════════════════════════════════
 function startTree(){
     const keys=getApiKeys();
-    // Check if API keys are needed (huggingface doesn't need them)
-    const genNeedsKey = settings.gen_provider !== 'huggingface';
-    const judgeNeedsKey = settings.judge_provider !== 'huggingface';
+    // Check if at least one judge model is selected
+    if(!settings.judge_model || settings.judge_model.length===0){
+        alert('Select at least one judge model in Settings');showSettings();return;
+    }
+    // Check if API keys are needed
+    const genNeedsKey = !isLocalProvider(settings.gen_provider);
     const genKeyOk = !genNeedsKey || keys[settings.gen_provider];
-    const judgeKeyOk = !judgeNeedsKey || keys[settings.judge_provider];
-    if(!genKeyOk || !judgeKeyOk){alert('Configure API key in Settings');showSettings();return}
+    if(!genKeyOk){alert('Configure generation API key in Settings');showSettings();return}
+    // Check all judge model providers have keys
+    for(const m of settings.judge_model){
+        if(!isLocalProvider(m.provider) && !keys[m.provider]){
+            alert(`Configure ${m.provider} API key in Settings`);showSettings();return;
+        }
+    }
     currentMode='tree';
     ws.send(JSON.stringify({
         action:'start_tree',
@@ -242,7 +250,20 @@ function showTrajectories(nodeId) {
             }
 
             const textDiv = document.createElement('div');
-            textDiv.textContent = text;  // Show full text
+            // Show prefix dimmed, generated normal
+            const nodePrefix = node.prefix || '';
+            if (nodePrefix && text.startsWith(nodePrefix)) {
+                const prefixSpan = document.createElement('span');
+                prefixSpan.className = 'trajectory-prefill';
+                prefixSpan.textContent = nodePrefix;
+                const genSpan = document.createElement('span');
+                genSpan.className = 'trajectory-generated';
+                genSpan.textContent = text.slice(nodePrefix.length);
+                textDiv.appendChild(prefixSpan);
+                textDiv.appendChild(genSpan);
+            } else {
+                textDiv.textContent = text;
+            }
             item.appendChild(textDiv);
 
             // Show scores for this trajectory
@@ -1548,6 +1569,7 @@ function processNodeUpdate(d){
     }
     treeState.total_samples=d.total_samples;
     treeState.total_api_calls=d.total_api_calls;
+    if (d.total_errors !== undefined) treeState.total_errors = d.total_errors;
     const ng=nodeGroups.filter(x=>x.data.node_id===d.node_id);
     if (ng.empty()) {
         return;  // Skip if D3 node doesn't exist yet
@@ -1610,6 +1632,16 @@ function updateTreeStats(){
     if (!treeState?.nodes) return;  // Guard against early calls
     document.getElementById('statValue1').textContent=treeState.total_samples||0;
     document.getElementById('statValue2').textContent=treeState.nodes.length;
+    // Show error count if there are errors
+    const errorCard = document.getElementById('errorStatCard');
+    const errorVal = document.getElementById('statErrors');
+    const totalErrors = treeState.total_errors || 0;
+    if (totalErrors > 0) {
+        errorCard.style.display = 'block';
+        errorVal.textContent = totalErrors;
+    } else {
+        errorCard.style.display = 'none';
+    }
 }
 
 function setupTreeLegend(){
