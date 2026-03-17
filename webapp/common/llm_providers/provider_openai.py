@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import time
-from typing import Any
 
 import openai
+from openai.types.chat.chat_completion import Choice
 
 from webapp.common.normativity_types import parse_judge_score
 
@@ -32,14 +32,14 @@ def get_openai_client(api_key: str) -> openai.OpenAI:
     return openai.OpenAI(api_key=api_key)
 
 
-def _extract_logprob(choice: Any) -> float | None:
+def _extract_logprob(choice: Choice) -> float | None:
     if choice.logprobs and choice.logprobs.content:
         return sum(t.logprob for t in choice.logprobs.content)
     return None
 
 
 async def generate_openai(
-    client: Any, model: str, prompt: str, prefill: str = "",
+    client: openai.OpenAI, model: str, prompt: str, prefill: str = "",
     max_tokens: int = 300, temperature: float = 1.0,
 ) -> GenerationResult:
     """Generate with OpenAI. Simulates prefill via instruction."""
@@ -66,7 +66,7 @@ async def generate_openai(
 
 
 async def judge_openai(
-    client: Any, model: str, text: str, question: str,
+    client: openai.OpenAI, model: str, text: str, question: str,
     judge_prompt: str, temperature: float = 0.0,
 ) -> JudgeResult:
     formatted = format_judge_prompt(judge_prompt, text, question)

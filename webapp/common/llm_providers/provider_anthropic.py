@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import time
-from typing import Any
 
 import anthropic
 
@@ -28,7 +27,7 @@ def get_anthropic_client(api_key: str) -> anthropic.Anthropic:
 
 
 async def generate_anthropic(
-    client: Any, model: str, prompt: str, prefill: str = "",
+    client: anthropic.Anthropic, model: str, prompt: str, prefill: str = "",
     max_tokens: int = 300, temperature: float = 1.0,
 ) -> GenerationResult:
     """Generate with Anthropic. Uses prefill as assistant message primer."""
@@ -52,7 +51,7 @@ async def generate_anthropic(
 
 
 async def judge_anthropic(
-    client: Any, model: str, text: str, question: str,
+    client: anthropic.Anthropic, model: str, text: str, question: str,
     judge_prompt: str, temperature: float = 0.0,
 ) -> JudgeResult:
     formatted = format_judge_prompt(judge_prompt, text, question)

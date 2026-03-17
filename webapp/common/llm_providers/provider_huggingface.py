@@ -4,10 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel, PreTrainedTokenizerBase
 
 from webapp.common.normativity_types import parse_judge_score
 
@@ -23,11 +22,15 @@ from .provider_base import (
     profile,
 )
 
+# Type aliases for HuggingFace
+HFModel = PreTrainedModel
+HFTokenizer = PreTrainedTokenizerBase
+
 SKIP_THINKING_PREFIX = "<think>\n</think>\n\n"
-_model_cache: dict[str, tuple[Any, Any]] = {}
+_model_cache: dict[str, tuple[HFModel, HFTokenizer]] = {}
 
 
-def _get_device_and_dtype() -> tuple[str, Any]:
+def _get_device_and_dtype() -> tuple[str, torch.dtype]:
     if torch.cuda.is_available():
         return "cuda", torch.float16
     if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
@@ -35,7 +38,7 @@ def _get_device_and_dtype() -> tuple[str, Any]:
     return "cpu", torch.float32
 
 
-def get_huggingface_model(model_name: str) -> tuple[Any, Any]:
+def get_huggingface_model(model_name: str) -> tuple[HFModel, HFTokenizer]:
     """Load or retrieve cached model and tokenizer."""
     if model_name in _model_cache:
         return _model_cache[model_name]
@@ -43,8 +46,8 @@ def get_huggingface_model(model_name: str) -> tuple[Any, Any]:
     print(f"▓ Loading HuggingFace model: {model_name}...")
     device, dtype = _get_device_and_dtype()
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-    model = AutoModelForCausalLM.from_pretrained(
+    tokenizer: HFTokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    model: HFModel = AutoModelForCausalLM.from_pretrained(
         model_name, torch_dtype=dtype, device_map=device, trust_remote_code=True,
     )
     model.eval()
@@ -58,7 +61,7 @@ def is_base_model(model_name: str) -> bool:
     return "-base" in name or "_base" in name
 
 
-def _apply_chat_template(tokenizer: Any, prompt: str, prefill: str = "") -> str:
+def _apply_chat_template(tokenizer: HFTokenizer, prompt: str, prefill: str = "") -> str:
     if hasattr(tokenizer, "apply_chat_template"):
         formatted = tokenizer.apply_chat_template(
             [{"role": "user", "content": prompt}], tokenize=False, add_generation_prompt=True,
@@ -68,7 +71,7 @@ def _apply_chat_template(tokenizer: Any, prompt: str, prefill: str = "") -> str:
     return formatted + SKIP_THINKING_PREFIX + prefill
 
 
-def _compute_logprob(outputs: Any, generated_ids: Any) -> float | None:
+def _compute_logprob(outputs: object, generated_ids: torch.Tensor) -> float | None:
     if not outputs.scores:
         return None
     logprob = 0.0
@@ -81,7 +84,7 @@ def _compute_logprob(outputs: Any, generated_ids: Any) -> float | None:
 
 
 def _generate_sync(
-    model: Any, tokenizer: Any, input_text: str, max_tokens: int, temperature: float,
+    model: HFModel, tokenizer: HFTokenizer, input_text: str, max_tokens: int, temperature: float,
 ) -> tuple[str, float | None]:
     device = next(model.parameters()).device
     inputs = tokenizer(input_text, return_tensors="pt").to(device)
