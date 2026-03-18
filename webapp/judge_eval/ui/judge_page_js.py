@@ -164,10 +164,21 @@ function updateJudgeResult(d){
     // Sort by text_idx for consistent display
     judgeState.results.sort((a,b)=>a.text_idx-b.text_idx);
 
-    // Store per-model results for view switching
+    // Store per-model results for view switching (merge, don't replace)
     if(d.results_by_model){
         Object.keys(d.results_by_model).forEach(modelKey=>{
-            resultsByModel[modelKey]=d.results_by_model[modelKey];
+            if(!resultsByModel[modelKey]){
+                resultsByModel[modelKey]=[];
+            }
+            // Merge new results by text_idx
+            const existingModelIds=new Set(resultsByModel[modelKey].map(r=>r.text_idx));
+            d.results_by_model[modelKey].forEach(r=>{
+                if(!existingModelIds.has(r.text_idx)){
+                    resultsByModel[modelKey].push(r);
+                }
+            });
+            // Sort by text_idx
+            resultsByModel[modelKey].sort((a,b)=>a.text_idx-b.text_idx);
         });
         updateModelToggle();
     }

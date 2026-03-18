@@ -121,9 +121,9 @@ function getNodeScale(nodeId, probabilities) {
 }
 
 function getEdgeWidth(nodeId, probabilities) {
-    // Edge width based on probability: min 1, max 4
+    // Edge width based on probability: min 4, max 16 (larger for big nodes)
     const prob = probabilities[nodeId] || 0.5;
-    return 1 + prob * 3;
+    return 4 + prob * 12;
 }
 
 // ════════════════════════════════════════════════════════════════════════════════
@@ -178,11 +178,11 @@ function showTreeUI(){
 // ════════════════════════════════════════════════════════════════════════════════
 let treeSvg,treeG,nodeGroups,zoomBehavior,currentTransform;
 let referenceNodeId = 0;  // Default to root (node_id=0)
-const margin={top:80,right:80,bottom:100,left:80};
-const NODE_WIDTH = 280;  // Wider for text
-const NODE_HEIGHT = 140; // Taller for text + bars
-const TEXT_HEIGHT = 70;  // Space for text above bars
-const BAR_AREA_HEIGHT = 60; // Space for bar chart
+const margin={top:200,right:200,bottom:200,left:200};
+const NODE_WIDTH = 1400;  // 5x wider for large text
+const NODE_HEIGHT = 700; // 5x taller
+const TEXT_HEIGHT = 500;  // Space for large text above bars
+const BAR_AREA_HEIGHT = 300; // 5x larger bar chart area
 
 // Zoom controls
 function zoomIn() { treeSvg.transition().duration(300).call(zoomBehavior.scaleBy, 1.3); }
@@ -433,7 +433,7 @@ function getNodeTextLineCount(nodeData, parentData) {
     const isRoot = nodeData.node_id === 0 || nodeData.name === 'root';
     if (isRoot) text = 'root';
 
-    const maxCharsPerLine = 35;
+    const maxCharsPerLine = 18;  // Fewer chars due to 8x larger font
     const words = text.split(' ');
     let lines = 1;
     let currentLen = 0;
@@ -478,16 +478,17 @@ function initTreeViz(){
     const totalNodes = root.descendants().length;
 
     // DYNAMIC spacing based on tree complexity
-    const baseNodeSpacingY = NODE_HEIGHT + 140;
-    const lineHeight = 22;
+    // Moderate spacing for large text - not too spread out
+    const baseNodeSpacingY = NODE_HEIGHT + 200;
+    const lineHeight = 60;  // Moderate line height for layout
     const maxLines = Math.max(...Object.values(lineCountById), 1);
-    const nodeSpacingY = baseNodeSpacingY + maxLines * lineHeight + 50;
+    const nodeSpacingY = baseNodeSpacingY + maxLines * lineHeight;
 
     // Dynamic horizontal spacing: more depth = longer edges, more nodes = more space
-    // Base of 300, scales with depth and total nodes
+    // Larger base spacing for bigger nodes
     const depthFactor = Math.max(1, maxDepth * 0.15);  // Deeper trees need more horizontal space
     const densityFactor = Math.max(1, Math.log10(totalNodes + 1) * 0.8);  // More nodes = more space
-    const nodeSpacingX = NODE_WIDTH + Math.max(300, 250 * depthFactor * densityFactor);
+    const nodeSpacingX = NODE_WIDTH + Math.max(600, 400 * depthFactor * densityFactor);
     console.log(`  Dynamic spacing: depth=${maxDepth}, nodes=${totalNodes}, spacingX=${nodeSpacingX.toFixed(0)}`);
 
     const requiredHeight = Math.max(innerHeight, leafCount * nodeSpacingY + margin.top + margin.bottom);
@@ -511,16 +512,16 @@ function initTreeViz(){
     // Create main group for tree content
     treeG=treeSvg.append('g').attr('transform',`translate(${margin.left},${margin.top})`);
 
-    // Use nodeSize with separation function - plenty of space to avoid collisions
+    // Use nodeSize with separation function - balanced spacing
     const layout=d3.tree()
         .nodeSize([baseNodeSpacingY, nodeSpacingX])
         .separation((a, b) => {
-            // Generous vertical separation scaled by text lines
+            // Moderate separation - enough for large text but not excessive
             const aLines = lineCountById[a.data.node_id] || 1;
             const bLines = lineCountById[b.data.node_id] || 1;
             const maxNodeLines = Math.max(aLines, bLines);
-            // Base separation of 2.0, plus 0.6 per additional line
-            return 2.0 + (maxNodeLines - 1) * 0.6;
+            // Base separation of 1.5, plus 0.3 per additional line
+            return 1.5 + (maxNodeLines - 1) * 0.3;
         });
     layout(root);
 
@@ -602,34 +603,39 @@ function initTreeViz(){
             d3.select(this).selectAll('.node-unique-text').attr('filter', null);
         });
 
-    // Large invisible hit area for easier clicking (50px padding around card)
+    // Large invisible hit area for easier clicking
+    const barMaxWidth = (NODE_WIDTH/2) - 150;  // Match bar width calculation
+    const cardWidth = barMaxWidth * 2 + 80;  // Card slightly wider than bars
+    const cardHeight = BAR_AREA_HEIGHT + 40;
+
     nodeGroups.append('rect')
         .attr('class','node-hit-area')
-        .attr('x', -NODE_WIDTH/2 - 20)
-        .attr('y', -75)
-        .attr('width', NODE_WIDTH + 40)
-        .attr('height', BAR_AREA_HEIGHT + 100)
+        .attr('x', -cardWidth/2 - 50)
+        .attr('y', -cardHeight/2 - 50)
+        .attr('width', cardWidth + 100)
+        .attr('height', cardHeight + 100)
         .attr('fill', 'transparent')
         .attr('cursor', 'pointer');
 
-    // Background card for bars
+    // Background card for bars - sized to fit bar chart
     nodeGroups.append('rect')
         .attr('class','node-card')
-        .attr('x', -NODE_WIDTH/2 + 30)
-        .attr('y', -25)
-        .attr('width', NODE_WIDTH - 60)
-        .attr('height', BAR_AREA_HEIGHT)
-        .attr('rx', 10);
+        .attr('x', -cardWidth/2)
+        .attr('y', -cardHeight/2 + 20)
+        .attr('width', cardWidth)
+        .attr('height', cardHeight)
+        .attr('rx', 20);
 
     // Text displayed ABOVE the card - using SVG text with word wrapping
+    // LARGE TEXT - 8x bigger, allowed to overflow card bounds
     nodeGroups.each(function(d) {
         const g = d3.select(this);
         const uniqueText = getUniqueText(d.data, d.parent?.data);
         const isRoot = d.data.node_id === 0 || d.data.name === 'root';
         const displayText = isRoot ? '⟨ root ⟩' : (uniqueText || d.data.label || '…');
 
-        // Wrap text into lines (simple word wrap)
-        const maxCharsPerLine = 35;
+        // Wrap text into lines (fewer chars per line due to larger font)
+        const maxCharsPerLine = 18;
         const words = displayText.split(' ');
         const lines = [];
         let currentLine = '';
@@ -643,15 +649,15 @@ function initTreeViz(){
         });
         if (currentLine) lines.push(currentLine);
 
-        // Limit to 3 lines max
-        if (lines.length > 3) {
-            lines.length = 3;
-            lines[2] = lines[2].slice(0, -3) + '...';
+        // Limit to 4 lines max for large text
+        if (lines.length > 4) {
+            lines.length = 4;
+            lines[3] = lines[3].slice(0, -3) + '...';
         }
 
         const textGroup = g.append('g').attr('class', 'node-text-group');
-        const lineHeight = 16;
-        const startY = -35 - (lines.length * lineHeight);
+        const lineHeight = 110;  // 8x larger line height
+        const startY = -60 - (lines.length * lineHeight);
 
         lines.forEach((line, i) => {
             textGroup.append('text')
@@ -660,9 +666,10 @@ function initTreeViz(){
                 .attr('y', startY + i * lineHeight)
                 .attr('text-anchor', 'middle')
                 .attr('fill', isRoot ? '#c490d1' : '#4a3f5c')
-                .attr('font-size', isRoot ? '12px' : '13px')
+                .attr('font-size', isRoot ? '96px' : '104px')  // 8x larger (was 12/13px)
                 .attr('font-weight', '600')
                 .attr('font-style', isRoot ? 'italic' : 'normal')
+                .attr('style', 'overflow: visible')
                 .text(line);
         });
 
@@ -675,6 +682,11 @@ function initTreeViz(){
     setupTreeLegend();
     updateTreeStats();
     drawPhantomBranches(nodes, offsetY, defs);
+
+    // Auto-fit the tree to viewport after a brief delay for rendering
+    setTimeout(() => {
+        zoomFit();
+    }, 100);
 }
 
 function drawColorField(nodes, offsetY, defs) {
@@ -1188,7 +1200,7 @@ function applyOrientationStyling() {
 function drawTreeBars(){
     if (!nodeGroups) return;  // Guard against early calls
 
-    const bw = (NODE_WIDTH/2) - 40;  // Bar max width
+    const bw = (NODE_WIDTH/2) - 150;  // Bar max width (adjusted for larger nodes)
     const subtree = showOrientation ? cachedSubtreeIds : null;
     nodeGroups.each(function(d){
         const g=d3.select(this);
@@ -1198,7 +1210,8 @@ function drawTreeBars(){
             return;
         }
 
-        const bh=Math.min(8, (BAR_AREA_HEIGHT - 20)/scores.length);
+        // Larger bars for bigger nodes - max height 40px per bar
+        const bh=Math.min(40, (BAR_AREA_HEIGHT - 60)/scores.length);
         const sy=-((scores.length*bh)/2);
         const inSubtree = !showOrientation || (subtree && subtree.has(d.data.node_id));
         const expectedRelativeOrientation = showOrientation ? getNodeOrientation(d.data.node_id, referenceNodeId) : null;
@@ -1206,21 +1219,21 @@ function drawTreeBars(){
         // Check if we can update existing bars instead of recreating
         let bg = g.select('.bar-group');
         if (bg.empty()) {
-            bg = g.append('g').attr('class','bar-group').attr('transform', 'translate(0, 5)');
-            // Center line
+            bg = g.append('g').attr('class','bar-group').attr('transform', 'translate(0, 20)');
+            // Center line - thicker
             bg.append('line').attr('class','center-line')
-                .attr('x1',0).attr('y1',sy-3)
-                .attr('x2',0).attr('y2',sy+scores.length*bh+3)
+                .attr('x1',0).attr('y1',sy-10)
+                .attr('x2',0).attr('y2',sy+scores.length*bh+10)
                 .attr('stroke','rgba(100,120,150,.4)')
-                .attr('stroke-width', 1);
+                .attr('stroke-width', 3);
             // Create bars
             scores.forEach((v,i)=>{
                 bg.append('rect')
                     .attr('class','bar bar-'+i)
-                    .attr('y',sy+i*bh+1)
-                    .attr('height',bh-2)
+                    .attr('y',sy+i*bh+2)
+                    .attr('height',bh-4)
                     .attr('fill',colors[i%colors.length])
-                    .attr('rx',3);
+                    .attr('rx',8);
             });
         }
 
@@ -1575,34 +1588,36 @@ function processNodeUpdate(d){
         return;  // Skip if D3 node doesn't exist yet
     }
 
-    const bw = (NODE_WIDTH/2) - 40;
+    const bw = (NODE_WIDTH/2) - 150;  // Adjusted for larger nodes
     const subtree = showOrientation ? getSubtreeIds(referenceNodeId) : null;
     const inSubtree = !showOrientation || (subtree && subtree.has(d.node_id));
     ng.each(function(){
         const g=d3.select(this);
         const scores=d.core;
         if(!scores||!scores.length)return;
-        const bh=Math.min(8, (BAR_AREA_HEIGHT - 20)/scores.length);
+        // Larger bars for bigger nodes
+        const bh=Math.min(40, (BAR_AREA_HEIGHT - 60)/scores.length);
         const sy=-((scores.length*bh)/2);
 
         // Get or create bar-group
         let bg=g.select('.bar-group');
         if(bg.empty()){
-            bg=g.append('g').attr('class','bar-group').attr('transform', 'translate(0, 5)');
+            bg=g.append('g').attr('class','bar-group').attr('transform', 'translate(0, 20)');
             bg.append('line').attr('class','center-line')
-                .attr('x1',0).attr('y1',sy-3)
-                .attr('x2',0).attr('y2',sy+scores.length*bh+3)
-                .attr('stroke','rgba(100,120,150,.4)');
+                .attr('x1',0).attr('y1',sy-10)
+                .attr('x2',0).attr('y2',sy+scores.length*bh+10)
+                .attr('stroke','rgba(100,120,150,.4)')
+                .attr('stroke-width', 3);
             // Create initial bars at zero width
             scores.forEach((v,i)=>{
                 bg.append('rect')
                     .attr('class','bar bar-'+i)
                     .attr('x',0)
-                    .attr('y',sy+i*bh+1)
+                    .attr('y',sy+i*bh+2)
                     .attr('width',0)
-                    .attr('height',bh-2)
+                    .attr('height',bh-4)
                     .attr('fill',colors[i%colors.length])
-                    .attr('rx',3);
+                    .attr('rx',8);
             });
         }
 
