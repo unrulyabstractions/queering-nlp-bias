@@ -1,3 +1,6 @@
 [submodule "submodules/winoqueer"]
 	path = submodules/winoqueer
 	url = https://github.com/katyfelkner/winoqueer
+[submodule "submodules/more-of-the-same"]
+	path = submodules/more-of-the-same
+	url = https://github.com/jennm/more-of-the-same.git
