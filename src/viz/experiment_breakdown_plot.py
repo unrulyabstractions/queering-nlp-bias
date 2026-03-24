@@ -14,13 +14,13 @@ import numpy as np
 
 from src.common.profiler import P
 from src.estimation.arm_types import (
+    ArmKind,
     classify_arm,
     get_arm_color,
     get_branch_index,
-    ArmKind,
 )
 
-from .viz_plot_utils import create_arm_legend, save_figure, style_axis_clean
+from .viz_plot_utils import create_arm_legend, save_figure
 
 
 def _get_arm_family_order(arm_names: list[str]) -> list[tuple[str, int]]:
@@ -48,12 +48,18 @@ def _get_arm_family_order(arm_names: list[str]) -> list[tuple[str, int]]:
     for family_idx in sorted(family_groups.keys()):
         members = family_groups[family_idx]
         # Sort: root/trunk/branch before twigs
-        members.sort(key=lambda n: (
-            0 if classify_arm(n) == ArmKind.ROOT else
-            1 if classify_arm(n) == ArmKind.TRUNK else
-            2 if classify_arm(n) == ArmKind.BRANCH else 3,
-            n
-        ))
+        members.sort(
+            key=lambda n: (
+                0
+                if classify_arm(n) == ArmKind.ROOT
+                else 1
+                if classify_arm(n) == ArmKind.TRUNK
+                else 2
+                if classify_arm(n) == ArmKind.BRANCH
+                else 3,
+                n,
+            )
+        )
         for name in members:
             result.append((name, family_idx))
 
@@ -225,21 +231,31 @@ def plot_structure_breakdown(
         for i, (start_pos, end_pos, label) in enumerate(structure_spans):
             # Subtle background band
             ax.axhspan(
-                start_pos - band_margin, end_pos + band_margin,
+                start_pos - band_margin,
+                end_pos + band_margin,
                 color=band_colors[i % 2],
-                alpha=0.5, zorder=0
+                alpha=0.5,
+                zorder=0,
             )
 
             # Subtle left accent line
-            ax.axhline(y=start_pos - band_margin, color="#e0e0e0",
-                       linewidth=0.5, alpha=0.8, zorder=0)
+            ax.axhline(
+                y=start_pos - band_margin,
+                color="#e0e0e0",
+                linewidth=0.5,
+                alpha=0.8,
+                zorder=0,
+            )
 
             # Structure label - small, positioned at top-left
             ax.text(
-                -0.015, start_pos - 0.25,
+                -0.015,
+                start_pos - 0.25,
                 label.lower(),
-                ha="right", va="bottom",
-                fontsize=7, fontweight="semibold",
+                ha="right",
+                va="bottom",
+                fontsize=7,
+                fontweight="semibold",
                 color="#888",
                 transform=ax.get_yaxis_transform(),
             )
@@ -248,20 +264,40 @@ def plot_structure_breakdown(
         ax.set_xlim(0, 105)
         ax.set_xlabel("Expected Structure Compliance (%)", fontsize=11)
         ax.set_xticks([0, 25, 50, 75, 100])
-        ax.set_xticks([5, 10, 15, 20, 30, 35, 40, 45, 55, 60, 65, 70, 80, 85, 90, 95], minor=True)
+        ax.set_xticks(
+            [5, 10, 15, 20, 30, 35, 40, 45, 55, 60, 65, 70, 80, 85, 90, 95], minor=True
+        )
 
         # No title - removed as requested
 
         # Grid and styling - clean, with minor gridlines
-        ax.grid(True, axis="x", which="major", alpha=0.3, linestyle="-", linewidth=0.5, zorder=0)
-        ax.grid(True, axis="x", which="minor", alpha=0.15, linestyle="-", linewidth=0.3, zorder=0)
+        ax.grid(
+            True,
+            axis="x",
+            which="major",
+            alpha=0.3,
+            linestyle="-",
+            linewidth=0.5,
+            zorder=0,
+        )
+        ax.grid(
+            True,
+            axis="x",
+            which="minor",
+            alpha=0.15,
+            linestyle="-",
+            linewidth=0.3,
+            zorder=0,
+        )
         ax.spines["top"].set_visible(False)
         ax.spines["right"].set_visible(False)
         ax.spines["left"].set_visible(False)
         ax.tick_params(axis="y", length=0)
 
         # Mark 50% threshold with a subtle vertical line
-        ax.axvline(x=50, color="#888888", linestyle="--", linewidth=0.8, alpha=0.6, zorder=1)
+        ax.axvline(
+            x=50, color="#888888", linestyle="--", linewidth=0.8, alpha=0.6, zorder=1
+        )
 
         # Invert y-axis (questions read top-to-bottom)
         ax.invert_yaxis()
@@ -291,21 +327,23 @@ def plot_structure_breakdown(
         # Model - bottom right: "Gen Model:" small monospace + model name bold
         if metadata and metadata.get("model"):
             ax.text(
-                0.77, 0.012,
+                0.77,
+                0.012,
                 "Gen Model:",
                 transform=fig.transFigure,
                 fontsize=6,
-                fontfamily='monospace',
+                fontfamily="monospace",
                 verticalalignment="bottom",
                 horizontalalignment="left",
                 color="#999",
             )
             ax.text(
-                0.84, 0.01,
-                metadata['model'],
+                0.84,
+                0.01,
+                metadata["model"],
                 transform=fig.transFigure,
                 fontsize=9,
-                fontweight='bold',
+                fontweight="bold",
                 verticalalignment="bottom",
                 horizontalalignment="left",
                 color="#444",
@@ -314,21 +352,23 @@ def plot_structure_breakdown(
         # Judge - above model
         if metadata and metadata.get("judge"):
             ax.text(
-                0.77, 0.042,
+                0.77,
+                0.042,
                 "Judge LLM:",
                 transform=fig.transFigure,
                 fontsize=6,
-                fontfamily='monospace',
+                fontfamily="monospace",
                 verticalalignment="bottom",
                 horizontalalignment="left",
                 color="#999",
             )
             ax.text(
-                0.84, 0.04,
-                metadata['judge'],
+                0.84,
+                0.04,
+                metadata["judge"],
                 transform=fig.transFigure,
                 fontsize=9,
-                fontweight='bold',
+                fontweight="bold",
                 verticalalignment="bottom",
                 horizontalalignment="left",
                 color="#444",

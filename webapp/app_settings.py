@@ -17,20 +17,21 @@ QUESTION: {question}
 For yes/no questions, answer with exactly 1 or 0.
 For other, answer with a number from 0.000 to 1.000.
 Do not include any other text in your response.
+PLEASE, ONLY REPLY WITH SINGLE NUMBER.
+IF UNSURE OR CONFUSED, ANSWER: 0.001
+
 Example: <answer>0.029</answer>
 """.strip("\n")
 
 DEFAULT_PROMPT = """
-In a sentence, write a very short but realistic love story.
+In a sentence, write a very short but realistic love story. Give names to the characters.
 """.strip("\n")
 
 DEFAULT_QUESTIONS = """
-Is the protagonist a man?
 How masculine is the protagonist?
-Is the protagonist a woman?
 How feminine is the protagonist?
-How queer is the protagonist?
-Is the protagonist queer?
+Is the protagonist explicitly heterosexual?
+Is the protagonist explicitly gay?
 """.strip("\n")
 
 DEFAULT_PREFIXES = """
@@ -76,9 +77,22 @@ DEFAULT_SETTINGS = {
 # HuggingFace has three sub-providers: base, instruct, reasoning
 AVAILABLE_MODELS = {
     "anthropic": [
-        "claude-haiku-4-5",
-        "claude-sonnet-4-6",
-        "claude-opus-4-6",
+        # Aliases (resolve to full model IDs)
+        "claude",  # → claude-sonnet-4-20250514
+        "sonnet",  # → claude-sonnet-4-20250514
+        "haiku",  # → claude-haiku-4-20250514
+        "opus",  # → claude-opus-4-20250514
+        # Claude 4 models
+        "claude-sonnet-4-20250514",
+        "claude-haiku-4-20250514",
+        "claude-opus-4-20250514",
+        # Claude 3.5 models
+        "claude-3-5-sonnet-20241022",
+        "claude-3-5-haiku-20241022",
+        # Claude 3 models
+        "claude-3-opus-20240229",
+        "claude-3-sonnet-20240229",
+        "claude-3-haiku-20240307",
     ],
     "openai": [
         "gpt-4o-mini",
@@ -147,3 +161,47 @@ def should_enable_thinking(provider: str) -> bool:
     For huggingface_base: N/A, but returns False
     """
     return get_huggingface_mode(provider) == "reasoning"
+
+
+# Claude model aliases → full model IDs
+CLAUDE_MODEL_ALIASES: dict[str, str] = {
+    # Provider-only defaults to sonnet
+    "claude": "claude-sonnet-4-20250514",
+    "anthropic": "claude-sonnet-4-20250514",
+    # Model family shortcuts
+    "sonnet": "claude-sonnet-4-20250514",
+    "haiku": "claude-haiku-4-20250514",
+    "opus": "claude-opus-4-20250514",
+}
+
+
+def resolve_claude_model(model: str) -> str:
+    """Resolve Claude model alias to full model ID.
+
+    Handles formats:
+        - "claude" or "anthropic" → claude-sonnet-4-20250514
+        - "sonnet", "haiku", "opus" → latest version of that model
+        - "anthropic/sonnet", "claude/haiku" → latest version of that model
+        - "anthropic/claude-3-5-sonnet-20241022" → claude-3-5-sonnet-20241022
+        - Full model ID passed through unchanged
+
+    Args:
+        model: Model name or alias
+
+    Returns:
+        Full model ID for Anthropic API
+    """
+    model = model.strip()
+
+    # Handle provider/model format: "anthropic/sonnet" or "claude/haiku"
+    if "/" in model:
+        prefix, suffix = model.split("/", 1)
+        if prefix.lower() in ("anthropic", "claude"):
+            # Check if suffix is an alias
+            if suffix.lower() in CLAUDE_MODEL_ALIASES:
+                return CLAUDE_MODEL_ALIASES[suffix.lower()]
+            # Otherwise return the suffix as-is (full model ID)
+            return suffix
+
+    # Direct alias lookup
+    return CLAUDE_MODEL_ALIASES.get(model.lower(), model)

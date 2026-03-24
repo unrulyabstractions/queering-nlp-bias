@@ -214,5 +214,8 @@ generation_compare/
 tmp/
 temp/
 
+# Paper
+paper/
+
 # Webapp outputs
 webapp/out/

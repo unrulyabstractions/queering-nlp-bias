@@ -80,7 +80,8 @@ class ParsedExperimentArgs:
     gen_config_path: Path
     scoring_config_path: Path
     methods: list[str]  # Method names from registry
-    overrides: dict[str, Any]
+    overrides: dict[str, Any]  # Method-specific overrides
+    config_overrides: dict[str, Any]  # Config-level overrides (max_new_tokens, temperature)
     dynamics: bool  # Whether to compute drift/potential dynamics
     profile: bool  # Whether to enable profiling
     base_dir: str  # Output base directory (out/ or generation_compare/)
@@ -122,6 +123,10 @@ def parse_experiment_args() -> ParsedExperimentArgs:
         help="Enable profiling and print timing report",
     )
 
+    # Generation config overrides
+    parser.add_argument("--max-new-tokens", type=int, metavar="N", help="Max tokens to generate")
+    parser.add_argument("--temperature", type=float, metavar="T", help="Sampling temperature")
+
     # Method-specific parameters (apply to whichever method uses them)
     parser.add_argument("--samples-per-arm", type=int, metavar="N")
     parser.add_argument("--max-alternates-per-position", type=int, metavar="K")
@@ -143,7 +148,7 @@ def parse_experiment_args() -> ParsedExperimentArgs:
         base_dir = "out"
         include_method_in_path = False  # Simpler path for single method
 
-    # Collect overrides
+    # Collect method-specific overrides
     overrides = {
         "samples_per_arm": args.samples_per_arm,
         "max_alternates_per_position": args.max_alternates_per_position,
@@ -154,11 +159,18 @@ def parse_experiment_args() -> ParsedExperimentArgs:
         "num_expansion_rounds": args.num_expansion_rounds,
     }
 
+    # Collect config-level overrides
+    config_overrides = {
+        "max_new_tokens": args.max_new_tokens,
+        "temperature": args.temperature,
+    }
+
     return ParsedExperimentArgs(
         gen_config_path=Path(args.generation_config),
         scoring_config_path=Path(args.scoring_config),
         methods=methods,
         overrides=overrides,
+        config_overrides=config_overrides,
         dynamics=args.dynamics,
         profile=args.profile,
         base_dir=base_dir,
@@ -356,6 +368,7 @@ def run_single_experiment(
     scoring_config_path: Path,
     method: str,
     overrides: dict[str, Any] | None = None,
+    config_overrides: dict[str, Any] | None = None,
     dynamics: bool = False,
     base_dir: str = "out",
     include_method: bool = False,
@@ -379,6 +392,14 @@ def run_single_experiment(
     config = GenerationConfig.load(gen_config_path)
     if overrides:
         apply_cli_overrides_to_config(config, overrides)
+
+    # Apply config-level overrides (max_new_tokens, temperature)
+    if config_overrides:
+        if config_overrides.get("max_new_tokens") is not None:
+            config.max_new_tokens = config_overrides["max_new_tokens"]
+        if config_overrides.get("temperature") is not None:
+            config.temperature = config_overrides["temperature"]
+
     set_seed(config.seed)
 
     # Run pipeline
@@ -413,6 +434,7 @@ def run_all_experiments(args: ParsedExperimentArgs) -> list[EstimationResult]:
             args.scoring_config_path,
             method,
             args.overrides,
+            config_overrides=args.config_overrides,
             dynamics=args.dynamics,
             base_dir=args.base_dir,
             include_method=args.include_method_in_path,

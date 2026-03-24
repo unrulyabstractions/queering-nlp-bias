@@ -3,6 +3,10 @@
   "prompt": "Write one word.",
   "trunk": "The word is: ",
   "branches": ["", "happy "],
-  "samples_per_arm": 2,
-  "max_tokens": 20
+  "max_new_tokens": 20,
+  "method_params": {
+    "simple-sampling": {
+      "overrides": {"samples_per_arm": 2}
+    }
+  }
 }

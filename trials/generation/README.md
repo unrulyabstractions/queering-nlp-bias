@@ -28,5 +28,35 @@ Configuration files for trajectory generation experiments.
 | `temperature` | No | `1.0` | Sampling temperature |
 | `max_new_tokens` | No | `128` | Maximum tokens to generate |
 | `seed` | No | `null` | Random seed for reproducibility |
+| `method_params` | No | `{}` | Method-specific parameter overrides |
+
+## Method Parameters
+
+Override method-specific settings via `method_params`:
+
+```json
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "prompt": "...",
+  "method_params": {
+    "simple-sampling": {
+      "overrides": {"samples_per_arm": 20}
+    },
+    "forking-paths": {
+      "overrides": {
+        "max_alternates": 5,
+        "min_prob": 0.15,
+        "samples_per_fork": 3
+      }
+    }
+  }
+}
+```
+
+| Method | Available Overrides |
+|--------|---------------------|
+| `simple-sampling` | `samples_per_arm` |
+| `forking-paths` | `max_alternates`, `min_prob`, `min_entropy`, `samples_per_fork` |
+| `seeking-entropy` | `samples_per_expansion`, `num_expansion_rounds` |
 
 See `example.json` for a complete example.

@@ -23,7 +23,11 @@ from src.estimation.arm_types import (
     has_downstream_arms,
 )
 
-from .viz_plot_utils import add_dense_grid, annotate_bar_values, is_camera_ready, save_figure, style_axis_clean
+from .viz_plot_utils import (
+    add_dense_grid,
+    save_figure,
+    style_axis_clean,
+)
 
 if TYPE_CHECKING:
     from src.estimation.estimation_experiment_types import EstimationResult
@@ -55,7 +59,9 @@ def _compute_stagger_offsets(arm_names: list[str]) -> dict[str, float]:
         spread = 0.25  # Total spread width
         for i, name in enumerate(sorted(branches)):
             # Center the offsets: [-spread/2, ..., +spread/2]
-            offset = -spread / 2 + (i / (n_branches - 1)) * spread if n_branches > 1 else 0
+            offset = (
+                -spread / 2 + (i / (n_branches - 1)) * spread if n_branches > 1 else 0
+            )
             offsets[name] = offset
     else:
         for name in branches:
@@ -76,7 +82,7 @@ def _compute_stagger_offsets(arm_names: list[str]) -> dict[str, float]:
 
 
 def _plot_deviance_trajectories(
-    result: "EstimationResult",
+    result: EstimationResult,
     weighting_method: str,
     metric_getter: str,
     metric_name: str,
@@ -151,7 +157,7 @@ def _plot_deviance_trajectories(
         for i, anc_name in enumerate(ancestry):
             if anc_name in metric_by_name:
                 # Apply stagger offset only to this arm's own point (final in ancestry)
-                is_own_point = (anc_name == arm_name)
+                is_own_point = anc_name == arm_name
                 x_pos = i + (arm_offset if is_own_point else 0.0)
                 x_positions.append(x_pos)
                 y_values.append(metric_by_name[anc_name])
@@ -164,55 +170,93 @@ def _plot_deviance_trajectories(
 
         # Plot line (connects through staggered final point)
         if len(x_positions) > 1:
-            ax.plot(x_positions, y_values, '-', color=color, linewidth=2.5, alpha=0.7)
+            ax.plot(x_positions, y_values, "-", color=color, linewidth=2.5, alpha=0.7)
 
         # Plot variance bars (background, semi-transparent)
         for x, y, std in zip(x_positions, y_values, y_stds):
             if std > 0:
                 ax.errorbar(
-                    x, y, yerr=std,
-                    fmt='none', ecolor=color, alpha=0.3,
-                    capsize=4, capthick=1.5, elinewidth=2,
+                    x,
+                    y,
+                    yerr=std,
+                    fmt="none",
+                    ecolor=color,
+                    alpha=0.3,
+                    capsize=4,
+                    capthick=1.5,
+                    elinewidth=2,
                     zorder=4,
                 )
 
         # Plot points
         for i, (x, y) in enumerate(zip(x_positions, y_values)):
-            is_final = (i == len(x_positions) - 1)
+            is_final = i == len(x_positions) - 1
             if is_final:
                 marker_size = 140 if kind == ArmKind.ROOT else 100
-                ax.scatter([x], [y], s=marker_size, c=[color], edgecolors='white',
-                          linewidths=1.5, zorder=10, label=arm_name)
+                ax.scatter(
+                    [x],
+                    [y],
+                    s=marker_size,
+                    c=[color],
+                    edgecolors="white",
+                    linewidths=1.5,
+                    zorder=10,
+                    label=arm_name,
+                )
                 # Smaller, cleaner value label
                 ax.annotate(
                     f"{y:.2f}",
-                    xy=(x, y), xytext=(4, 5),
+                    xy=(x, y),
+                    xytext=(4, 5),
                     textcoords="offset points",
-                    fontsize=7, fontweight="medium", color=color,
+                    fontsize=7,
+                    fontweight="medium",
+                    color=color,
                     alpha=0.9,
                 )
             else:
-                ax.scatter([x], [y], s=35, c=[color], edgecolors='white',
-                          linewidths=0.8, alpha=0.5, zorder=5)
+                ax.scatter(
+                    [x],
+                    [y],
+                    s=35,
+                    c=[color],
+                    edgecolors="white",
+                    linewidths=0.8,
+                    alpha=0.5,
+                    zorder=5,
+                )
 
     # Reference line
     if reference_line is not None:
-        ax.axhline(y=reference_line, color="#888", linestyle=":", linewidth=1.5,
-                   alpha=0.7, label=reference_label or f"{reference_line}")
+        ax.axhline(
+            y=reference_line,
+            color="#888",
+            linestyle=":",
+            linewidth=1.5,
+            alpha=0.7,
+            label=reference_label or f"{reference_line}",
+        )
 
     # Styling
     ax.set_xlabel("Token Position", fontsize=10)
     ax.set_ylabel(metric_name, fontsize=10)
-    ax.set_title(f"{title} — {result.method} [{weighting_method}]",
-                 fontsize=12, fontweight="bold")
+    ax.set_title(
+        f"{title} — {result.method} [{weighting_method}]",
+        fontsize=12,
+        fontweight="bold",
+    )
     ax.set_xticks(range(max_depth))
     ax.set_xticklabels(stage_labels, fontsize=10)
 
     # Legend: compact, outside plot area
     ax.legend(
-        loc="upper left", bbox_to_anchor=(1.01, 1),
-        fontsize=8, framealpha=0.95, edgecolor="#ddd",
-        handlelength=1.2, handletextpad=0.4,
+        loc="upper left",
+        bbox_to_anchor=(1.01, 1),
+        fontsize=8,
+        framealpha=0.95,
+        edgecolor="#ddd",
+        handlelength=1.2,
+        handletextpad=0.4,
     )
 
     # Dense grid for better readability
@@ -303,7 +347,8 @@ def plot_orientation_for_reference(
     fig_height = 3.5 * n_arms + 1.5
 
     fig, axes = plt.subplots(
-        n_arms, 1,
+        n_arms,
+        1,
         figsize=(fig_width, fig_height),
         sharex=True,
         sharey=True,
@@ -313,7 +358,9 @@ def plot_orientation_for_reference(
 
     fig.suptitle(
         f"Orientation E[θ|{reference_arm_name}] — {result.method} [{weighting_method}]",
-        fontsize=14, fontweight="bold", y=0.98,
+        fontsize=14,
+        fontweight="bold",
+        y=0.98,
     )
 
     x = np.arange(n_structures)
@@ -346,8 +393,17 @@ def plot_orientation_for_reference(
 
         # Use structure colors from palette (same as evolution tree)
         from .viz_plot_utils import get_structure_color
+
         colors = [get_structure_color(j) for j in range(len(orientation))]
-        bars = ax.bar(x, orientation, bar_width, color=colors, edgecolor="white", linewidth=1.0, alpha=0.9)
+        bars = ax.bar(
+            x,
+            orientation,
+            bar_width,
+            color=colors,
+            edgecolor="white",
+            linewidth=1.0,
+            alpha=0.9,
+        )
 
         # Always show value labels on bars
         for bar, val in zip(bars, orientation):
@@ -358,15 +414,21 @@ def plot_orientation_for_reference(
                 xy=(bar.get_x() + bar.get_width() / 2, height),
                 xytext=(0, 4 if height >= 0 else -4),
                 textcoords="offset points",
-                ha="center", va="bottom" if height >= 0 else "top",
-                fontsize=9, fontweight="bold", color="#333",
+                ha="center",
+                va="bottom" if height >= 0 else "top",
+                fontsize=9,
+                fontweight="bold",
+                color="#333",
             )
 
         # Title with arm name (colored) and norm
         arm_color = get_arm_color(arm.name)
         ax.set_title(
             f"{arm.name.upper()}  (||θ|| = {orient_norm:.3f})",
-            fontsize=11, fontweight="bold", loc="left", color=arm_color
+            fontsize=11,
+            fontweight="bold",
+            loc="left",
+            color=arm_color,
         )
         ax.axhline(y=0, color="#333", linewidth=1.2)
         ax.set_xlim(-0.5, n_structures - 0.5)
@@ -381,7 +443,9 @@ def plot_orientation_for_reference(
     # X-axis labels on bottom subplot - wrap long labels
     axes[-1].set_xticks(x)
     # Wrap long structure labels
-    wrapped_labels = [label if len(label) <= 25 else label[:22] + "..." for label in structure_labels]
+    wrapped_labels = [
+        label if len(label) <= 25 else label[:22] + "..." for label in structure_labels
+    ]
     axes[-1].set_xticklabels(wrapped_labels, fontsize=10, rotation=15, ha="right")
     axes[-1].set_xlabel("Structure", fontsize=11, fontweight="medium")
 
@@ -421,8 +485,7 @@ def plot_orientation_by_branch(
 
     # Only create orientation plots for arms that have downstream children
     reference_arms = [
-        name for name in all_arm_names
-        if has_downstream_arms(name, all_arm_names)
+        name for name in all_arm_names if has_downstream_arms(name, all_arm_names)
     ]
 
     # Create orientation subfolder
@@ -558,27 +621,45 @@ def plot_core_diversity_by_arm(
 
         # Plot line connecting ancestry points
         if len(x_positions) > 1:
-            ax.plot(x_positions, y_values, '-', color=color, linewidth=2.5, alpha=0.7)
+            ax.plot(x_positions, y_values, "-", color=color, linewidth=2.5, alpha=0.7)
 
         # Plot points - bigger for final arm, smaller for ancestors
         for i, (x, y) in enumerate(zip(x_positions, y_values)):
-            is_final = (i == len(x_positions) - 1)
+            is_final = i == len(x_positions) - 1
             if is_final:
                 # Final point is bigger with label
                 marker_size = 180 if kind == ArmKind.ROOT else 120
-                ax.scatter([x], [y], s=marker_size, c=[color], edgecolors='white',
-                          linewidths=2, zorder=10)
+                ax.scatter(
+                    [x],
+                    [y],
+                    s=marker_size,
+                    c=[color],
+                    edgecolors="white",
+                    linewidths=2,
+                    zorder=10,
+                )
                 # Label with diversity value
                 ax.annotate(
                     f"{y:.2f}",
-                    xy=(x, y), xytext=(5, 8),
+                    xy=(x, y),
+                    xytext=(5, 8),
                     textcoords="offset points",
-                    fontsize=9, fontweight="bold", color=color,
+                    fontsize=9,
+                    fontweight="bold",
+                    color=color,
                 )
             else:
                 # Ancestor points are smaller
-                ax.scatter([x], [y], s=40, c=[color], edgecolors='white',
-                          linewidths=1, alpha=0.6, zorder=5)
+                ax.scatter(
+                    [x],
+                    [y],
+                    s=40,
+                    c=[color],
+                    edgecolors="white",
+                    linewidths=1,
+                    alpha=0.6,
+                    zorder=5,
+                )
 
     # Get max possible diversity (n_structures)
     first_arm = next((a for a in result.arms), None)
@@ -596,47 +677,74 @@ def plot_core_diversity_by_arm(
     # Reference lines (now guaranteed to be within plot)
     ax.axhline(y=1.0, color="#E74C3C", linestyle=":", linewidth=1.5, alpha=0.7)
     if n_structures > 0:
-        ax.axhline(y=n_structures, color="#2ECC71", linestyle=":", linewidth=1.5, alpha=0.7)
+        ax.axhline(
+            y=n_structures, color="#2ECC71", linestyle=":", linewidth=1.5, alpha=0.7
+        )
 
     # Styling
     ax.set_xlabel("Token Position", fontsize=10)
     ax.set_ylabel("Core Diversity (D₁)", fontsize=10)
-    ax.set_title(f"Diversity Evolution — {result.method} [{weighting_method}]",
-                 fontsize=12, fontweight="bold")
+    ax.set_title(
+        f"Diversity Evolution — {result.method} [{weighting_method}]",
+        fontsize=12,
+        fontweight="bold",
+    )
     ax.set_xticks(range(max_depth))
     ax.set_xticklabels(stage_labels, fontsize=10)
 
     # Create arm legend (outside plot, upper)
     from matplotlib.lines import Line2D
+
     arm_legend_elements = []
     for arm_name in ordered_names:
         color = get_arm_color(arm_name)
         arm_legend_elements.append(
-            Line2D([0], [0], marker='o', color='w', markerfacecolor=color,
-                   markersize=8, label=arm_name)
+            Line2D(
+                [0],
+                [0],
+                marker="o",
+                color="w",
+                markerfacecolor=color,
+                markersize=8,
+                label=arm_name,
+            )
         )
 
     arm_legend = ax.legend(
         handles=arm_legend_elements,
-        loc="upper left", bbox_to_anchor=(1.01, 1),
-        fontsize=8, framealpha=0.95, edgecolor="#ddd",
+        loc="upper left",
+        bbox_to_anchor=(1.01, 1),
+        fontsize=8,
+        framealpha=0.95,
+        edgecolor="#ddd",
     )
     ax.add_artist(arm_legend)
 
     # Create separate reference line legend (below arm legend)
     ref_legend_elements = [
-        Line2D([0], [0], color='#E74C3C', linestyle=':', linewidth=1.5, label='min (1)'),
+        Line2D(
+            [0], [0], color="#E74C3C", linestyle=":", linewidth=1.5, label="min (1)"
+        ),
     ]
     if n_structures > 0:
         ref_legend_elements.append(
-            Line2D([0], [0], color='#2ECC71', linestyle=':', linewidth=1.5,
-                   label=f'max ({n_structures})')
+            Line2D(
+                [0],
+                [0],
+                color="#2ECC71",
+                linestyle=":",
+                linewidth=1.5,
+                label=f"max ({n_structures})",
+            )
         )
 
     ax.legend(
         handles=ref_legend_elements,
-        loc="lower left", bbox_to_anchor=(1.01, 0),
-        fontsize=8, framealpha=0.95, edgecolor="#ddd",
+        loc="lower left",
+        bbox_to_anchor=(1.01, 0),
+        fontsize=8,
+        framealpha=0.95,
+        edgecolor="#ddd",
     )
 
     # Dense grid for better readability

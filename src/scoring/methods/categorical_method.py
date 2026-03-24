@@ -60,7 +60,11 @@ TEXT:
 
 QUESTION: {question}
 
-Answer with just 0 or 1:"""
+Do not include any other text in your response.
+PLEASE, ONLY REPLY WITH SINGLE NUMBER.
+IF UNSURE OR CONFUSED, ANSWER: 0
+
+Example Valid Response:1"""
 
 
 def parse_categorical_response(response: str) -> int | None:

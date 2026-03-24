@@ -12,7 +12,7 @@ Params classes import their defaults from here.
 TEMPERATURE = 1.0
 
 # Max tokens to generate per trajectory
-MAX_NEW_TOKENS = 258
+MAX_NEW_TOKENS = 128
 
 # Simple sampling: trajectories per arm (trunk + each branch)
 SAMPLING_SAMPLES_PER_ARM = 10

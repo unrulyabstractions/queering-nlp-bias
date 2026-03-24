@@ -218,9 +218,11 @@ class AnthropicBackend(Backend):
         temp = temperature if temperature > 0 else 0.0
 
         # Build messages with prefill as assistant message
+        # Strip trailing whitespace - Anthropic API rejects it
         messages = [{"role": "user", "content": prompt}]
-        if prefilling:
-            messages.append({"role": "assistant", "content": prefilling})
+        prefill_stripped = prefilling.rstrip() if prefilling else ""
+        if prefill_stripped:
+            messages.append({"role": "assistant", "content": prefill_stripped})
 
         response = client.messages.create(
             model=self._model,

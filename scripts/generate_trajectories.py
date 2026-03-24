@@ -30,20 +30,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from schemas.script_utils import (
     apply_cli_overrides_to_config,
-    load_model,
-    log_prompt_header,
     run_generation_script,
 )
 
-from src.common.logging import log_section
 from src.common.random_seed import set_seed
-from src.generation import GenerationConfig, GenerationOutput, run_generation_pipeline
+from src.generation import GenerationConfig
 from src.generation.generation_method_registry import (
-    get_output_name,
-    get_params_class,
     list_output_names,
 )
-from src.generation.methods.logging import log_tree_trajectories
 
 
 def parse_args() -> argparse.Namespace:
@@ -53,7 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate trajectories using any registered method",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=f"""
+        epilog="""
 Methods:
   simple-sampling   Temperature sampling (default)
   forking-paths     Explore one-step deviations from greedy path

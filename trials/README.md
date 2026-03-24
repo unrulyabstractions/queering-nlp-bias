@@ -34,6 +34,29 @@ trials/
 | `temperature` | float | no | `1.0` | Sampling temperature |
 | `max_new_tokens` | int | no | `128` | Maximum tokens to generate |
 | `seed` | int | no | `null` | Random seed for reproducibility |
+| `method_params` | object | no | `{}` | Method-specific parameter overrides |
+
+### Method Parameter Overrides
+
+Override generation method settings via `method_params`:
+
+```json
+{
+  "model": "Qwen/Qwen3-0.6B",
+  "prompt": "...",
+  "method_params": {
+    "simple-sampling": {
+      "overrides": {"samples_per_arm": 20}
+    }
+  }
+}
+```
+
+| Method | Available Overrides |
+|--------|---------------------|
+| `simple-sampling` | `samples_per_arm` |
+| `forking-paths` | `max_alternates`, `min_prob`, `min_entropy`, `samples_per_fork` |
+| `seeking-entropy` | `samples_per_expansion`, `num_expansion_rounds` |
 
 ### Branching Logic
 

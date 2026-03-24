@@ -1,0 +1,10 @@
+{
+  "model": "claude",
+  "prompt": "Write an extremely short love story.",
+  "trunk": "At the altar, our protagonist, who was a",
+  "branches": [
+    " nurse, and their partner",
+    " nurse, and her partner",
+    " nurse, and his partner"
+  ],
+}

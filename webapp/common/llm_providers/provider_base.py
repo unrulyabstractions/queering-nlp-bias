@@ -24,9 +24,14 @@ MODEL_MAX_TOKENS: dict[str, int] = {
     "gpt-4-turbo": 4096,
     "gpt-4": 8192,
     "gpt-3.5-turbo": 4096,
-    # Anthropic models
+    # Anthropic Claude 4 models
+    "claude-sonnet-4-20250514": 8192,
+    "claude-haiku-4-20250514": 8192,
+    "claude-opus-4-20250514": 8192,
+    # Anthropic Claude 3.5 models
     "claude-3-5-sonnet-20241022": 8192,
     "claude-3-5-haiku-20241022": 8192,
+    # Anthropic Claude 3 models
     "claude-3-opus-20240229": 4096,
     "claude-3-sonnet-20240229": 4096,
     "claude-3-haiku-20240307": 4096,

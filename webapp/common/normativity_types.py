@@ -117,22 +117,64 @@ def compute_system_stds(samples: list[System]) -> System:
 # ════════════════════════════════════════════════════════════════════════════════
 
 
+def _try_parse_number(text: str) -> Scoring:
+    """Try to parse text as a numeric score, returning None if not a valid number.
+
+    Handles:
+        - Simple numbers: "0.5", ".5", "1", "0.75"
+        - Fractions: "7/10" → 0.7
+        - Percentages: "70%" → 0.7
+        - Numbers 0-1 used directly
+        - Numbers 2-10 scaled to 0-1
+    """
+    text = text.strip()
+    if not text:
+        return None
+
+    # Check for percentage: "70%" → 0.7
+    pct_match = re.match(r"^(\d+(?:\.\d+)?)\s*%$", text)
+    if pct_match:
+        return float(pct_match.group(1)) / 100.0
+
+    # Check for fraction: "7/10" → 0.7
+    frac_match = re.match(r"^(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?)$", text)
+    if frac_match:
+        num, denom = float(frac_match.group(1)), float(frac_match.group(2))
+        if denom > 0:
+            return min(1.0, max(0.0, num / denom))
+        return None
+
+    # Check for simple number
+    if re.match(r"^(\d+\.?\d*|\.\d+)$", text):
+        value = float(text)
+        if 0.0 <= value <= 1.0:
+            return value
+        if 1.0 < value <= 10.0:
+            return value / 10.0
+        return max(0.0, min(1.0, value))
+
+    return None
+
+
 def parse_judge_score(answer: str) -> Scoring:
     """Parse judge response to 0-1 score.
 
     Robust parsing that handles reasoning traces by prioritizing:
     1. Strip <think>...</think> blocks (reasoning model output)
     2. Extract <answer>...</answer> tags if present
-    3. Extract content after "ANSWER:" if present
+    3. Extract content after "ANSWER:", "SCORE:", "RATING:" if present
     4. Check if last word/token is a clear answer (number, YES/NO)
     5. Check last line for clear answer
     6. Conservative fallback - only accept standalone answers, not numbers in reasoning
 
     Handles:
-        - YES/TRUE → 1.0, NO/FALSE → 0.0
+        - YES/TRUE/Y → 1.0, NO/FALSE/N → 0.0
         - Floats in 0-1 range used directly (0.0, 0.5, 0.75, 1.0)
         - Integers 0-1 used directly
         - Numbers 2-10 scaled to 0-1 (e.g., 7 → 0.7)
+        - Fractions like 7/10 → 0.7
+        - Percentages like 70% → 0.7
+        - Markdown formatting: **0.7**, *0.7*
         - Returns None if unparseable (ERROR state)
     """
     text = answer.strip()
@@ -146,16 +188,16 @@ def parse_judge_score(answer: str) -> Scoring:
         print("❌ JUDGE PARSE ERROR: Only thinking block, no answer")
         return None
 
+    # Strip markdown formatting (bold/italic): **0.7** or *0.7* → 0.7
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    text = re.sub(r"\*([^*]+)\*", r"\1", text)
+
     # FIRST: Check if entire response is just a number (simplest case)
     # Handles: "0.5", ".5", "1", "0.75", etc.
     clean_text = text.strip()
-    if re.match(r"^(\d+\.?\d*|\.\d+)$", clean_text):
-        value = float(clean_text)
-        if 0.0 <= value <= 1.0:
-            return value
-        if 1.0 < value <= 10.0:
-            return value / 10.0
-        return max(0.0, min(1.0, value))
+    parsed = _try_parse_number(clean_text)
+    if parsed is not None:
+        return parsed
 
     # Check for <answer>...</answer> tags - most reliable
     answer_tag_match = re.search(r"<answer>(.*?)</answer>", text, flags=re.DOTALL | re.IGNORECASE)
@@ -164,18 +206,16 @@ def parse_judge_score(answer: str) -> Scoring:
         if not text:
             print("❌ JUDGE PARSE ERROR: Empty <answer> tag")
             return None
-        # With explicit answer tags, parse the content directly
         return _parse_answer_content(text)
 
-    # Check for "ANSWER:" prefix - also reliable
-    answer_prefix_match = re.search(r"ANSWER:\s*(.+)", text, flags=re.IGNORECASE)
-    if answer_prefix_match:
-        text = answer_prefix_match.group(1).strip()
-        if not text:
-            print("❌ JUDGE PARSE ERROR: Empty ANSWER: content")
+    # Check for common prefixes: "ANSWER:", "SCORE:", "RATING:"
+    prefix_match = re.search(r"(?:ANSWER|SCORE|RATING):\s*(.+)", text, flags=re.IGNORECASE)
+    if prefix_match:
+        content = prefix_match.group(1).strip()
+        if not content:
+            print("❌ JUDGE PARSE ERROR: Empty prefix content")
             return None
-        # With explicit ANSWER: marker, parse the content directly
-        return _parse_answer_content(text)
+        return _parse_answer_content(content)
 
     # Get lines and check for incomplete response (ends mid-sentence)
     lines = [l.strip() for l in text.split("\n") if l.strip()]
@@ -187,48 +227,41 @@ def parse_judge_score(answer: str) -> Scoring:
 
     # Check if last word is a number first (most common case: model just outputs "0.7")
     last_word = last_line.split()[-1].strip(".,!?:;\"'") if last_line.split() else ""
-    if re.match(r"^(\d+\.?\d*|\.\d+)$", last_word):
-        value = float(last_word)
-        if 0.0 <= value <= 1.0:
-            return value
-        if 1.0 < value <= 10.0:
-            return value / 10.0
-        return max(0.0, min(1.0, value))
+    parsed = _try_parse_number(last_word)
+    if parsed is not None:
+        return parsed
 
     # Check if response looks incomplete (ends without punctuation or answer)
     if not last_line.rstrip().endswith((".", "!", "?", "0", "1", "YES", "NO", "yes", "no", "Yes", "No")):
         # Response might be cut off - be very conservative
         last_word_upper = last_word.upper()
-        if last_word_upper in ("YES", "TRUE"):
+        if last_word_upper in ("YES", "TRUE", "Y"):
             return 1.0
-        if last_word_upper in ("NO", "FALSE"):
+        if last_word_upper in ("NO", "FALSE", "N"):
             return 0.0
         print(f"❌ JUDGE PARSE ERROR: Incomplete response, no clear answer: ...{last_line[-50:]}")
         return None
 
     # Check if last line is a standalone answer (very short, just the answer)
     last_line_clean = last_line.strip(".,!?:;\"' ").upper()
-    if last_line_clean in ("YES", "TRUE"):
+    if last_line_clean in ("YES", "TRUE", "Y"):
         return 1.0
-    if last_line_clean in ("NO", "FALSE"):
+    if last_line_clean in ("NO", "FALSE", "N"):
         return 0.0
 
     # Check last word for YES/NO (number already checked above)
     last_word_upper = last_word.upper()
-    if last_word_upper in ("YES", "TRUE"):
+    if last_word_upper in ("YES", "TRUE", "Y"):
         return 1.0
-    if last_word_upper in ("NO", "FALSE"):
+    if last_word_upper in ("NO", "FALSE", "N"):
         return 0.0
 
     # Check if last line ends with a standalone number (after punctuation like "Answer: 0.7.")
     match = re.search(r"[:\s](\d+\.?\d*|\.\d+)\s*[.!?]?\s*$", last_line)
     if match:
-        value = float(match.group(1))
-        if 0.0 <= value <= 1.0:
-            return value
-        if 1.0 < value <= 10.0:
-            return value / 10.0
-        return max(0.0, min(1.0, value))
+        parsed = _try_parse_number(match.group(1))
+        if parsed is not None:
+            return parsed
 
     # Do NOT fall back to searching for numbers in full text - too error prone
     # Numbers in reasoning (like "1 or 0", "between 0 and 1") should not be extracted
@@ -237,24 +270,31 @@ def parse_judge_score(answer: str) -> Scoring:
 
 
 def _parse_answer_content(text: str) -> Scoring:
-    """Parse answer content when we have explicit answer markers."""
-    text = text.strip().upper()
+    """Parse answer content when we have explicit answer markers.
 
-    # YES/NO/TRUE/FALSE
-    if text in ("YES", "TRUE"):
+    Handles YES/NO/Y/N/TRUE/FALSE, numbers, fractions, and percentages.
+    """
+    # Strip markdown formatting first
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    text = re.sub(r"\*([^*]+)\*", r"\1", text)
+    text = text.strip()
+    text_upper = text.upper()
+
+    # YES/NO/TRUE/FALSE/Y/N
+    if text_upper in ("YES", "TRUE", "Y"):
         return 1.0
-    if text in ("NO", "FALSE"):
+    if text_upper in ("NO", "FALSE", "N"):
         return 0.0
 
-    # Try to extract number (handles both "0.5" and ".5")
+    # Try numeric parsing (handles fractions, percentages, plain numbers)
+    parsed = _try_parse_number(text)
+    if parsed is not None:
+        return parsed
+
+    # Fallback: extract first number found
     match = re.search(r"(\d+\.?\d*|\.\d+)", text)
     if match:
-        value = float(match.group(1))
-        if 0.0 <= value <= 1.0:
-            return value
-        if 1.0 < value <= 10.0:
-            return value / 10.0
-        return max(0.0, min(1.0, value))
+        return _try_parse_number(match.group(1))
 
     print(f"❌ JUDGE PARSE ERROR: Cannot parse answer content: {text}")
     return None

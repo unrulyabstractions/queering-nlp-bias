@@ -344,7 +344,7 @@ class ModelRunner:
         model = self.model_name
         if "/" in model:
             model = model.split("/", 1)[1]
-        elif model.lower() == "anthropic":
+        elif model.lower() in ("anthropic", "claude"):
             model = None  # Use default
 
         log(f"Using Anthropic API with model: {model or 'claude-sonnet-4-20250514'}")

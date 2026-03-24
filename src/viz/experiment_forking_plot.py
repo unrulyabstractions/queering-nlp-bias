@@ -108,11 +108,15 @@ def plot_structure_forking(
     twig_factor = 0.2 * max(0, n_twigs - 4)
     y_spacing = max(min_y_spacing, min_y_spacing + twig_factor)
 
-    positions = compute_tree_layout(tree, x=0, y=0, x_spacing=x_spacing, y_spacing=y_spacing)
+    positions = compute_tree_layout(
+        tree, x=0, y=0, x_spacing=x_spacing, y_spacing=y_spacing
+    )
 
     # Validate tree node spacing (will assert if nodes collide)
     if positions:
-        validate_tree_node_spacing(positions, n_structures, bar_height, y_spacing, arm_label_fontsize)
+        validate_tree_node_spacing(
+            positions, n_structures, bar_height, y_spacing, arm_label_fontsize
+        )
     if not positions:
         return None
 
@@ -128,8 +132,13 @@ def plot_structure_forking(
 
     # Populate TreeContentTracker for legend optimization (pre-offset)
     tree_content = populate_tree_content_tracker(
-        positions, arm_texts, n_structures, bar_height,
-        bar_width_scale, arm_label_fontsize, x_spacing,
+        positions,
+        arm_texts,
+        n_structures,
+        bar_height,
+        bar_width_scale,
+        arm_label_fontsize,
+        x_spacing,
     )
 
     # Define figure bounds for optimizer
@@ -163,8 +172,13 @@ def plot_structure_forking(
 
     # Rebuild TreeContentTracker with offset positions
     tree_content = populate_tree_content_tracker(
-        positions, arm_texts, n_structures, bar_height,
-        bar_width_scale, arm_label_fontsize, x_spacing,
+        positions,
+        arm_texts,
+        n_structures,
+        bar_height,
+        bar_width_scale,
+        arm_label_fontsize,
+        x_spacing,
     )
 
     # Total plot bounds
@@ -194,7 +208,9 @@ def plot_structure_forking(
     arm_normalized_probs = compute_normalized_probs(positions, sibling_groups)
 
     # Draw probability-proportional connecting lines
-    draw_connecting_lines(ax, positions, arm_normalized_probs, bar_width_scale, x_spacing)
+    draw_connecting_lines(
+        ax, positions, arm_normalized_probs, bar_width_scale, x_spacing
+    )
 
     # Draw each arm's bars
     for pos in positions:
@@ -239,7 +255,9 @@ def plot_structure_forking(
 
         # Draw horizontal bars for each structure
         for i, (val, label) in enumerate(zip(values, structure_labels)):
-            bar_y = y + (n_structures - 1 - i) * bar_height - n_structures * bar_height / 2
+            bar_y = (
+                y + (n_structures - 1 - i) * bar_height - n_structures * bar_height / 2
+            )
             bar_w = val / 100 * bar_width_scale
 
             color = get_structure_color(i)
@@ -280,7 +298,8 @@ def plot_structure_forking(
     # Add weighting method label in top-left corner (use figure coords since axis is off)
     if weighting_method:
         fig.text(
-            0.01, 0.99,
+            0.01,
+            0.99,
             f"[{weighting_method}]",
             fontsize=11,
             fontweight="bold",
@@ -339,13 +358,18 @@ def plot_orientation_tree(
     filtered_n_traj = {k: v for k, v in arm_n_traj.items() if k in arm_names}
     filtered_suffix_probs = (
         {k: v for k, v in arm_suffix_probs.items() if k in arm_names}
-        if arm_suffix_probs else None
+        if arm_suffix_probs
+        else None
     )
-    filtered_orientations = {k: v for k, v in arm_orientations.items() if k in arm_names}
+    filtered_orientations = {
+        k: v for k, v in arm_orientations.items() if k in arm_names
+    }
     filtered_arm_texts = {k: v for k, v in arm_texts.items() if k in arm_names}
 
     # Build tree and layout
-    tree = build_subtree(reference_arm, arm_names, filtered_n_traj, filtered_suffix_probs)
+    tree = build_subtree(
+        reference_arm, arm_names, filtered_n_traj, filtered_suffix_probs
+    )
     if not tree:
         return None
 
@@ -369,12 +393,16 @@ def plot_orientation_tree(
     twig_factor = 0.3 * max(0, n_twigs - 4)
     y_spacing = max(min_y_spacing, min_y_spacing + twig_factor)
 
-    positions = compute_tree_layout(tree, x=0, y=0, x_spacing=x_spacing, y_spacing=y_spacing)
+    positions = compute_tree_layout(
+        tree, x=0, y=0, x_spacing=x_spacing, y_spacing=y_spacing
+    )
     if not positions:
         return None
 
     # Validate tree node spacing (will assert if nodes collide)
-    validate_tree_node_spacing(positions, n_structures, bar_height, y_spacing, arm_label_fontsize)
+    validate_tree_node_spacing(
+        positions, n_structures, bar_height, y_spacing, arm_label_fontsize
+    )
 
     # Calculate tree bounds (before offset)
     raw_max_x = max(p["x"] for p in positions) + 3.2
@@ -388,15 +416,22 @@ def plot_orientation_tree(
 
     # Populate TreeContentTracker for legend optimization (pre-offset)
     tree_content = populate_tree_content_tracker(
-        positions, filtered_arm_texts, n_structures, bar_height,
-        bar_width_scale, arm_label_fontsize, x_spacing,
+        positions,
+        filtered_arm_texts,
+        n_structures,
+        bar_height,
+        bar_width_scale,
+        arm_label_fontsize,
+        x_spacing,
     )
 
     # Add title to tracker (orientation plots have a title between tree and legend)
     title_height = 0.32
     tree_content.set_title(
-        x=0, y=tree_content_top,
-        width=tree_width * 0.6, height=title_height,
+        x=0,
+        y=tree_content_top,
+        width=tree_width * 0.6,
+        height=title_height,
     )
 
     # Define figure bounds for optimizer
@@ -430,14 +465,21 @@ def plot_orientation_tree(
 
     # Rebuild TreeContentTracker with offset positions
     tree_content = populate_tree_content_tracker(
-        positions, filtered_arm_texts, n_structures, bar_height,
-        bar_width_scale, arm_label_fontsize, x_spacing,
+        positions,
+        filtered_arm_texts,
+        n_structures,
+        bar_height,
+        bar_width_scale,
+        arm_label_fontsize,
+        x_spacing,
     )
 
     # Re-add title with offset
     tree_content.set_title(
-        x=tree_x_offset, y=tree_content_top,
-        width=tree_width * 0.6, height=title_height,
+        x=tree_x_offset,
+        y=tree_content_top,
+        width=tree_width * 0.6,
+        height=title_height,
     )
 
     # Total plot bounds
@@ -467,7 +509,9 @@ def plot_orientation_tree(
     arm_normalized_probs = compute_normalized_probs(positions, sibling_groups)
 
     # Draw probability-proportional connecting lines
-    draw_connecting_lines(ax, positions, arm_normalized_probs, bar_width_scale, x_spacing)
+    draw_connecting_lines(
+        ax, positions, arm_normalized_probs, bar_width_scale, x_spacing
+    )
 
     # Draw each arm's orientation bars (centered at 0)
     for pos in positions:
@@ -513,7 +557,9 @@ def plot_orientation_tree(
         # Draw horizontal bars for each structure (centered, diverging)
         center_x = x + bar_width_scale / 2
         for i, (val, label) in enumerate(zip(orientation, structure_labels)):
-            bar_y = y + (n_structures - 1 - i) * bar_height - n_structures * bar_height / 2
+            bar_y = (
+                y + (n_structures - 1 - i) * bar_height - n_structures * bar_height / 2
+            )
             bar_w = val * (bar_width_scale / 2)
 
             # Color: normal for positive, desaturated for negative

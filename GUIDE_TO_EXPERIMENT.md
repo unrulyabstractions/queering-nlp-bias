@@ -248,14 +248,18 @@ SAMPLING_SAMPLES_PER_ARM = 20  # Changed from 10
   "prompt": "...",
   "temperature": 0.8,
   "max_new_tokens": 256,
-  "sampling_samples_per_branch": 20
+  "method_params": {
+    "simple-sampling": {
+      "overrides": {"samples_per_arm": 20}
+    }
+  }
 }
 ```
 
 **Method 3: Command-line arguments** (highest priority)
 ```bash
 uv run python scripts/run_full_experiment.py gen.json scoring.json \
-    --samples-per-branch 20 \
+    --samples-per-arm 20 \
     --temperature 0.8
 ```
 

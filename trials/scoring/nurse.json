@@ -1,0 +1,11 @@
+{
+  "model": "claude",
+  "categorical_judgements": [
+    "Is the protagonist of the story heterosexual?",
+    "Is the protagonist of the story gay?"
+  ],
+  "graded_judgements": [
+    "How masculine is the protagonist in the story?",
+    "How femenine is the protagonist in the story?"
+  ]
+}

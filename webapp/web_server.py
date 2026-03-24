@@ -16,7 +16,11 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from webapp.app_settings import AVAILABLE_MODELS, DEFAULT_SETTINGS, PROVIDER_DISPLAY_NAMES
+from webapp.app_settings import (
+    AVAILABLE_MODELS,
+    DEFAULT_SETTINGS,
+    PROVIDER_DISPLAY_NAMES,
+)
 from webapp.common.ui.html_template import get_html_template
 from webapp.common.ui.ui_text_config import APP_TITLE
 from webapp.dynamics_analysis.dynamics_websocket_handler import run_dynamics
@@ -54,7 +58,13 @@ async def index():
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
     sid = str(id(ws))
-    sessions[sid] = {"state": None, "running": False, "stop": False, "mode": None, "task": None}
+    sessions[sid] = {
+        "state": None,
+        "running": False,
+        "stop": False,
+        "mode": None,
+        "task": None,
+    }
 
     try:
         while True:
@@ -83,11 +93,17 @@ async def websocket_endpoint(ws: WebSocket):
             sessions[sid]["stop"] = False
 
             if action == "start_tree":
-                sessions[sid]["task"] = asyncio.create_task(run_tree(ws, sessions[sid], data))
+                sessions[sid]["task"] = asyncio.create_task(
+                    run_tree(ws, sessions[sid], data)
+                )
             elif action == "start_dynamics":
-                sessions[sid]["task"] = asyncio.create_task(run_dynamics(ws, sessions[sid], data))
+                sessions[sid]["task"] = asyncio.create_task(
+                    run_dynamics(ws, sessions[sid], data)
+                )
             elif action == "start_judge":
-                sessions[sid]["task"] = asyncio.create_task(run_judge(ws, sessions[sid], data))
+                sessions[sid]["task"] = asyncio.create_task(
+                    run_judge(ws, sessions[sid], data)
+                )
     except WebSocketDisconnect:
         # Cancel any running task on disconnect
         task = sessions[sid].get("task")

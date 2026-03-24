@@ -6,6 +6,7 @@ import time
 
 import anthropic
 
+from webapp.app_settings import resolve_claude_model
 from webapp.common.normativity_types import parse_judge_score
 
 from .provider_base import (
@@ -39,12 +40,13 @@ async def generate_anthropic(
 
     Args:
         client: Anthropic client
-        model: Model name
+        model: Model name or alias (e.g., "claude", "sonnet", "claude-sonnet-4-20250514")
         prompt: User prompt
         prefill: Text to prefill the response with
         max_tokens: Max tokens to generate (None = use model default)
         temperature: Sampling temperature
     """
+    model = resolve_claude_model(model)
     log_generation_call("anthropic", model, prompt, prefill)
 
     messages: list[dict[str, str]] = [{"role": "user", "content": prompt}]
@@ -79,6 +81,7 @@ async def judge_anthropic(
     temperature: float = 0.0,
     max_tokens: int | None = None,
 ) -> JudgeResult:
+    model = resolve_claude_model(model)
     formatted = format_judge_prompt(judge_prompt, text, question)
     log_judge_call("anthropic", model, question)
 
