@@ -131,13 +131,146 @@ def _restore_text_fields(obj):
         return obj
 
 
-def load_json(path: Path) -> dict:
-    """Load JSON file. Robust to trailing commas and double commas."""
-    with open(path) as f:
-        s = f.read()
+def load_json(path: Path, default: dict | list | None = None) -> dict | list:
+    """Load JSON file with extensive error recovery.
+
+    Handles:
+    - Empty files (returns default or raises)
+    - Trailing/double commas
+    - Truncated JSON (attempts repair)
+    - BOM markers
+    - Various encoding issues
+
+    Args:
+        path: Path to JSON file
+        default: Default value if file is empty/missing (None = raise error)
+
+    Returns:
+        Parsed JSON data with text fields restored
+    """
+    path = Path(path)
+
+    # Check file exists
+    if not path.exists():
+        if default is not None:
+            return default
+        raise FileNotFoundError(f"JSON file not found: {path}")
+
+    # Read file content
+    try:
+        with open(path, encoding="utf-8") as f:
+            s = f.read()
+    except UnicodeDecodeError:
+        # Try with latin-1 as fallback
+        with open(path, encoding="latin-1") as f:
+            s = f.read()
+
+    # Handle empty file
+    s = s.strip()
+    if not s:
+        if default is not None:
+            return default
+        raise ValueError(f"Empty JSON file: {path}")
+
+    # Remove BOM if present
+    if s.startswith("\ufeff"):
+        s = s[1:]
+
+    # Pre-processing: fix common JSON issues
     # Remove double/multiple commas (e.g., "a",, "b" -> "a", "b")
     s = re.sub(r",(\s*,)+", ",", s)
     # Remove trailing commas before ] or }
     s = re.sub(r",\s*([}\]])", r"\1", s)
-    data = json.loads(s)
-    return _restore_text_fields(data)
+    # Remove leading commas after [ or {
+    s = re.sub(r"([{\[])(\s*),", r"\1\2", s)
+
+    # Try to parse
+    try:
+        data = json.loads(s)
+        return _restore_text_fields(data)
+    except json.JSONDecodeError as e:
+        # Attempt repair for truncated JSON
+        repaired = _attempt_json_repair(s)
+        if repaired is not None:
+            try:
+                data = json.loads(repaired)
+                print(f"  [Warning] Repaired truncated JSON: {path}")
+                return _restore_text_fields(data)
+            except json.JSONDecodeError:
+                pass
+
+        # If we have a default, use it
+        if default is not None:
+            print(f"  [Warning] Failed to parse JSON, using default: {path}")
+            return default
+
+        # Provide helpful error message
+        raise ValueError(
+            f"Invalid JSON in {path} at line {e.lineno}, col {e.colno}: {e.msg}\n"
+            f"Context: ...{s[max(0, e.pos - 30):e.pos + 30]}..."
+        ) from e
+
+
+def _attempt_json_repair(s: str) -> str | None:
+    """Attempt to repair truncated/malformed JSON.
+
+    Returns repaired string or None if repair not possible.
+    """
+    s = s.strip()
+    if not s:
+        return None
+
+    # Count brackets to detect truncation
+    open_braces = s.count("{") - s.count("}")
+    open_brackets = s.count("[") - s.count("]")
+
+    # If balanced, no repair needed (error is elsewhere)
+    if open_braces == 0 and open_brackets == 0:
+        return None
+
+    repaired = s
+
+    # Handle incomplete string at end (unclosed quote)
+    # Count quotes - if odd, we have an unclosed string
+    quote_count = repaired.count('"') - repaired.count('\\"')
+    if quote_count % 2 == 1:
+        repaired = repaired + '"'
+
+    # Handle trailing colon (incomplete key-value pair)
+    if re.search(r':\s*$', repaired):
+        repaired = repaired + 'null'
+
+    # Handle trailing comma
+    repaired = re.sub(r',\s*$', '', repaired)
+
+    # Recount after fixes
+    open_braces = repaired.count("{") - repaired.count("}")
+    open_brackets = repaired.count("[") - repaired.count("]")
+
+    # Add missing closing brackets/braces in correct order
+    # We need to close them in reverse order of opening
+    # Simple heuristic: find last unmatched opener and close that first
+    closings = []
+    depth_brace = 0
+    depth_bracket = 0
+
+    for char in repaired:
+        if char == "{":
+            depth_brace += 1
+            closings.append("}")
+        elif char == "}":
+            depth_brace -= 1
+            if closings and closings[-1] == "}":
+                closings.pop()
+        elif char == "[":
+            depth_bracket += 1
+            closings.append("]")
+        elif char == "]":
+            depth_bracket -= 1
+            if closings and closings[-1] == "]":
+                closings.pop()
+
+    # Reverse to get correct closing order
+    repaired += "".join(reversed(closings))
+
+    return repaired

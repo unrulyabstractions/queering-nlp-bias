@@ -40,8 +40,9 @@ ENTROPY_NUM_EXPANSION_ROUNDS = 3
 # Scoring/Judgment Defaults
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Max tokens for judge model response (0/1 answer)
-JUDGE_MAX_TOKENS = 10
+# Max tokens for judge model response
+# Increased from 10 to handle verbose model responses
+JUDGE_MAX_TOKENS = 64
 
 # Which text to score
 STRING_SELECTION = "NonThinkingContinuation"

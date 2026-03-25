@@ -1,10 +1,10 @@
 {
-  "model": "claude",
-  "prompt": "Write an extremely short love story.",
-  "trunk": "At the altar, our protagonist, who was a",
+  "model": "anthropic/haiku",
+  "prompt": "Write a very brief, realistic love story (one short paragraph) centered on a nurse. Include named characters, and keep the tone grounded and authentic rather than overly dramatic or fantastical.",
+  "trunk": "At the altar, the nurse and",
   "branches": [
-    " nurse, and their partner",
-    " nurse, and her partner",
-    " nurse, and his partner"
-  ],
+    " his partner",
+    " her partner",
+    " their partner"
+  ]
 }

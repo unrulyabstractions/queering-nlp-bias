@@ -4,14 +4,74 @@ from __future__ import annotations
 
 import math
 import os
+import time
 from collections.abc import Sequence
 from typing import Any
 
 import torch
-from openai import OpenAI
+from openai import APIConnectionError, APIStatusError, OpenAI, RateLimitError
 
 from .api_tokenizer import APITokenizer
 from .model_backend import Backend
+
+# Retry configuration
+MAX_RETRIES = 5
+INITIAL_BACKOFF = 1.0  # seconds
+MAX_BACKOFF = 60.0  # seconds
+BACKOFF_MULTIPLIER = 2.0
+
+
+def _retry_api_call(func, *args, **kwargs):
+    """Execute API call with exponential backoff retry.
+
+    Handles transient errors like empty responses, connection errors,
+    rate limits, and server errors (5xx).
+    """
+    last_exception = None
+    backoff = INITIAL_BACKOFF
+
+    for attempt in range(MAX_RETRIES):
+        try:
+            return func(*args, **kwargs)
+        except RateLimitError as e:
+            # Rate limit - use longer backoff
+            last_exception = e
+            wait_time = min(backoff * 2, MAX_BACKOFF)
+            print(f"  [Retry {attempt + 1}/{MAX_RETRIES}] Rate limited, waiting {wait_time:.1f}s...")
+            time.sleep(wait_time)
+            backoff = min(backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF)
+        except APIConnectionError as e:
+            # Connection error - retry with backoff
+            last_exception = e
+            print(f"  [Retry {attempt + 1}/{MAX_RETRIES}] Connection error, waiting {backoff:.1f}s...")
+            time.sleep(backoff)
+            backoff = min(backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF)
+        except APIStatusError as e:
+            # Server errors (5xx) - retry; client errors (4xx) - don't retry
+            if e.status_code >= 500:
+                last_exception = e
+                print(f"  [Retry {attempt + 1}/{MAX_RETRIES}] Server error {e.status_code}, waiting {backoff:.1f}s...")
+                time.sleep(backoff)
+                backoff = min(backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF)
+            else:
+                # Client error (4xx) - don't retry
+                raise
+        except Exception as e:
+            # Catch JSON decode errors and other transient issues
+            error_str = str(e).lower()
+            if "json" in error_str or "expecting value" in error_str or "empty" in error_str:
+                last_exception = e
+                print(f"  [Retry {attempt + 1}/{MAX_RETRIES}] Empty/invalid response, waiting {backoff:.1f}s...")
+                time.sleep(backoff)
+                backoff = min(backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF)
+            else:
+                # Unknown error - re-raise
+                raise
+
+    # All retries exhausted
+    raise RuntimeError(
+        f"API call failed after {MAX_RETRIES} retries. Last error: {last_exception}"
+    ) from last_exception
 
 
 # Instruction to simulate prefill behavior since OpenAI doesn't support true assistant prefill.
@@ -93,7 +153,9 @@ class OpenAIBackend(Backend):
         # Use temperature=0 for greedy, otherwise provided value
         temp = temperature if temperature > 0 else 0
 
-        response = client.chat.completions.create(
+        # Use retry wrapper for robustness
+        response = _retry_api_call(
+            client.chat.completions.create,
             model=self._model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=max_new_tokens,
@@ -112,7 +174,9 @@ class OpenAIBackend(Backend):
         """
         client = self._get_client()
 
-        response = client.chat.completions.create(
+        # Use retry wrapper for robustness
+        response = _retry_api_call(
+            client.chat.completions.create,
             model=self._model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1,
@@ -187,7 +251,9 @@ class OpenAIBackend(Backend):
         # Use temperature=0 for greedy
         temp = temperature if temperature > 0 else 0
 
-        response = client.chat.completions.create(
+        # Use retry wrapper for robustness
+        response = _retry_api_call(
+            client.chat.completions.create,
             model=self._model,
             messages=[{"role": "user", "content": prompt}],
             max_tokens=max_new_tokens,
@@ -261,7 +327,9 @@ class OpenAIBackend(Backend):
             instruction = OPENAI_PREFILL_INSTRUCTION.format(prefill=prefilling)
             full_prompt = f"{prompt}\n\n{instruction}"
 
-        response = client.chat.completions.create(
+        # Use retry wrapper for robustness
+        response = _retry_api_call(
+            client.chat.completions.create,
             model=self._model,
             messages=[{"role": "user", "content": full_prompt}],
             max_tokens=max_new_tokens,

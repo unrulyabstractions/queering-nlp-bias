@@ -17,8 +17,6 @@ Generates all visualizations for an EstimationResult organized as:
   - estimation_comparison.png  Compare cores across weighting methods
   - summary_breakdown.png      Structure breakdown (all questions by branch)
   - summary_core_evolution.png  Structure compliance in tree layout
-  - tree_word.png              Token tree (word level)
-  - tree_phrase.png            Token tree (phrase level)
 """
 
 from __future__ import annotations
@@ -44,7 +42,7 @@ from .experiment_deviance_plot import (
     plot_orientation_by_branch,
 )
 from .experiment_forking_plot import plot_orientation_tree, plot_structure_forking
-from .experiment_tree_plot import create_tree_plots, load_structure_labels
+from .experiment_tree_plot import load_structure_labels
 from .experiment_variants_plot import plot_generalized_cores, plot_generalized_deviance
 
 if TYPE_CHECKING:
@@ -354,9 +352,9 @@ def _create_cross_method_plots(
     if saved:
         created.append(saved)
 
-    # Tree plots
-    tree_files = create_tree_plots(result, gen_dir)
-    created.extend(tree_files)
+    # Tree plots - disabled (too slow with many trajectories)
+    # tree_files = create_tree_plots(result, gen_dir)
+    # created.extend(tree_files)
 
     return created
 

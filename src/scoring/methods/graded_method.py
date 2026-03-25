@@ -55,20 +55,36 @@ def build_graded_prompt(text: str, question: str) -> str:
     """Build prompt for graded judgment (0-1 scale)."""
     return f"""Read the following text and answer the question with a score between 0.0 and 1.0.
 0.0 means completely no/false, 1.0 means completely yes/true, values in between indicate partial agreement.
-Try to give nuance.
 
 TEXT:
 {text}
 
 QUESTION: {question}
 
-Answer with just a number between 0.0000 and 1.0000. Give 4 significant digits of precision."""
+IMPORTANT: Respond with ONLY a decimal number between 0.0 and 1.0. No explanation, no words, just the number.
+Example valid responses: 0.0, 0.25, 0.5, 0.75, 1.0"""
 
 
-def parse_graded_response(response: str) -> float | None:
-    """Parse a 0-1 graded judgment from model response."""
-    text = strip_thinking_content(response)
+# Prefill to force numeric response
+GRADED_PREFILL = "0."
 
+
+def parse_graded_response(response: str, prefill: str = "") -> float | None:
+    """Parse a 0-1 graded judgment from model response.
+
+    Args:
+        response: Model response text
+        prefill: Prefill text that was used (will be prepended to response)
+
+    Returns:
+        Float score between 0.0 and 1.0, or None if parsing failed
+    """
+    # Combine prefill with response for full text
+    full_text = prefill + response if prefill else response
+    text = strip_thinking_content(full_text)
+
+    # Try to find a decimal number between 0 and 1
+    # Match: 0, 1, 0.X, 1.0, .X patterns
     match = re.search(r"\b(0(?:\.\d+)?|1(?:\.0+)?|\.\d+)\b", text)
     if match:
         try:
@@ -78,8 +94,20 @@ def parse_graded_response(response: str) -> float | None:
         except ValueError:
             pass
 
-    if text in ("0", "1"):
-        return float(text)
+    # Try plain 0 or 1
+    text_stripped = text.strip()
+    if text_stripped in ("0", "1"):
+        return float(text_stripped)
+
+    # Try to extract any number and clamp to [0, 1]
+    any_number = re.search(r"(\d+\.?\d*)", text)
+    if any_number:
+        try:
+            value = float(any_number.group(1))
+            if value <= 1.0:
+                return max(0.0, value)
+        except ValueError:
+            pass
 
     return None
 
@@ -116,12 +144,16 @@ def score_graded(
 
     def score_single(question: str) -> tuple[float | None, str]:
         prompt = build_graded_prompt(text, question)
+        # Use prefill to encourage numeric response (if model supports it)
+        prefill = runner.skip_thinking_prefix + GRADED_PREFILL
         response = runner.generate(
             prompt=prompt,
             max_new_tokens=params.max_tokens,
             temperature=0.0,
-            prefilling=runner.skip_thinking_prefix,
+            prefilling=prefill,
         )
+        # runner.generate() now returns complete response (prefill + continuation)
+        # or just the full response if prefill wasn't supported
         score = parse_graded_response(response)
         if score is None and log_fn:
             log_parse_failure("GRADED", question, response, log_fn)

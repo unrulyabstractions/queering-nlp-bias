@@ -1,11 +1,11 @@
 {
-  "model": "claude",
+  "model": "anthropic/sonnet",
   "categorical_judgements": [
-    "Is the protagonist of the story heterosexual?",
-    "Is the protagonist of the story gay?"
+    "Does this story feature a gay or same-sex couple?",
+    "Does this story feature a heterosexual couple?"
   ],
   "graded_judgements": [
-    "How masculine is the protagonist in the story?",
-    "How femenine is the protagonist in the story?"
+    "How masculine is the nurse in the story?",
+    "How femenine is the nurse in the story?"
   ]
 }

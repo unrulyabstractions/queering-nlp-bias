@@ -78,18 +78,32 @@ DEFAULT_SETTINGS = {
 AVAILABLE_MODELS = {
     "anthropic": [
         # Aliases (resolve to full model IDs)
-        "claude",  # → claude-sonnet-4-20250514
-        "sonnet",  # → claude-sonnet-4-20250514
-        "haiku",  # → claude-haiku-4-20250514
-        "opus",  # → claude-opus-4-20250514
-        # Claude 4 models
+        "claude",  # → claude-sonnet-4-6 (latest)
+        "sonnet",  # → claude-sonnet-4-6
+        "haiku",  # → claude-haiku-4-5
+        "opus",  # → claude-opus-4-6
+        # Claude 4.6 models (latest)
+        "claude-opus-4-6",
+        "claude-sonnet-4-6",
+        # Claude 4.5 models
+        "claude-haiku-4-5",
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-4-5",
+        "claude-sonnet-4-5-20250929",
+        "claude-opus-4-5",
+        "claude-opus-4-5-20251101",
+        # Claude 4.1 models
+        "claude-opus-4-1",
+        "claude-opus-4-1-20250805",
+        # Claude 4.0 models
+        "claude-sonnet-4-0",
         "claude-sonnet-4-20250514",
-        "claude-haiku-4-20250514",
+        "claude-opus-4-0",
         "claude-opus-4-20250514",
         # Claude 3.5 models
         "claude-3-5-sonnet-20241022",
         "claude-3-5-haiku-20241022",
-        # Claude 3 models
+        # Claude 3 models (deprecated)
         "claude-3-opus-20240229",
         "claude-3-sonnet-20240229",
         "claude-3-haiku-20240307",
@@ -164,14 +178,45 @@ def should_enable_thinking(provider: str) -> bool:
 
 
 # Claude model aliases → full model IDs
+# Latest models default to their API aliases (no date suffix needed)
 CLAUDE_MODEL_ALIASES: dict[str, str] = {
-    # Provider-only defaults to sonnet
-    "claude": "claude-sonnet-4-20250514",
-    "anthropic": "claude-sonnet-4-20250514",
-    # Model family shortcuts
-    "sonnet": "claude-sonnet-4-20250514",
-    "haiku": "claude-haiku-4-20250514",
-    "opus": "claude-opus-4-20250514",
+    # Default aliases (latest recommended models)
+    "claude": "claude-sonnet-4-6",
+    "anthropic": "claude-sonnet-4-6",
+    "sonnet": "claude-sonnet-4-6",
+    "haiku": "claude-haiku-4-5",
+    "opus": "claude-opus-4-6",
+    # Latest generation (4.6 / 4.5)
+    "opus-4.6": "claude-opus-4-6",
+    "opus-4-6": "claude-opus-4-6",
+    "sonnet-4.6": "claude-sonnet-4-6",
+    "sonnet-4-6": "claude-sonnet-4-6",
+    "haiku-4.5": "claude-haiku-4-5",
+    "haiku-4-5": "claude-haiku-4-5",
+    # Previous generation (4.5 for sonnet/opus, 4.1 for opus)
+    "opus-4.5": "claude-opus-4-5",
+    "opus-4-5": "claude-opus-4-5",
+    "sonnet-4.5": "claude-sonnet-4-5",
+    "sonnet-4-5": "claude-sonnet-4-5",
+    "opus-4.1": "claude-opus-4-1",
+    "opus-4-1": "claude-opus-4-1",
+    # Claude 4.0 generation
+    "opus-4.0": "claude-opus-4-0",
+    "opus-4-0": "claude-opus-4-0",
+    "sonnet-4.0": "claude-sonnet-4-0",
+    "sonnet-4-0": "claude-sonnet-4-0",
+    "opus-4": "claude-opus-4-0",
+    "sonnet-4": "claude-sonnet-4-0",
+    "haiku-4": "claude-haiku-4-5",  # No haiku 4.0, point to 4.5
+    # Claude 3.5 generation
+    "sonnet-3.5": "claude-3-5-sonnet-20241022",
+    "sonnet-3-5": "claude-3-5-sonnet-20241022",
+    "haiku-3.5": "claude-3-5-haiku-20241022",
+    "haiku-3-5": "claude-3-5-haiku-20241022",
+    # Claude 3 generation
+    "opus-3": "claude-3-opus-20240229",
+    "sonnet-3": "claude-3-sonnet-20240229",
+    "haiku-3": "claude-3-haiku-20240307",
 }
 
 
@@ -179,11 +224,12 @@ def resolve_claude_model(model: str) -> str:
     """Resolve Claude model alias to full model ID.
 
     Handles formats:
-        - "claude" or "anthropic" → claude-sonnet-4-20250514
+        - "claude" or "anthropic" → claude-sonnet-4-6 (latest)
         - "sonnet", "haiku", "opus" → latest version of that model
-        - "anthropic/sonnet", "claude/haiku" → latest version of that model
-        - "anthropic/claude-3-5-sonnet-20241022" → claude-3-5-sonnet-20241022
-        - Full model ID passed through unchanged
+        - "opus-4.6", "opus-4-6" → claude-opus-4-6
+        - "anthropic/sonnet-4.6", "claude/haiku" → resolved model
+        - "claude-opus-4-6" → passed through (already valid)
+        - Full model IDs with dates → passed through unchanged
 
     Args:
         model: Model name or alias
@@ -197,11 +243,23 @@ def resolve_claude_model(model: str) -> str:
     if "/" in model:
         prefix, suffix = model.split("/", 1)
         if prefix.lower() in ("anthropic", "claude"):
-            # Check if suffix is an alias
-            if suffix.lower() in CLAUDE_MODEL_ALIASES:
-                return CLAUDE_MODEL_ALIASES[suffix.lower()]
-            # Otherwise return the suffix as-is (full model ID)
-            return suffix
+            # Recursively resolve the suffix
+            return resolve_claude_model(suffix)
 
-    # Direct alias lookup
-    return CLAUDE_MODEL_ALIASES.get(model.lower(), model)
+    # Normalize: lowercase and replace dots with dashes for lookup
+    normalized = model.lower().replace(".", "-")
+
+    # Direct alias lookup (try both original and normalized)
+    if model.lower() in CLAUDE_MODEL_ALIASES:
+        return CLAUDE_MODEL_ALIASES[model.lower()]
+    if normalized in CLAUDE_MODEL_ALIASES:
+        return CLAUDE_MODEL_ALIASES[normalized]
+
+    # Handle "claude-X" format by stripping "claude-" prefix and re-resolving
+    if normalized.startswith("claude-"):
+        suffix = normalized[7:]  # Remove "claude-"
+        if suffix in CLAUDE_MODEL_ALIASES:
+            return CLAUDE_MODEL_ALIASES[suffix]
+
+    # Return as-is (assume it's already a valid model ID)
+    return model

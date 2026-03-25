@@ -24,6 +24,93 @@ from .generated_trajectory import (
     GeneratedTrajectory,
 )
 
+# Claude model aliases → full model IDs
+# Latest models default to their API aliases (no date suffix needed)
+CLAUDE_MODEL_ALIASES: dict[str, str] = {
+    # Default aliases (latest recommended models)
+    "claude": "claude-sonnet-4-6",
+    "anthropic": "claude-sonnet-4-6",
+    "sonnet": "claude-sonnet-4-6",
+    "haiku": "claude-haiku-4-5",
+    "opus": "claude-opus-4-6",
+    # Latest generation (4.6 / 4.5)
+    "opus-4.6": "claude-opus-4-6",
+    "opus-4-6": "claude-opus-4-6",
+    "sonnet-4.6": "claude-sonnet-4-6",
+    "sonnet-4-6": "claude-sonnet-4-6",
+    "haiku-4.5": "claude-haiku-4-5",
+    "haiku-4-5": "claude-haiku-4-5",
+    # Previous generation (4.5 for sonnet/opus, 4.1 for opus)
+    "opus-4.5": "claude-opus-4-5",
+    "opus-4-5": "claude-opus-4-5",
+    "sonnet-4.5": "claude-sonnet-4-5",
+    "sonnet-4-5": "claude-sonnet-4-5",
+    "opus-4.1": "claude-opus-4-1",
+    "opus-4-1": "claude-opus-4-1",
+    # Claude 4.0 generation
+    "opus-4.0": "claude-opus-4-0",
+    "opus-4-0": "claude-opus-4-0",
+    "sonnet-4.0": "claude-sonnet-4-0",
+    "sonnet-4-0": "claude-sonnet-4-0",
+    "opus-4": "claude-opus-4-0",
+    "sonnet-4": "claude-sonnet-4-0",
+    "haiku-4": "claude-haiku-4-5",  # No haiku 4.0, point to 4.5
+    # Claude 3.5 generation
+    "sonnet-3.5": "claude-3-5-sonnet-20241022",
+    "sonnet-3-5": "claude-3-5-sonnet-20241022",
+    "haiku-3.5": "claude-3-5-haiku-20241022",
+    "haiku-3-5": "claude-3-5-haiku-20241022",
+    # Claude 3 generation
+    "opus-3": "claude-3-opus-20240229",
+    "sonnet-3": "claude-3-sonnet-20240229",
+    "haiku-3": "claude-3-haiku-20240307",
+}
+
+
+def resolve_claude_model(model: str) -> str:
+    """Resolve Claude model alias to full model ID.
+
+    Handles formats:
+        - "claude" or "anthropic" → claude-sonnet-4-6 (latest)
+        - "sonnet", "haiku", "opus" → latest version of that model
+        - "opus-4.6", "opus-4-6" → claude-opus-4-6
+        - "anthropic/sonnet-4.6", "claude/haiku" → resolved model
+        - "claude-opus-4-6" → passed through (already valid)
+        - Full model IDs with dates → passed through unchanged
+
+    Args:
+        model: Model name or alias
+
+    Returns:
+        Full model ID for Anthropic API
+    """
+    model = model.strip()
+
+    # Handle provider/model format: "anthropic/sonnet" or "claude/haiku"
+    if "/" in model:
+        prefix, suffix = model.split("/", 1)
+        if prefix.lower() in ("anthropic", "claude"):
+            # Recursively resolve the suffix
+            return resolve_claude_model(suffix)
+
+    # Normalize: lowercase and replace dots with dashes for lookup
+    normalized = model.lower().replace(".", "-")
+
+    # Direct alias lookup (try both original and normalized)
+    if model.lower() in CLAUDE_MODEL_ALIASES:
+        return CLAUDE_MODEL_ALIASES[model.lower()]
+    if normalized in CLAUDE_MODEL_ALIASES:
+        return CLAUDE_MODEL_ALIASES[normalized]
+
+    # Handle "claude-X" format by stripping "claude-" prefix and re-resolving
+    if normalized.startswith("claude-"):
+        suffix = normalized[7:]  # Remove "claude-"
+        if suffix in CLAUDE_MODEL_ALIASES:
+            return CLAUDE_MODEL_ALIASES[suffix]
+
+    # Return as-is (assume it's already a valid model ID)
+    return model
+
 
 class ModelRunner:
     """Model runner for inference."""
@@ -176,11 +263,27 @@ class ModelRunner:
         prefilling: str = "",
     ) -> str:
         """Generate text from prompt, preserving special tokens like EOS."""
-        formatted = self.apply_chat_template(prompt) + prefilling
-
-        # For API-based backends, use the backend's generate directly
+        # For API-based backends with prefilling, use the prefill-aware method
+        # which sends prefill as assistant message turn (required for proper API behavior)
         if self._backend_type in (ModelBackend.OPENAI, ModelBackend.ANTHROPIC):
-            return self._backend.generate(formatted, max_new_tokens, temperature)
+            if prefilling:
+                # Use trajectory method which handles prefill correctly
+                # Returns (ids, logprobs, actual_prefill, continuation)
+                # Note: actual_prefill may be empty if model doesn't support prefill
+                _, _, actual_prefill, continuation = (
+                    self._backend.generate_trajectory_from_prompt(
+                        prompt, max_new_tokens, temperature, prefilling
+                    )
+                )
+                # Return full response: actual_prefill + continuation
+                # If prefill wasn't supported, actual_prefill="" and continuation is the full response
+                return actual_prefill + continuation
+            else:
+                formatted = self.apply_chat_template(prompt)
+                return self._backend.generate(formatted, max_new_tokens, temperature)
+
+        # For local backends, use token-by-token generation
+        formatted = self.apply_chat_template(prompt) + prefilling
 
         # For local backends, generate token by token to preserve EOS
         input_ids = self.encode_ids(formatted, add_special_tokens=True)
@@ -339,15 +442,17 @@ class ModelRunner:
         Note: Anthropic API does not provide logprobs, so all trajectory
         logprobs will be 0.0. This backend is suitable for text generation
         and categorical judgments, but not for probability-weighted metrics.
-        """
-        # Extract model name (e.g., "anthropic/claude-sonnet-4-20250514" -> "claude-sonnet-4-20250514")
-        model = self.model_name
-        if "/" in model:
-            model = model.split("/", 1)[1]
-        elif model.lower() in ("anthropic", "claude"):
-            model = None  # Use default
 
-        log(f"Using Anthropic API with model: {model or 'claude-sonnet-4-20250514'}")
+        Supports shorthand aliases:
+            - "anthropic/haiku" → claude-haiku-4-20250514
+            - "anthropic/sonnet" → claude-sonnet-4-20250514
+            - "anthropic/opus" → claude-opus-4-20250514
+            - "claude" or "anthropic" → claude-sonnet-4-20250514 (default)
+        """
+        # Resolve aliases (e.g., "anthropic/haiku" -> "claude-haiku-4-20250514")
+        model = resolve_claude_model(self.model_name)
+
+        log(f"Using Anthropic API with model: {model}")
         log(
             "  Note: Anthropic API does not provide logprobs; trajectory logprobs will be 0.0"
         )
