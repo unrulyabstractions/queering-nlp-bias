@@ -65,34 +65,34 @@ def build_arm_tree(
     root_name = arms_by_kind[ArmKind.ROOT][0] if arms_by_kind[ArmKind.ROOT] else None
     trunk_name = arms_by_kind[ArmKind.TRUNK][0] if arms_by_kind[ArmKind.TRUNK] else None
 
-    if not trunk_name:
-        raise ValueError("No trunk arm found, cannot build tree")
+    def _make_branch_nodes() -> list[dict]:
+        """Build branch nodes (each with their twig children)."""
+        nodes = []
+        for branch_name in sorted(arms_by_kind[ArmKind.BRANCH]):
+            branch_node = make_node(branch_name)
+            branch_idx = get_branch_index(branch_name)
+            for twig_name in sorted(arms_by_kind[ArmKind.TWIG]):
+                if get_branch_index(twig_name) == branch_idx:
+                    branch_node["children"].append(make_node(twig_name))
+            nodes.append(branch_node)
+        return nodes
 
-    # Build trunk node
-    trunk_node = make_node(trunk_name)
+    # When there is a trunk, attach branches to it
+    if trunk_name:
+        trunk_node = make_node(trunk_name)
+        trunk_node["children"] = _make_branch_nodes()
+        if root_name:
+            root_node = make_node(root_name)
+            root_node["children"] = [trunk_node]
+            return root_node
+        return trunk_node
 
-    # Add branches to trunk
-    for branch_name in sorted(arms_by_kind[ArmKind.BRANCH]):
-        branch_node = make_node(branch_name)
-
-        # Add twigs for this branch
-        branch_idx = get_branch_index(branch_name)
-
-        for twig_name in sorted(arms_by_kind[ArmKind.TWIG]):
-            twig_branch_idx = get_branch_index(twig_name)
-            if twig_branch_idx == branch_idx:
-                twig_node = make_node(twig_name)
-                branch_node["children"].append(twig_node)
-
-        trunk_node["children"].append(branch_node)
-
-    # If root exists, make it the top-level with trunk as child
-    if root_name:
-        root_node = make_node(root_name)
-        root_node["children"] = [trunk_node]
-        return root_node
-
-    return trunk_node
+    # No trunk — branches attach directly to root
+    if not root_name:
+        raise ValueError("No root or trunk arm found, cannot build tree")
+    root_node = make_node(root_name)
+    root_node["children"] = _make_branch_nodes()
+    return root_node
 
 
 def compute_tree_layout(

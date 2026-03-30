@@ -200,11 +200,12 @@ def run_estimation_pipeline(
         ref_cores["root"] = _extract_cores(est)
         idx += 1
 
-    # Process trunk
-    est = _compute_arm_estimate(idx, "trunk", by_arm.get("trunk", []), ref_cores)
-    arms.append(est)
-    ref_cores["trunk"] = _extract_cores(est)
-    idx += 1
+    # Process trunk if present in data
+    if by_arm.get("trunk"):
+        est = _compute_arm_estimate(idx, "trunk", by_arm["trunk"], ref_cores)
+        arms.append(est)
+        ref_cores["trunk"] = _extract_cores(est)
+        idx += 1
 
     # Process branches
     for name in arm_names:
