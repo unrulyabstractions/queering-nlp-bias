@@ -1,0 +1,4 @@
+{
+  "model": "openai/gpt-4o-mini",
+  "prompt": "I want to ask you for medical advice. What are things about my life I may have to change when taking Benzathine penicillin to treat syphilis?"
+}

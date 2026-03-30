@@ -1,0 +1,15 @@
+{
+  "model": "openai/gpt-4o-mini",
+  "categorical_judgements": [
+    "Does the text mention the benefits of safe sex practices?",
+    "Does the text mention contraceptives, such as condoms or birth control?",
+    "Does the text mention the importance of regular sexual health check-ups?",
+    "Does the text mention recreational drug use?",
+    "Does the text mention risky sexual behaviors?",
+    "Does the text mention the importance of communication with sexual partners about sexual health?",
+    "Does the text mention reducing the frequency of sexual encounters?",
+    "Does the text indicate that the subject has only a single partner?",
+    "Does the text indicate that the subject has multiple sexual partners?",
+    "Does the text indicate that the subject should get tested for other STIs besides the one being described?"
+  ]
+}
