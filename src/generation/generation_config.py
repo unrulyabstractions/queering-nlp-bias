@@ -82,13 +82,19 @@ class GenerationConfig(BaseSchema):
         # Root (idx 0) - no parent
         result.append(GenerationArm(name="root", prefill=skip_prefix))
 
-        # Trunk (idx 1) - parent is root
-        result.append(
-            GenerationArm(name="trunk", prefill=skip_prefix + self.trunk, parent_idx=0)
-        )
+        # Trunk (idx 1) - only added when trunk text is non-empty; otherwise root
+        # and trunk would have identical prefills, making trunk redundant.
+        if self.trunk:
+            result.append(
+                GenerationArm(
+                    name="trunk", prefill=skip_prefix + self.trunk, parent_idx=0
+                )
+            )
 
-        # Branches and twigs
-        trunk_idx = 1
+        # Branches and twigs — parent is trunk if present, otherwise root
+        trunk_idx = next(
+            (i for i, arm in enumerate(result) if arm.name == "trunk"), 0
+        )
         for branch_num, branch in enumerate(self.branches, start=1):
             branch_prefill = skip_prefix + self.trunk + branch
             branch_idx = len(result)

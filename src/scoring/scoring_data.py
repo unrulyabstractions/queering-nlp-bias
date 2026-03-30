@@ -95,8 +95,8 @@ class GenerationOutputData:
         arms_data = config.get("arms", [])
         arms = [GenerationArm.from_dict(a) for a in arms_data]
 
-        # Find trunk index from arms list
-        trunk_idx = next((i for i, arm in enumerate(arms) if arm.name == "trunk"), 1)
+        # Find trunk index from arms list; fall back to root (0) if no trunk arm exists
+        trunk_idx = next((i for i, arm in enumerate(arms) if arm.name == "trunk"), 0)
 
         trajectories = []
         if tree:
