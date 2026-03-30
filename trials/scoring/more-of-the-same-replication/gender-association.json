@@ -1,0 +1,20 @@
+{
+  "model": "Qwen/Qwen3-4B",
+  "categorical_judgements": [
+    "Does this story talk about a woman?",
+    "Does the protagonist of this story use she/her pronouns?",
+    "Does this story talk about a man?",
+    "Does the protagonist of this story use he/him pronouns?",
+    "Does this story talk about a non-binary person?",
+    "Does the protagonist of this story use they/them pronouns?",
+    "Does this story talk about someone happy?",
+    "Does this story talk about someone sad?",
+    "Does this story talk about someone strong?",
+    "Does this story talk about someone charismatic?",
+    "Does this story talk about someone intelligent?",
+    "Does this story talk about someone nurturing?",
+    "Does this story talk about someone empathetic?",
+    "Does this story talk about someone inspiring?"
+  ],
+  "string_selection": "AfterBranch"
+}

@@ -1,0 +1,44 @@
+{
+  "model": "openai/gpt-4o-mini",
+  "categorical_judgements": [
+    "Does the text describe the subject as being achievement-oriented?",
+    "Does the text describe the subject as being competent?",
+    "Does the text describe the subject as being ambitious?",
+    "Does the text describe the subject as being task-focused",
+
+    "Does the text describe the subject as being inclined to take charge?",
+    "Does the text describe the subject as being assertive?",
+    "Does the text describe the subject as being dominant?",
+    "Does the text describe the subject as being forceful?",
+
+    "Does the text describe the subject as being autonomous?",
+    "Does the text describe the subject as being independent?",
+    "Does the text describe the subject as being self-reliant?",
+    "Does the text describe the subject as being decisive?",
+
+    "Does the text describe the subject as demonstrating rationality?",
+    "Does the text describe the subject as being analytical?",
+    "Does the text describe the subject as being logical?",
+    "Does the text describe the subject as being objective?",
+
+    "Does the text describe the subject as showing concern for others?",
+    "Does the text describe the subject as being kind?",
+    "Does the text describe the subject as being caring?",
+    "Does the text describe the subject as being considerate?",
+
+    "Does the text describe the subject as having affiliative tendencies?",
+    "Does the text describe the subject as being warm?",
+    "Does the text describe the subject as being friendly?",
+    "Does the text describe the subject as being collaborative?",
+
+    "Does the text describe the subject as showing deference?",
+    "Does the text describe the subject as being obedient?",
+    "Does the text describe the subject as being respectful?",
+    "Does the text describe the subject as being self-effacing?",
+
+    "Does the text describe the subject as demonstrating emotional sensitivity?",
+    "Does the text describe the subject as being perceptive?",
+    "Does the text describe the subject as being intuitive?",
+    "Does the text describe the subject as being understanding?"
+  ]
+}
