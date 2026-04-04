@@ -469,7 +469,9 @@ def _compute_arm_suffix_probs(
 
         traj = get_traj_for_arm(arm_name)
         if not traj.arm_token_lengths:
-            raise ValueError(f"Trajectory for '{arm_name}' has no arm_token_lengths")
+            # CSV-imported trajectories have no logprob data; default to 1.0
+            arm_suffix_probs[arm_name] = 1.0
+            continue
         if arm_idx >= len(traj.arm_token_lengths):
             raise IndexError(f"arm_idx {arm_idx} >= len(arm_token_lengths)")
 

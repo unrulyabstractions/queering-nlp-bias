@@ -340,15 +340,13 @@ def get_arm_color(name: str) -> str:
             "Expected format: twig_bN_M"
         )
 
-    # For branches, extract index and use BRANCH_COLORS
+    # For branches, extract index and use BRANCH_COLORS.
+    # Flat/CSV arms don't follow branch_N format, so fall back to a hash-based index.
     if kind == ArmKind.BRANCH:
         branch_idx = get_branch_index(name)
-        if branch_idx is not None:
-            return BRANCH_COLORS[(branch_idx - 1) % len(BRANCH_COLORS)]
-        raise ValueError(
-            f"Cannot determine branch index for branch '{name}'. "
-            "Expected format: branch_N"
-        )
+        if branch_idx is None:
+            branch_idx = (hash(name) % len(BRANCH_COLORS)) + 1
+        return BRANCH_COLORS[(branch_idx - 1) % len(BRANCH_COLORS)]
 
     raise ValueError(
         f"Cannot determine color for arm '{name}' with kind {kind}. "
