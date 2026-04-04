@@ -288,6 +288,8 @@ def create_arm_legend(
     arm_names: list[str],
     arm_descriptions: dict[str, str] | None = None,
     *,
+    arm_colors: dict[str, str] | None = None,
+    arm_counts: dict[str, int] | None = None,
     max_desc_length: int = 35,
     fontsize: int = 9,
     bbox_anchor: tuple[float, float] = (1.02, 1),
@@ -420,7 +422,7 @@ def create_arm_legend(
         prev_family = None
 
         for arm_name, family_idx in arm_family_order:
-            color = get_arm_color(arm_name)
+            color = arm_colors[arm_name] if arm_colors and arm_name in arm_colors else get_arm_color(arm_name)
             kind = classify_arm(arm_name)
 
             # Add spacing between families (visual grouping)
@@ -453,9 +455,10 @@ def create_arm_legend(
 
             # Draw arm name: Roboto Mono, bold, slightly gray
             text_x = x_start + indent + swatch_size + 0.008
+            count_suffix = f" ({arm_counts[arm_name]})" if arm_counts and arm_name in arm_counts else ""
             ax.text(
                 text_x, y_pos,
-                arm_name,
+                arm_name + count_suffix,
                 transform=ax.transAxes,
                 fontproperties=arm_font,
                 color='#666',  # Slightly gray

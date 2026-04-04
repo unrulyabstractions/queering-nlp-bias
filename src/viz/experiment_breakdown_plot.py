@@ -213,13 +213,26 @@ def plot_structure_breakdown(
                 alpha=0.92,
             )
 
+            traj_count = arm.get("trajectory_count", 0)
+            for y_pos, val in zip(y_positions + offset, values):
+                if val > 0:
+                    count = round(val / 100 * traj_count)
+                    ax.text(
+                        val + 0.5,
+                        y_pos,
+                        f"{count} ({val:.0f}%)",
+                        ha="left",
+                        va="center",
+                        fontsize=5,
+                        color=color,
+                    )
+
     with P("breakdown_styling"):
-        # Build y-tick labels (questions only)
+        # Build y-tick labels (questions only) - no truncation, tight_layout handles margins
         y_labels = []
         for _, questions in struct_questions:
             for q_text, _ in questions:
-                q_short = q_text[:45] + "..." if len(q_text) > 48 else q_text
-                y_labels.append(q_short)
+                y_labels.append(q_text)
 
         ax.set_yticks(y_positions)
         ax.set_yticklabels(y_labels, fontsize=9)
@@ -375,9 +388,10 @@ def plot_structure_breakdown(
             )
 
     with P("breakdown_save"):
-        # Save with proper margins - more space on right for legend, metadata, and prompt
+        # Let tight_layout compute left margin freely so labels are never clipped,
+        # then only override right to reserve space for the legend.
         plt.tight_layout()
-        plt.subplots_adjust(left=0.28, right=0.58)
+        plt.subplots_adjust(right=0.58)
         save_figure(plt.gcf(), output_path)
 
     return output_path

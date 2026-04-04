@@ -83,8 +83,11 @@ def plot_structure_forking(
 
     arm_names = list(arm_weighted_cores.keys())
 
-    # Build tree and layout
-    tree = build_arm_tree(arm_names, arm_n_traj, arm_suffix_probs)
+    # Build tree and layout — flat/CSV-imported experiments have no hierarchy
+    try:
+        tree = build_arm_tree(arm_names, arm_n_traj, arm_suffix_probs)
+    except (ValueError, KeyError):
+        return None
     if not tree:
         return None
 
