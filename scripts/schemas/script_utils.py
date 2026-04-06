@@ -253,7 +253,14 @@ def run_generation_script(
     log_section(section_title)
     config.get_params(method).print()
 
-    log_prompt_header(config.prompt, config.trunk, config.branches, config.twig_variations)
+    if config.is_template_mode:
+        log_prompt_header(
+            config.prompt_template,
+            f"[template_words: {config.template_words}]",
+            [],
+        )
+    else:
+        log_prompt_header(config.prompt, config.trunk, config.branches, config.twig_variations)
 
     # Run generation pipeline with logging
     result = run_generation_pipeline(runner, config, method=method, log_fn=log)

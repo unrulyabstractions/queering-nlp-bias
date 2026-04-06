@@ -77,8 +77,8 @@ class GenerationOutputData:
 
     @property
     def arm_texts(self) -> dict[str, str]:
-        """Map arm names to prefill texts."""
-        return {arm.name: arm.prefill for arm in self.arms}
+        """Map arm names to their identifying text (filled prompt in template mode, prefill otherwise)."""
+        return {arm.name: arm.prompt or arm.prefill for arm in self.arms}
 
     @classmethod
     def load(cls, path: str | Path) -> GenerationOutputData:

@@ -14,7 +14,7 @@ import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
 
 from src.common.default_config import DEFAULT_STATISTIC
-from src.estimation.arm_types import get_arm_color, get_ordered_arms_for_plotting
+from src.estimation.arm_types import build_arm_color_map, get_ordered_arms_for_plotting
 
 from .viz_plot_utils import add_dense_grid, is_camera_ready, save_figure, style_axis_clean
 
@@ -254,6 +254,7 @@ def plot_generalized_deviance(
     arm_names = [a.name for a in result.arms]
     ordered_names = get_ordered_arms_for_plotting(arm_names)
     arms_dict = {a.name: a for a in result.arms}
+    arm_color_map = build_arm_color_map(ordered_names)
 
     if not ordered_names:
         return None
@@ -306,7 +307,7 @@ def plot_generalized_deviance(
                 name = v["name"]
                 data.append({"q": q, "r": r, "dev": dev, "name": name})
 
-            arm_color = get_arm_color(arm.name)
+            arm_color = arm_color_map[arm.name]
 
             # q trajectory (r=1 fixed)
             q_trajectory = [(d["q"], d["dev"], d["name"]) for d in data if d["r"] == 1.0]

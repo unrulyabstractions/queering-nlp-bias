@@ -24,7 +24,7 @@ from ..generation_config import GenerationConfig
 from ..generation_method_registry import register_method
 from src.common.experiment_types import ArmGenerationResult
 
-from .generation_method_utils import compute_arm_token_lengths
+from .generation_method_utils import compute_arm_token_lengths, get_arm_prompt
 from .forking_paths_params import ForkingParams
 from .forking_paths_types import (
     ForkPoint,
@@ -242,13 +242,11 @@ def generate_forking(
     arms = config.get_arms(runner.skip_thinking_prefix)
     arm_token_lengths = compute_arm_token_lengths(runner, config, arms)
 
-    base_formatted_prompt = runner.apply_chat_template(config.prompt)
-
     all_trajectories: list[GeneratedTrajectory] = []
     all_arm_indices: list[int] = []
 
     for arm_idx, arm in enumerate(arms):
-        formatted_prompt = base_formatted_prompt + arm.prefill
+        formatted_prompt = runner.apply_chat_template(get_arm_prompt(arm, config)) + arm.prefill
         prompt_ids = runner.encode_ids(formatted_prompt, add_special_tokens=True)
         prompt_len = len(prompt_ids)
 

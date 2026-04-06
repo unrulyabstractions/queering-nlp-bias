@@ -15,8 +15,8 @@ import numpy as np
 from src.common.profiler import P
 from src.estimation.arm_types import (
     ArmKind,
+    build_arm_color_map,
     classify_arm,
-    get_arm_color,
     get_branch_index,
 )
 
@@ -178,6 +178,7 @@ def plot_structure_breakdown(
         fig, ax = plt.subplots(figsize=(12, fig_height))
 
     with P("breakdown_draw_bars"):
+        arm_color_map = build_arm_color_map(ordered_arms)
         # Plot bars for each arm in family order
         for arm_name in ordered_arms:
             arm = arm_data_lookup[arm_name]
@@ -200,7 +201,7 @@ def plot_structure_breakdown(
                     q_idx += 1
 
             offset = arm_offsets[arm_name]
-            color = get_arm_color(arm_name)
+            color = arm_color_map[arm_name]
 
             ax.barh(
                 y_positions + offset,
@@ -331,6 +332,7 @@ def plot_structure_breakdown(
             ax,
             arm_names,
             arm_descriptions,
+            arm_colors=arm_color_map,
             max_desc_length=35,
             fontsize=7,
             bbox_anchor=(1.25, 0.5),

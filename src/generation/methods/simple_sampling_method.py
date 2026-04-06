@@ -25,7 +25,7 @@ from ..generation_config import GenerationConfig
 from ..generation_method_registry import GenerationMethodParams, register_method
 from src.common.experiment_types import ArmGenerationResult
 
-from .generation_method_utils import compute_arm_token_lengths
+from .generation_method_utils import compute_arm_token_lengths, get_arm_prompt
 
 from .logging.gen_logging_utils import log_arm_header
 
@@ -46,6 +46,7 @@ class SamplingParams(GenerationMethodParams):
 def sample_from_arm(
     runner: ModelRunner,
     config: GenerationConfig,
+    arm_prompt: str,
     prefill: str,
     samples_per_arm: int,
     log_fn: LogFn | None = None,
@@ -54,7 +55,7 @@ def sample_from_arm(
     trajectories = []
     for i in range(samples_per_arm):
         traj = runner.generate_trajectory_from_prompt(
-            prompt=config.prompt,
+            prompt=arm_prompt,
             max_new_tokens=config.max_new_tokens,
             temperature=config.temperature,
             prefilling=prefill,
@@ -95,6 +96,7 @@ def generate_sampling(
         trajectories = sample_from_arm(
             runner=runner,
             config=config,
+            arm_prompt=get_arm_prompt(arm, config),
             prefill=arm.prefill,
             samples_per_arm=params.samples_per_arm,
             log_fn=log_fn,

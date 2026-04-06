@@ -494,6 +494,12 @@ def _compute_arm_suffix_probs(
             raise ValueError(f"Unknown arm kind for '{arm_name}'")
 
         if parent_idx is None:
+            # Template-mode arms have parent_idx=None in the stored config — they are
+            # independent top-level prompts with no prefix suffix to evaluate, so prob=1.0.
+            stored_arm = config_arms[arm_name_to_idx[arm_name]]
+            if stored_arm.get("parent_idx") is None:
+                arm_suffix_probs[arm_name] = 1.0
+                continue
             raise KeyError(f"Parent index not found for '{arm_name}'")
         if parent_idx >= len(traj.arm_token_lengths):
             raise IndexError(f"parent_idx {parent_idx} >= len(arm_token_lengths)")

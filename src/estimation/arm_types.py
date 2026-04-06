@@ -354,6 +354,46 @@ def get_arm_color(name: str) -> str:
     )
 
 
+def build_arm_color_map(arm_names: list[str]) -> dict[str, str]:
+    """Build a collision-free color map for a set of arm names.
+
+    For standard arms (root, trunk, branch_N, twig_*) each name maps to a
+    canonical, deterministic color via get_arm_color(). For template-mode arms
+    (arbitrary names that don't follow the standard naming convention),
+    BRANCH_COLORS are assigned positionally, guaranteeing distinct colors for
+    up to len(BRANCH_COLORS) arms without any hash collisions.
+
+    Always call this once with the full list of arm names for a plot and store
+    the result — do not call get_arm_color() per-arm inside a loop for plots
+    that contain template-mode arms.
+
+    Args:
+        arm_names: All arm names that will appear in the plot
+
+    Returns:
+        Dict mapping each arm name to a hex color string
+    """
+    # Template arms are any names that don't match the standard naming scheme.
+    template_arms = [
+        name for name in arm_names
+        if name not in ("root", "trunk")
+        and not name.startswith("branch_")
+        and not name.startswith("twig_b")
+    ]
+    template_arms_set = set(template_arms)
+
+    color_map: dict[str, str] = {}
+    for name in arm_names:
+        if name not in template_arms_set:
+            color_map[name] = get_arm_color(name)
+
+    # Assign positionally so colors are always distinct within a single plot.
+    for position, name in enumerate(template_arms):
+        color_map[name] = BRANCH_COLORS[position % len(BRANCH_COLORS)]
+
+    return color_map
+
+
 def get_arm_sort_key(name: str) -> tuple[int, int, int, str]:
     """Get a sort key for ordering arms consistently.
 

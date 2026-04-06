@@ -12,6 +12,7 @@ Configuration files for trajectory generation experiments.
   "prompt": "Write a story...",
   "trunk": "Once upon a time",
   "branches": [" boy", " girl"],
+  "twig_variations": [" and his dog", " and her dog"],
   "temperature": 1.0,
   "max_new_tokens": 128
 }
@@ -21,13 +22,18 @@ Configuration files for trajectory generation experiments.
 
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `model` | Yes | - | HuggingFace model ID |
-| `prompt` | Yes | - | System/instruction prompt |
+| `model` | Yes | - | HuggingFace model ID or API provider |
+| `prompt` | Yes\* | - | System/instruction prompt (\*not used in template mode) |
 | `trunk` | No | `""` | Shared prefix for all trajectories |
-| `branches` | No | `[]` | Branch-specific prefixes |
+| `branches` | No | `[]` | Branch-specific prefixes (appended after trunk) |
+| `twig_variations` | No | `[]` | Per-branch suffixes; each branch × twig becomes one arm |
 | `temperature` | No | `1.0` | Sampling temperature |
 | `max_new_tokens` | No | `128` | Maximum tokens to generate |
 | `seed` | No | `null` | Random seed for reproducibility |
+| `prompt_template` | No\*\* | - | Prompt with `{word}` placeholder (template mode) |
+| `template_words` | No\*\* | - | Words substituted into `prompt_template`, one arm each |
+
+\*\* `prompt_template` and `template_words` must be used together and are mutually exclusive with `prompt`, `trunk`, `branches`, and `twig_variations`.
 | `method_params` | No | `{}` | Method-specific parameter overrides |
 
 ## Method Parameters

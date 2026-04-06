@@ -15,6 +15,7 @@ import numpy as np
 
 from src.estimation.arm_types import (
     ArmKind,
+    build_arm_color_map,
     classify_arm,
     get_arm_ancestry,
     get_arm_color,
@@ -125,6 +126,7 @@ def _plot_deviance_trajectories(
     # Get arms ordered
     arm_names = [a.name for a in result.arms]
     ordered_names = get_ordered_arms_for_plotting(arm_names)
+    arm_color_map = build_arm_color_map(ordered_names)
 
     # Find max ancestry depth
     max_depth = 0
@@ -144,7 +146,7 @@ def _plot_deviance_trajectories(
             continue
 
         ancestry = get_arm_ancestry(arm_name)
-        color = get_arm_color(arm_name)
+        color = arm_color_map[arm_name]
         kind = classify_arm(arm_name)
 
         # Get metric values and variances along ancestry
@@ -338,6 +340,7 @@ def plot_orientation_for_reference(
     other_arms = [a for a in result.arms if a.name in downstream_names]
     if not other_arms or not structure_labels:
         return None
+    arm_color_map = build_arm_color_map([a.name for a in other_arms])
 
     n_arms = len(other_arms)
     n_structures = len(structure_labels)
@@ -422,7 +425,7 @@ def plot_orientation_for_reference(
             )
 
         # Title with arm name (colored) and norm
-        arm_color = get_arm_color(arm.name)
+        arm_color = arm_color_map[arm.name]
         ax.set_title(
             f"{arm.name.upper()}  (||θ|| = {orient_norm:.3f})",
             fontsize=11,
@@ -590,6 +593,7 @@ def plot_core_diversity_by_arm(
     # Get arms ordered
     arm_names = [a.name for a in result.arms]
     ordered_names = get_ordered_arms_for_plotting(arm_names)
+    arm_color_map = build_arm_color_map(ordered_names)
 
     # Find max ancestry depth for x-axis
     max_depth = 0
@@ -605,7 +609,7 @@ def plot_core_diversity_by_arm(
     # Plot each arm's trajectory through its ancestry
     for arm_name in ordered_names:
         ancestry = get_arm_ancestry(arm_name)
-        color = get_arm_color(arm_name)
+        color = arm_color_map[arm_name]
         kind = classify_arm(arm_name)
 
         # Get diversity values along ancestry
@@ -697,7 +701,7 @@ def plot_core_diversity_by_arm(
 
     arm_legend_elements = []
     for arm_name in ordered_names:
-        color = get_arm_color(arm_name)
+        color = arm_color_map[arm_name]
         arm_legend_elements.append(
             Line2D(
                 [0],

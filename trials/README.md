@@ -28,13 +28,18 @@ trials/
 | Field | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | `model` | string | yes | - | HuggingFace model ID or API provider |
-| `prompt` | string | yes | - | System/user prompt for generation |
+| `prompt` | string | yes\* | - | System/user prompt for generation (\*not used in template mode) |
 | `trunk` | string | no | `""` | Shared prefix for all branches |
-| `branches` | list[str] | no | `[]` | Branch-specific prefixes |
+| `branches` | list[str] | no | `[]` | Branch-specific prefixes (appended after trunk) |
+| `twig_variations` | list[str] | no | `[]` | Per-branch suffixes; each branch × twig becomes one arm |
 | `temperature` | float | no | `1.0` | Sampling temperature |
 | `max_new_tokens` | int | no | `128` | Maximum tokens to generate |
 | `seed` | int | no | `null` | Random seed for reproducibility |
 | `method_params` | object | no | `{}` | Method-specific parameter overrides |
+| `prompt_template` | string | no\*\* | - | Prompt with `{word}` placeholder (template mode) |
+| `template_words` | list[str] | no\*\* | - | Words substituted into `prompt_template`, one arm each |
+
+\*\* `prompt_template` and `template_words` must be used together and are mutually exclusive with `prompt`, `trunk`, `branches`, and `twig_variations`.
 
 ### Method Parameter Overrides
 
@@ -60,13 +65,38 @@ Override generation method settings via `method_params`:
 
 ### Branching Logic
 
-- If `branches` is empty: all trajectories share the trunk (single group)
-- If `branches` has entries: creates one group per branch
+Arms are built in a hierarchy: **root → trunk → branches → twigs**.
 
-**Example**: With `trunk: "The protagonist is a "` and `branches: [" boy", " girl"]`:
-- Group 0 (trunk): "The protagonist is a " + continuation
-- Group 1: "The protagonist is a boy" + continuation
-- Group 2: "The protagonist is a girl" + continuation
+- If `branches` is empty: only the root (and trunk if set) arms are generated.
+- If `branches` has entries: each branch becomes one arm (prefill = trunk + branch text).
+- If `twig_variations` is set: each branch spawns one arm per twig (prefill = trunk + branch + twig), creating `len(branches) × len(twig_variations)` extra arms.
+
+**Example (branches only)** — `trunk: "The protagonist is a"`, `branches: [" boy", " girl"]`:
+- arm `root`: trunk prefix only
+- arm `branch_1`: "The protagonist is a boy"
+- arm `branch_2`: "The protagonist is a girl"
+
+**Example (branches + twigs)** — `trunk: "At the altar, our protagonist, who was a"`, `branches: [" mechanic,", " nurse,"]`, `twig_variations: [" and his partner", " and her partner"]`:
+- arm `branch_1`: "…a mechanic,"
+- arm `twig_b1_1`: "…a mechanic, and his partner"
+- arm `twig_b1_2`: "…a mechanic, and her partner"
+- arm `branch_2`: "…a nurse,"
+- arm `twig_b2_1`: "…a nurse, and his partner"
+- arm `twig_b2_2`: "…a nurse, and her partner"
+
+### Template Mode
+
+An alternative to trunk/branches for simple substitution experiments. Set `prompt_template` (a string containing `{word}`) and `template_words` (a list of substitution values). Each word produces one arm with its own filled prompt and no prefill text.
+
+Template mode is **mutually exclusive** with `prompt`, `trunk`, `branches`, and `twig_variations`.
+
+```json
+{
+  "model": "openai/gpt-4o-mini",
+  "prompt_template": "Write a one-sentence bio for a {word}.",
+  "template_words": ["nurse", "engineer", "teacher"]
+}
+```
 
 ### Examples
 
@@ -85,6 +115,26 @@ Override generation method settings via `method_params`:
   "prompt": "Write a story in LESS than 12 words about EITHER a boy OR a cat.",
   "trunk": "Once upon a time, there was a",
   "branches": [" boy", " cat"]
+}
+```
+
+**With Branches + Twigs**:
+```json
+{
+  "model": "Qwen/Qwen3.5-2B",
+  "prompt": "In less than three sentences, write an extremely short love story.",
+  "trunk": "At the altar, our protagonist, who was a ",
+  "branches": ["mechanic,", "nurse,"],
+  "twig_variations": [" and his partner", " and her partner"]
+}
+```
+
+**Template Mode**:
+```json
+{
+  "model": "openai/gpt-4o-mini",
+  "prompt_template": "Generate a persona of a {word}.",
+  "template_words": ["man", "woman", "non-binary person"]
 }
 ```
 
