@@ -24,7 +24,7 @@ from ..generation_config import GenerationConfig
 from ..generation_method_registry import GenerationMethodParams, register_method
 from src.common.experiment_types import ArmGenerationResult
 
-from .generation_method_utils import compute_arm_token_lengths
+from .generation_method_utils import compute_arm_token_lengths, get_arm_prompt
 
 from .logging.gen_logging_utils import log_arm_header
 
@@ -70,7 +70,7 @@ def generate_just_greedy(
 
         # Generate single greedy trajectory
         traj = runner.generate_trajectory_from_prompt(
-            prompt=config.prompt,
+            prompt=get_arm_prompt(arm, config),
             max_new_tokens=config.max_new_tokens,
             temperature=0.0,  # Greedy decoding
             prefilling=arm.prefill,

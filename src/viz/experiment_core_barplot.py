@@ -14,7 +14,7 @@ import numpy as np
 
 from src.common.default_config import DEFAULT_WEIGHTING_METHOD
 from src.common.profiler import P
-from src.estimation.arm_types import get_arm_color, get_ordered_arms_for_plotting
+from src.estimation.arm_types import build_arm_color_map, get_arm_color, get_ordered_arms_for_plotting
 
 from .viz_plot_utils import (
     add_dense_grid,
@@ -200,6 +200,7 @@ def plot_cores_comparison(
             total_group_width / 2 - bar_width / 2,
             n_arms
         )
+        arm_color_map = build_arm_color_map([a.name for a in arms_to_plot])
 
         for row_idx, method in enumerate(ordered_methods):
             ax = axes[row_idx]
@@ -210,7 +211,7 @@ def plot_cores_comparison(
                 if not core:
                     continue
 
-                color = get_arm_color(arm.name)
+                color = arm_color_map[arm.name]
                 bars = ax.bar(
                     x + offsets[i],
                     core,

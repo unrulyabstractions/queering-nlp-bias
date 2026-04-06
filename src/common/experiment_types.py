@@ -17,19 +17,30 @@ class GenerationArm:
 
     Arms are stored in a list - position IS the index.
     parent_idx points to parent arm's position for AfterBranch text selection.
+
+    In template mode, `prompt` holds the arm-specific filled prompt and
+    `prefill` is empty (or just the skip-thinking prefix). In traditional
+    mode, `prompt` is empty and the shared config.prompt is used instead.
     """
 
     name: str
     prefill: str
     parent_idx: int | None = None
+    # Arm-specific prompt — non-empty only in template mode.
+    # Empty string means "inherit from config.prompt".
+    prompt: str = ""
 
     def to_dict(self) -> dict:
         """Convert to dict for JSON storage."""
-        return {
+        d = {
             "name": self.name,
             "prefill": self.prefill,
             "parent_idx": self.parent_idx,
         }
+        # Only include prompt when set — keeps traditional-mode output unchanged.
+        if self.prompt:
+            d["prompt"] = self.prompt
+        return d
 
     @classmethod
     def from_dict(cls, data: dict) -> "GenerationArm":
@@ -38,6 +49,7 @@ class GenerationArm:
             name=data["name"],
             prefill=data["prefill"],
             parent_idx=data.get("parent_idx"),
+            prompt=data.get("prompt", ""),
         )
 
 
