@@ -194,6 +194,181 @@ For each arm in [trunk, branch_1, branch_2, ...]:
         save(trajectory.token_ids, trajectory.logprobs)
 ```
 
+---
+
+## score_estimate_visualize.py
+
+**Purpose**: Run the three downstream pipeline stages (score → estimate → visualize) on an already-existing `generation.json` output file, skipping the generation step entirely.
+
+This is the primary entry point when working with imported CSV data or when re-running analysis on a previous generation.
+
+### Usage
+
+```bash
+uv run python scripts/score_estimate_visualize.py \
+    out/<method>/generation.json \
+    trials/scoring/<scoring_config>.json
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `generation_output` | Path to an existing `generation.json` file |
+| `scoring_config` | Path to a scoring config JSON |
+
+### How It Works
+
+1. **Score**: Loads `generation.json` and the scoring config; runs the scoring pipeline; writes `score_*.json` alongside the generation file.
+2. **Estimate**: Loads the scoring output; computes normativity metrics; writes `est_*.json`.
+3. **Visualize**: Loads the estimation output; generates plots in `<parent_dir>/viz/`.
+
+---
+
+## import_csv_generations.py
+
+**Purpose**: Convert a pre-existing two-column `(text, label)` CSV into the `generation.json` format expected by the pipeline, without running any language model.
+
+Use this when you have external or previously-generated text (e.g., from the More-of-the-Same dataset) that you want to score and analyze.
+
+### Usage
+
+```bash
+# Minimal — output written to out/<csv_stem>/generation.json
+uv run python scripts/import_csv_generations.py data.csv
+
+# Custom output path
+uv run python scripts/import_csv_generations.py data.csv --output out/myexp/generation.json
+
+# Custom columns, no header, explicit metadata
+uv run python scripts/import_csv_generations.py data.csv \
+    --text-col 0 --label-col 1 --no-header \
+    --model gpt-4o --prompt "Describe the patient."
+```
+
+### CSV Format
+
+By default column 0 is the generated text and column 1 is the arm/condition label. The first row is skipped as a header.
+
+```
+text,label
+"He fixed the car quickly.",man
+"She fixed the car quickly.",woman
+```
+
+Each unique label value becomes one arm in the resulting `generation.json`.
+
+### Arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `csv` | required | Path to input CSV file |
+| `--output` / `-o` | `out/<stem>/generation.json` | Output path |
+| `--text-col` | `0` | Zero-based column index for generated text |
+| `--label-col` | `1` | Zero-based column index for arm/condition label |
+| `--no-header` | off | Pass if CSV has no header row |
+| `--model` | `external` | Model name recorded in output metadata |
+| `--prompt` | `""` | Prompt text recorded in output metadata |
+
+### Outputs
+
+| File | Contents |
+|------|----------|
+| `out/<stem>/generation.json` | Trajectory data in pipeline format |
+| `out/<stem>/generation_cfg.json` | Stub config so visualizations can load metadata |
+
+---
+
+## import_more_of_the_same.py
+
+**Purpose**: Merge the *specified* and *associated* CSVs produced by the [More-of-the-Same](https://github.com/jennm/more-of-the-same) dataset pipeline into a single two-column `(text, label)` CSV that `import_csv_generations.py` can ingest.
+
+### Background
+
+The More-of-the-Same dataset provides two CSV files per experiment:
+
+- **Specified CSV** — contains `text`, `gender`, and `occupation` columns. The `gender` column holds the explicitly specified gender (e.g., `M`, `F`, `N`).
+- **Associated CSV** — contains `text`, `inferred_gender`, and `occupation` columns. The `inferred_gender` column holds gender inferred from names/pronouns.
+
+This script labels specified rows as `"<gender> (specified)"` and associated rows as `"<gender> (associated)"`, then optionally samples to balance the dataset.
+
+### Usage
+
+```bash
+# Basic merge
+uv run python scripts/import_more_of_the_same.py specified.csv associated.csv
+
+# Custom output path
+uv run python scripts/import_more_of_the_same.py specified.csv associated.csv \
+    --output out/mots/merged.csv
+
+# Controlled sampling (5 rows per occupation, 2 per gender per occupation)
+uv run python scripts/import_more_of_the_same.py specified.csv associated.csv \
+    --samples-per-occupation 5 --samples-per-gender 2
+
+# Deterministic (first-N) instead of random selection
+uv run python scripts/import_more_of_the_same.py specified.csv associated.csv \
+    --no-random-sample
+
+# Exclude non-binary rows (gender marker = 'N')
+uv run python scripts/import_more_of_the_same.py specified.csv associated.csv \
+    --exclude-non-binary
+
+# Keep all rows, no sampling
+uv run python scripts/import_more_of_the_same.py specified.csv associated.csv \
+    --all-pairs
+```
+
+### Arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `specified_csv` | required | Path to the specified CSV (`gender` column) |
+| `associated_csv` | required | Path to the associated CSV (`inferred_gender` column) |
+| `--output` / `-o` | `trials/csv_import_data/more-of-the-same-<pg>-pg-<po>-po[-random][-no-nb].csv` | Output path |
+| `--samples-per-occupation` | `3` | Max rows per occupation after gender sampling |
+| `--samples-per-gender` | `3` | Max rows per (occupation, gender) group |
+| `--random-sample` / `--no-random-sample` | random | Random sampling vs. deterministic first-N |
+| `--exclude-non-binary` | off | Drop rows where gender marker is `N` |
+| `--all-pairs` | off | Disable all sampling; keep every pair |
+
+### Sampling Logic
+
+Sampling is applied independently to each CSV:
+
+1. Group rows by `(occupation, gender)`.
+2. Keep up to `--samples-per-gender` rows per group (random or first-N).
+3. Further cap to `--samples-per-occupation` rows per occupation.
+
+### Output Format
+
+A headerless two-column CSV: `text, label`.
+
+```
+"The nurse administered the medication.",F (specified)
+"She prepared the syringe carefully.",F (associated)
+"The nurse checked the patient's chart.",M (specified)
+```
+
+### Typical Workflow
+
+```bash
+# 1. Merge More-of-the-Same CSVs
+uv run python scripts/import_more_of_the_same.py \
+    data/mots/specified.csv data/mots/associated.csv \
+    --output trials/csv_import_data/mots-merged.csv
+
+# 2. Convert to generation.json
+uv run python scripts/import_csv_generations.py \
+    trials/csv_import_data/mots-merged.csv \
+    --output out/mots/generation.json
+
+# 3. Score, estimate, and visualize
+uv run python scripts/score_estimate_visualize.py \
+    out/mots/generation.json \
+    trials/scoring/example.json
+```
+
 **Use case**: Simple, unbiased samples from the distribution.
 
 #### Forking Paths
