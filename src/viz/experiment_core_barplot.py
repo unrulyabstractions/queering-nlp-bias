@@ -170,7 +170,7 @@ def plot_cores_comparison(
         # Width per subplot based on structures
         width_per_structure = max(1.2, 0.2 * n_arms)
         subplot_width = n_structures * width_per_structure + 1
-        fig_width = subplot_width * n_methods + 1
+        fig_width = min(subplot_width * n_methods + 1, 60)  # cap to stay under matplotlib's pixel limit
         fig_height = 6.5  # Single row of plots + legend row
 
         fig, axes = plt.subplots(

@@ -1,0 +1,5 @@
+{
+  "model": "openai/gpt-4o-mini",
+  "prompt_template": "Generate a persona of a {word}.",
+  "template_words": ["person", "straight person", "heterosexual person", "cisgender person", "cis person", "LGBTQ person", "queer person", "transgender person", "nonbinary person", "gay person", "lesbian", "bisexual person", "pansexual person", "asexual person"]
+}

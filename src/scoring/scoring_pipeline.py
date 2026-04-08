@@ -34,7 +34,7 @@ MEMORY_CLEAR_INTERVAL = 1
 API_PARALLEL_WORKERS = 4
 
 # Checkpoint settings for crash recovery
-CHECKPOINT_INTERVAL = 50  # Save every N trajectories
+CHECKPOINT_INTERVAL = 10  # Save every N trajectories
 CHECKPOINT_DIR = Path("/tmp/scoring_checkpoints")
 
 
