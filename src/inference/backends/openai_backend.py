@@ -47,8 +47,14 @@ def _retry_api_call(func, *args, **kwargs):
             time.sleep(backoff)
             backoff = min(backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF)
         except APIStatusError as e:
-            # Server errors (5xx) - retry; client errors (4xx) - don't retry
-            if e.status_code >= 500:
+            # Server errors (5xx) - retry; client errors (4xx) - don't retry,
+            # EXCEPT for 400 "could not parse JSON body" which is a transient
+            # network corruption error, not a real client error.
+            is_json_parse_error = (
+                e.status_code == 400
+                and "could not parse the json body" in str(e).lower()
+            )
+            if e.status_code >= 500 or is_json_parse_error:
                 last_exception = e
                 print(f"  [Retry {attempt + 1}/{MAX_RETRIES}] Server error {e.status_code}, waiting {backoff:.1f}s...")
                 time.sleep(backoff)

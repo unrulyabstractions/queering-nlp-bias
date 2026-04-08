@@ -1,0 +1,5 @@
+{
+  "model": "openai/gpt-4o-mini",
+  "prompt_template": "Generate a persona of a person who {word}.",
+  "template_words": ["is awesome", "crushes it", "is slay", "lowkey ate"]
+}
