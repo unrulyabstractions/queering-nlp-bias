@@ -160,58 +160,99 @@ def params_from_dict(method: str, data: dict) -> ScoringMethodParams:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+def safe_max_parallel(runner: Any | None) -> int:
+    """Return a safe max-parallel count for question-level scoring.
+
+    Local model backends (MLX, HuggingFace) are NOT thread-safe — concurrent
+    `generate()` calls on the same model instance segfault. Only allow
+    intra-trajectory parallelism for API-based backends.
+    """
+    if runner is None:
+        return 1
+    from src.inference.backends.model_backend import ModelBackend
+    api_backends = {ModelBackend.OPENAI, ModelBackend.ANTHROPIC, ModelBackend.GEMINI}
+    return 16 if getattr(runner, "backend", None) in api_backends else 1
+
+
 def score_with_bundling(
     items: list[str | list[str]],
     score_fn: Callable[[str], tuple[Any, str]],
     label_prefix: str,
     log_fn: LogFn | None = None,
+    *,
+    max_parallel: int = 1,
 ) -> tuple[list[Any], list[str | list[str]]]:
-    """Shared loop for bundled item scoring.
+    """Shared loop for bundled item scoring with intra-trajectory parallelism.
 
     Handles both single items and bundled items (lists of items).
     Preserves structure: bundled items return nested lists.
+
+    All sub-questions for one trajectory are scored in parallel via a
+    bounded thread pool — CoT calls are I/O bound and sequential
+    per-question latency dominates total scoring time. Outputs are kept
+    in their original positional order.
 
     Args:
         items: List of items (can be strings or lists of strings for bundles)
         score_fn: Function(item) -> (score, raw_response) to score a single item
         label_prefix: Prefix for logging (e.g., "c", "g", "s")
         log_fn: Optional logging callback
+        max_parallel: Max in-flight per-question calls per trajectory.
 
     Returns:
         Tuple of (scores, raw_responses) preserving bundle structure
     """
-    scores: list[Any] = []
-    raw_responses: list[str | list[str]] = []
+    from concurrent.futures import ThreadPoolExecutor
 
+    # Flatten (struct_idx, sub_idx_or_None, item) so we can submit them all
+    # to a single pool and stitch results back into the original shape.
+    flat: list[tuple[int, int | None, str]] = []
     for struct_idx, item in enumerate(items):
         if isinstance(item, list):
-            # Bundled items - score each individually, preserve as nested list
-            if log_fn:
-                log_fn(f"[{label_prefix}{struct_idx + 1}] Bundled ({len(item)} items)")
-
-            bundle_scores: list[Any] = []
-            bundle_raws: list[str] = []
-            for sub_item in item:
-                score, raw = score_fn(sub_item)
-                bundle_scores.append(score)
-                bundle_raws.append(raw)
-
-                if log_fn:
-                    _log_score(log_fn, sub_item, score, indent=True)
-
-            scores.append(bundle_scores)
-            raw_responses.append(bundle_raws)
+            for sub_idx, sub_item in enumerate(item):
+                flat.append((struct_idx, sub_idx, sub_item))
         else:
-            # Single item
-            score, raw = score_fn(item)
-            scores.append(score)
-            raw_responses.append(raw)
+            flat.append((struct_idx, None, item))
 
-            if log_fn:
-                label = f"[{label_prefix}{struct_idx + 1}]"
-                _log_score(log_fn, item, score, prefix=label)
+    scores: list[Any] = [None] * len(items)
+    raws: list[Any] = [None] * len(items)
+    # Pre-fill bundle slots so we can index into them.
+    for i, item in enumerate(items):
+        if isinstance(item, list):
+            scores[i] = [None] * len(item)
+            raws[i] = [None] * len(item)
 
-    return scores, raw_responses
+    def _do(task: tuple[int, int | None, str]):
+        struct_idx, sub_idx, text = task
+        score, raw = score_fn(text)
+        return struct_idx, sub_idx, score, raw
+
+    if not flat:
+        return scores, raws
+
+    workers = max(1, min(max_parallel, len(flat)))
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for struct_idx, sub_idx, score, raw in ex.map(_do, flat):
+            if sub_idx is None:
+                scores[struct_idx] = score
+                raws[struct_idx] = raw
+            else:
+                scores[struct_idx][sub_idx] = score
+                raws[struct_idx][sub_idx] = raw
+
+    if log_fn:
+        for struct_idx, item in enumerate(items):
+            if isinstance(item, list):
+                log_fn(f"[{label_prefix}{struct_idx + 1}] Bundled ({len(item)} items)")
+                for sub_idx, sub_item in enumerate(item):
+                    _log_score(log_fn, sub_item, scores[struct_idx][sub_idx], indent=True)
+            else:
+                _log_score(
+                    log_fn, item, scores[struct_idx],
+                    prefix=f"[{label_prefix}{struct_idx + 1}]",
+                )
+
+    return scores, raws
 
 
 def _log_score(

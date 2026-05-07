@@ -6,10 +6,16 @@ Estimate normativity metrics from scored trajectories.
 
 ```
 estimation/
-├── methods/                          # Weighting method implementations
-│   ├── prob_weighting_method.py         # Probability weighting (default)
-│   ├── inv_ppl_weighting_method.py      # Inverse perplexity weighting
-│   └── uniform_weighting_method.py      # Uniform weighting (baseline)
+├── methods/                          # Estimation method implementations
+│   ├── prob_weighting_method.py         # Probability weighting
+│   ├── log_prob_weighting_method.py     # Log-probability weighting
+│   ├── inv_ppl_weighting_method.py      # Inverse perplexity weighting (default)
+│   ├── log_inv_ppl_weighting_method.py  # Log inverse perplexity weighting
+│   ├── uniform_weighting_method.py      # Uniform weighting (baseline)
+│   ├── greedy_core_method.py            # Greedy-decoded trajectory's compliance
+│   ├── max_prob_core_method.py          # Max-log-prob trajectory's compliance
+│   ├── max_inv_ppl_core_method.py       # Max-inv-perplexity trajectory's compliance
+│   └── mode_core_method.py              # Per-structure logit-KDE mode
 ├── logging/                          # Display and logging utilities
 │   ├── estimation_display_utils.py      # Structure/compliance/core logging
 │   ├── estimation_step_logging.py       # Pipeline step logging

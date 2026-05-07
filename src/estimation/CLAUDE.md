@@ -58,13 +58,29 @@ if ENABLED:
 | `estimation_structure.py` | `ArmEstimate`, `TrajectoryScoringData` |
 | `estimation_core_types.py` | `CoreVariant`, `NAMED_CORES` (q,r) params |
 
-## Available Weighting Methods
+## Available Estimation Methods
 
-| Method | Description |
-|--------|-------------|
-| `prob` | Normalize by probability (default) |
-| `inv-ppl` | Inverse perplexity (per-token confidence) |
-| `uniform` | Equal weight (baseline) |
+Two flavors: classic *weighting* methods (core derived from weights via
+`generalized_system_core(q=1, r=1)`) and *direct-core* methods that compute
+the core themselves (weights still produced for spread metrics).
+
+| Method | Kind | Description |
+|--------|------|-------------|
+| `prob` | weighting | Normalize by probability |
+| `log-prob` | weighting | Log-probability weighting |
+| `inv-ppl` | weighting | Inverse perplexity (per-token confidence) — default |
+| `log-inv-ppl` | weighting | Log inverse perplexity |
+| `uniform` | weighting | Equal weight (baseline) |
+| `greedy` | direct-core | Compliance of the trajectory voted "most greedy" by the empirical sample. If any trajectory carries `is_greedy=True` it is used; otherwise the method walks the prefix tree of continuation token ids, picking the most-frequent next token at each position to recover the path the samples jointly point to. Distinct from `max-prob` / `max-inv-ppl` because a sample can be a sequence-likelihood maximum yet diverge from the empirical greedy path early. Requires per-trajectory `token_ids` (loaded from `generation.json`); raises `MethodNotApplicableError` if unavailable. |
+| `max-prob` | direct-core | Compliance of the trajectory with max conditional log-prob |
+| `max-inv-ppl` | direct-core | Compliance of the trajectory with max per-token confidence |
+| `mode` | direct-core | Per-structure logit-KDE mode of compliance scores |
+
+For direct-core methods, weights are uniform so deviance/orientation
+remain informative against the population. Methods that aren't applicable
+to a given arm (e.g. `greedy` with no greedy trajectory) raise
+`MethodNotApplicableError`; the pipeline silently excludes them from
+that arm's estimates.
 
 ## Arm Types and Ordering
 

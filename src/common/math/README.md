@@ -15,7 +15,8 @@ math/
 ├── branch_metrics.py           # Distribution metrics (diversity, entropy, concentration)
 ├── fork_metrics.py             # Binary choice metrics (diversity, margin, odds)
 ├── vector_utils.py             # Vector operations (orientation, L2 norm)
-└── faithfulness_scores.py      # Intervention faithfulness scores (sufficiency, etc.)
+├── faithfulness_scores.py      # Intervention faithfulness scores (sufficiency, etc.)
+└── logit_kde.py                # Logit-transformed KDE for densities on (0, 1)
 ```
 
 ## Quick Reference

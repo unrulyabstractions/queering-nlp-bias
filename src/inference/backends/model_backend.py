@@ -17,6 +17,7 @@ class ModelBackend(Enum):
     HUGGINGFACE = "huggingface"
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
 
 
 class Backend(ABC):

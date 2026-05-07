@@ -18,6 +18,7 @@ from src.inference.embedding_runner import EmbeddingRunner
 from ..scoring_method_registry import (
     ScoringMethodParams,
     register_method,
+    safe_max_parallel,
     score_with_bundling,
 )
 from .llm_response_parsing import strip_thinking_content
@@ -159,4 +160,10 @@ def score_graded(
             log_parse_failure("GRADED", question, response, log_fn)
         return score, response
 
-    return score_with_bundling(items, score_single, params.label_prefix, log_fn)
+    return score_with_bundling(
+        items,
+        score_single,
+        params.label_prefix,
+        log_fn,
+        max_parallel=safe_max_parallel(runner),
+    )

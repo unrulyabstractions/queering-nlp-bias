@@ -9,7 +9,13 @@ from collections.abc import Sequence
 from typing import Any
 
 import torch
-from openai import APIConnectionError, APIStatusError, OpenAI, RateLimitError
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    BadRequestError,
+    OpenAI,
+    RateLimitError,
+)
 
 from .api_tokenizer import APITokenizer
 from .model_backend import Backend
@@ -46,6 +52,15 @@ def _retry_api_call(func, *args, **kwargs):
             print(f"  [Retry {attempt + 1}/{MAX_RETRIES}] Connection error, waiting {backoff:.1f}s...")
             time.sleep(backoff)
             backoff = min(backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF)
+        except BadRequestError as e:
+            # 400 — don't retry. Content-policy flags should not crash the
+            # whole run; surface as None so the backend returns "" and the
+            # scorer's parse-failure path (default 0) handles it gracefully.
+            msg = str(e).lower()
+            if "invalid_prompt" in msg or "usage policy" in msg or "content_policy" in msg:
+                print(f"  [SKIP] Prompt flagged by content policy; returning empty.")
+                return None
+            raise
         except APIStatusError as e:
             # Server errors (5xx) - retry; client errors (4xx) - don't retry,
             # EXCEPT for 400 "could not parse JSON body" which is a transient
@@ -60,7 +75,6 @@ def _retry_api_call(func, *args, **kwargs):
                 time.sleep(backoff)
                 backoff = min(backoff * BACKOFF_MULTIPLIER, MAX_BACKOFF)
             else:
-                # Client error (4xx) - don't retry
                 raise
         except Exception as e:
             # Catch JSON decode errors and other transient issues
@@ -106,6 +120,36 @@ class OpenAIBackend(Backend):
         # GPT-4o uses o200k_base encoding
         self._tokenizer = APITokenizer(encoding_name="o200k_base")
         self._client = None
+
+    def _is_reasoning_model(self) -> bool:
+        """GPT-5 / o-series reasoning models use a different parameter set.
+
+        They require `max_completion_tokens` instead of `max_tokens` and
+        do not accept a `temperature` argument (always default).
+        """
+        m = self._model.lower()
+        return (
+            m.startswith("gpt-5")
+            or m.startswith("o1")
+            or m.startswith("o3")
+            or m.startswith("o4")
+        )
+
+    def _completion_args(
+        self, max_new_tokens: int, temperature: float
+    ) -> dict[str, Any]:
+        """Build the kwargs subset for chat.completions.create."""
+        if self._is_reasoning_model():
+            # GPT-5 / o-series: no temperature, use max_completion_tokens.
+            # Default to 'minimal' reasoning so internal reasoning tokens
+            # don't starve the visible response (callers that want CoT put
+            # it in the prompt).
+            return {
+                "max_completion_tokens": max_new_tokens,
+                "reasoning_effort": "minimal",
+            }
+        temp = temperature if temperature > 0 else 0
+        return {"max_tokens": max_new_tokens, "temperature": temp}
 
     def _get_client(self):
         """Lazy-load OpenAI client."""
@@ -155,19 +199,15 @@ class OpenAIBackend(Backend):
         past_kv_cache: Any = None,
     ) -> str:
         client = self._get_client()
-
-        # Use temperature=0 for greedy, otherwise provided value
-        temp = temperature if temperature > 0 else 0
-
         # Use retry wrapper for robustness
         response = _retry_api_call(
             client.chat.completions.create,
             model=self._model,
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_new_tokens,
-            temperature=temp,
+            **self._completion_args(max_new_tokens, temperature),
         )
-
+        if response is None:
+            return ""
         return response.choices[0].message.content or ""
 
     def get_next_token_probs(

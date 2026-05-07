@@ -41,7 +41,12 @@ from .forking_tree_builder import (
 )
 from .legend_layout_engine import optimize_legend_placement
 from .viz_bounding_box import BoundingBox
-from .viz_plot_utils import get_structure_color, save_figure
+from .viz_plot_utils import (
+    get_structure_color,
+    get_structure_color_by_label,
+    get_structure_short_label,
+    save_figure,
+)
 
 
 def plot_structure_forking(
@@ -154,13 +159,23 @@ def plot_structure_forking(
     )
 
     # Extract descriptions and optimize legend placement
-    descriptions = [s.get("description", f"S{i}") for i, s in enumerate(structure_info)]
+    full_descriptions = [s.get("description", f"S{i}") for i, s in enumerate(structure_info)]
+    descriptions = [
+        get_structure_short_label(d, fallback=f"S{i}")
+        for i, d in enumerate(full_descriptions)
+    ]
     legend_layout, legend_top_y, _ = optimize_legend_placement(
         descriptions,
         tree_content,
         figure_bounds,
         target_quadrant="top_left",
     )
+    # Attach the original full description for color/sidecar lookup —
+    # `description` carries the short label used for text rendering.
+    for it in legend_layout.get("items", []):
+        idx = it.get("index", 0)
+        if 0 <= idx < len(full_descriptions):
+            it["full_description"] = full_descriptions[idx]
 
     # DYNAMIC TREE OFFSET: Shift tree right based on legend width
     tree_x_offset = _compute_tree_offset(legend_layout)
@@ -256,22 +271,25 @@ def plot_structure_forking(
             zorder=10,
         )
 
-        # Draw horizontal bars for each structure
+        # Draw horizontal bars for each structure (color from semantic label)
         for i, (val, label) in enumerate(zip(values, structure_labels)):
             bar_y = (
                 y + (n_structures - 1 - i) * bar_height - n_structures * bar_height / 2
             )
             bar_w = val / 100 * bar_width_scale
 
-            color = get_structure_color(i)
+            color = get_structure_color_by_label(
+                structure_info[i].get("description") if i < len(structure_info) else None,
+                fallback_idx=i,
+            )
             ax.barh(
                 bar_y,
                 bar_w,
                 height=bar_height * 0.88,
                 left=x,
                 color=color,
-                edgecolor="white",
-                linewidth=0.8,
+                edgecolor="none",
+                linewidth=0,
                 zorder=5,
             )
 
@@ -298,22 +316,34 @@ def plot_structure_forking(
     # Draw legend and metadata
     render_legend(ax, legend_layout, legend_top_y)
 
-    # Add weighting method label in top-left corner (use figure coords since axis is off)
+    draw_metadata(fig, metadata, n_structures)
+
+    # Method label sits under the Judge / Gen Model info in the bottom-left
+    # corner so it stays grouped with run-context text (instead of floating
+    # in the top-left whitespace where it gets confused for content).
     if weighting_method:
         fig.text(
-            0.01,
-            0.99,
-            f"[{weighting_method}]",
-            fontsize=11,
-            fontweight="bold",
+            0.015,
+            0.075,
+            f"Method:",
+            fontsize=14,
             fontfamily="monospace",
-            color="#555",
+            va="bottom",
             ha="left",
-            va="top",
+            color="#666",
             zorder=200,
         )
-
-    draw_metadata(fig, metadata, n_structures)
+        fig.text(
+            0.095,
+            0.075,
+            weighting_method,
+            fontsize=18,
+            fontweight="bold",
+            va="bottom",
+            ha="left",
+            color="#222",
+            zorder=200,
+        )
 
     save_figure(fig, output_path)
     return output_path
@@ -447,13 +477,23 @@ def plot_orientation_tree(
     )
 
     # Extract descriptions and optimize legend placement
-    descriptions = [s.get("description", f"S{i}") for i, s in enumerate(structure_info)]
+    full_descriptions = [s.get("description", f"S{i}") for i, s in enumerate(structure_info)]
+    descriptions = [
+        get_structure_short_label(d, fallback=f"S{i}")
+        for i, d in enumerate(full_descriptions)
+    ]
     legend_layout, legend_top_y, _ = optimize_legend_placement(
         descriptions,
         tree_content,
         figure_bounds,
         target_quadrant="top_left",
     )
+    # Attach the original full description for color/sidecar lookup —
+    # `description` carries the short label used for text rendering.
+    for it in legend_layout.get("items", []):
+        idx = it.get("index", 0)
+        if 0 <= idx < len(full_descriptions):
+            it["full_description"] = full_descriptions[idx]
 
     # DYNAMIC TREE OFFSET: Shift tree right based on legend width
     tree_x_offset = _compute_tree_offset(legend_layout)
@@ -565,12 +605,13 @@ def plot_orientation_tree(
             )
             bar_w = val * (bar_width_scale / 2)
 
-            # Color: normal for positive, desaturated for negative
-            if val >= 0:
-                color = get_structure_color(i)
-            else:
-                base_color = get_structure_color(i)
-                color = desaturate_color(base_color, 0.5)
+            # Color: semantic from structure description; desaturate for
+            # negative orientation values.
+            base_color = get_structure_color_by_label(
+                structure_info[i].get("description") if i < len(structure_info) else None,
+                fallback_idx=i,
+            )
+            color = base_color if val >= 0 else desaturate_color(base_color, 0.5)
 
             # Draw bar from center
             if bar_w >= 0:

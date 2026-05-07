@@ -24,6 +24,8 @@ from src.generation.generation_method_registry import (
     get_params_class,
     list_methods,
 )
+from src.generation.greedy_output import GreedyOutput
+from src.generation.greedy_paths import produce_greedy_paths
 from src.generation.methods.logging import log_tree_trajectories
 from src.inference import ModelRunner
 
@@ -277,6 +279,18 @@ def run_generation_script(
     summary_path = GenerationOutput.compute_summary_path(config_path, method=method)
     result.output.save_summary(summary_path)
     log(f"Saved summary to {summary_path}")
+
+    # Greedy paths per arm: one temperature=0 trajectory per arm, written
+    # to greedy.json next to generation.json. Scoring fills in
+    # `structure_scores` later; estimation prefers this file over the
+    # sample-walk fallback.
+    log("\nProducing greedy paths (temperature=0 per arm)...")
+    greedy_output = produce_greedy_paths(
+        runner, config, config_path=config_path, log_fn=log
+    )
+    greedy_path = GreedyOutput.compute_path(output_path)
+    greedy_output.save(greedy_path)
+    log(f"Saved greedy paths to {greedy_path}")
 
     # Show summary
     result.output.summarize()

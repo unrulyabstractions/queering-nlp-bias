@@ -72,6 +72,44 @@ def get_structure_color(idx: int) -> str:
     return STRUCTURE_COLORS[idx % len(STRUCTURE_COLORS)]
 
 
+# Optional sidecar: viz callers can attach an experiment-specific legend
+# (short labels + colors keyed by full question text) by calling
+# `set_judgement_legend(...)` before rendering. When unset, plots fall back
+# to the index-based palette and render the raw description as the label.
+# This keeps the viz module generic across experiments.
+_JUDGEMENT_LEGEND: dict[str, dict[str, str]] | None = None
+
+
+def set_judgement_legend(legend: dict[str, dict[str, str]] | None) -> None:
+    """Install or clear an optional {description: {short_label, color}} map."""
+    global _JUDGEMENT_LEGEND
+    _JUDGEMENT_LEGEND = legend
+
+
+def get_structure_color_by_label(
+    description: str | None, fallback_idx: int = 0
+) -> str:
+    """Return a sidecar-defined color, else fall back to indexed palette."""
+    if description and _JUDGEMENT_LEGEND:
+        entry = _JUDGEMENT_LEGEND.get(description)
+        if entry and entry.get("color"):
+            return entry["color"]
+    return get_structure_color(fallback_idx)
+
+
+def get_structure_short_label(
+    description: str | None, fallback: str | None = None
+) -> str:
+    """Return a sidecar-defined short label, else the description (or fallback)."""
+    if description and _JUDGEMENT_LEGEND:
+        entry = _JUDGEMENT_LEGEND.get(description)
+        if entry and entry.get("short_label"):
+            return entry["short_label"]
+    if fallback is not None and not description:
+        return fallback
+    return description or fallback or ""
+
+
 def add_dense_grid(
     ax: "Axes",
     *,

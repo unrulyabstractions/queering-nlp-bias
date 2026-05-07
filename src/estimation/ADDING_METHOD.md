@@ -1,12 +1,21 @@
-# Adding a New Weighting Method
+# Adding a New Estimation Method
 
-Adding a weighting method to estimation requires **ONE FILE**.
+Adding a method to estimation requires **ONE FILE**.
+
+Two kinds of method are supported:
+
+* **Weighting methods**: produce weights; the core is derived via
+  `generalized_system_core(scores, weights, q=1, r=1)`. Use this when your
+  method is fundamentally a way of weighting trajectories.
+* **Direct-core methods**: produce the core directly (selection, mode,
+  etc.). Provide a `core_fn=` argument to `register_method`. Weights are
+  still required (used for spread metrics — typically uniform).
 
 ## Steps
 
-1. Create `src/estimation/methods/my_weighting_method.py`
+1. Create `src/estimation/methods/my_method.py`
 2. Define params class with `name` and `description` ClassVars
-3. Implement weighting function that returns normalized weights
+3. Implement the function(s) appropriate for the kind of method
 4. Done - method is auto-discovered
 
 ## Template
@@ -66,6 +75,53 @@ if ENABLED:
     compute_my_weights = register_method(MyWeightingParams)(compute_my_weights)
 ```
 
+## Direct-Core Method Template
+
+If your method computes the core itself (selection, mode, etc.), pass
+`core_fn=` to `register_method`. The `core_fn` receives the full
+`list[TrajectoryScoringData]` for the arm and returns the core vector
+directly. It may raise `MethodNotApplicableError` to signal that the
+method can't be applied (e.g., greedy with no greedy trajectory) — the
+pipeline silently excludes it.
+
+```python
+from collections.abc import Sequence
+
+from ..estimation_structure import TrajectoryScoringData
+from ..weighting_method_registry import (
+    MethodNotApplicableError,
+    WeightingMethodParams,
+    register_method,
+)
+
+
+@dataclass
+class MyDirectParams(WeightingMethodParams):
+    name: ClassVar[str] = "my-direct"
+    description: ClassVar[str] = "my-direct-core"
+
+
+def _uniform_weights(log_probs, n_tokens, params):
+    n = len(log_probs)
+    return [1.0 / n] * n if n else []
+
+
+def _my_core(
+    trajs: Sequence[TrajectoryScoringData],
+    params: MyDirectParams,
+) -> list[float]:
+    if not trajs:
+        raise MethodNotApplicableError("no trajectories")
+    # ... compute core from trajs ...
+    return core
+
+
+if ENABLED:
+    _uniform_weights = register_method(MyDirectParams, core_fn=_my_core)(
+        _uniform_weights
+    )
+```
+
 ## Disabling a Method
 
 To disable a weighting method, set `ENABLED = False` at the top of its file.
@@ -83,11 +139,17 @@ Once you create the file:
 
 ## Existing Methods
 
-| Method | File | Description |
-|--------|------|-------------|
-| `prob` | `prob_weighting_method.py` | Standard probability weighting |
-| `inv-ppl` | `inv_ppl_weighting_method.py` | Inverse perplexity (per-token confidence) |
-| `uniform` | `uniform_weighting_method.py` | Equal weights (baseline) |
+| Method | File | Kind | Description |
+|--------|------|------|-------------|
+| `prob` | `prob_weighting_method.py` | weighting | Standard probability weighting |
+| `log-prob` | `log_prob_weighting_method.py` | weighting | Log-probability weighting |
+| `inv-ppl` | `inv_ppl_weighting_method.py` | weighting | Inverse perplexity (per-token confidence) |
+| `log-inv-ppl` | `log_inv_ppl_weighting_method.py` | weighting | Log inverse perplexity |
+| `uniform` | `uniform_weighting_method.py` | weighting | Equal weights (baseline) |
+| `greedy` | `greedy_core_method.py` | direct-core | Compliance of greedy-decoded trajectory |
+| `max-prob` | `max_prob_core_method.py` | direct-core | Compliance of max-log-prob trajectory |
+| `max-inv-ppl` | `max_inv_ppl_core_method.py` | direct-core | Compliance of max-inv-perplexity trajectory |
+| `mode` | `mode_core_method.py` | direct-core | Per-structure logit-KDE mode |
 
 ## Testing Your Method
 

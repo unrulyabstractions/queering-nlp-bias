@@ -139,6 +139,9 @@ class ScoringData(BaseSchema):
             arm_texts=data.get("arm_texts", {}),
             metadata=metadata,
         )
+        # Remember where this file lives so per-judge greedy.json sidecars
+        # can be located (metadata.scoring_file holds the *config* path).
+        instance._loaded_from = path  # type: ignore[attr-defined]
         instance.validate()
         return instance
 
@@ -386,8 +389,91 @@ class ScoringData(BaseSchema):
             aggregate = sum(values) / len(values) if values else 0.0
             return ScoreComputation(aggregate=aggregate)
 
+    def _load_greedy_entries(self) -> dict[str, dict[str, Any]]:
+        """Load per-arm greedy entries from `greedy.json`, keyed by arm name.
+
+        Resolution order:
+
+        1. Sibling of this scoring file (`<scoring_dir>/greedy.json`) — written
+           by `score_trajectories.py` with structure_scores under this
+           scoring config's exact question set.
+        2. Generation-side `greedy.json` (`<gen_dir>/greedy.json`) — useful
+           when the per-judge sidecar isn't present.
+
+        Returns an empty dict when neither file exists or has scored entries.
+        """
+        if getattr(self, "_greedy_entries_cache", None) is not None:
+            return self._greedy_entries_cache  # type: ignore[return-value]
+
+        candidates: list[Path] = []
+        loaded_from = getattr(self, "_loaded_from", None)
+        if loaded_from is not None:
+            candidates.append(Path(loaded_from).parent / "greedy.json")
+        if self.scoring_file:
+            candidates.append(Path(self.scoring_file).parent / "greedy.json")
+        if self.generation_file:
+            candidates.append(Path(self.generation_file).parent / "greedy.json")
+
+        out: dict[str, dict[str, Any]] = {}
+        for greedy_path in candidates:
+            if not greedy_path.exists():
+                continue
+            try:
+                with open(greedy_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                for entry in data.get("arms", []):
+                    name = entry.get("name")
+                    scores = entry.get("structure_scores") or []
+                    if name and scores:
+                        out[name] = entry
+                if out:
+                    break  # first source that yielded scored entries wins
+            except (OSError, json.JSONDecodeError):
+                continue
+
+        self._greedy_entries_cache = out  # type: ignore[attr-defined]
+        return out
+
+    def _load_continuation_tokens(self) -> dict[int, list[int]]:
+        """Load per-trajectory continuation tokens from generation.json.
+
+        For each trajectory, the continuation is the slice of `token_ids`
+        starting at `arm_token_lengths[arm_idx]` — i.e. everything generated
+        after this trajectory's arm prefill. Returns empty dict if the file
+        is missing or doesn't carry token streams (e.g. remote-API runs).
+
+        Cached on the instance so we only read generation.json once per pipeline.
+        """
+        if getattr(self, "_continuation_tokens_cache", None) is not None:
+            return self._continuation_tokens_cache  # type: ignore[return-value]
+
+        out: dict[int, list[int]] = {}
+        gen_file = self.generation_file
+        if gen_file:
+            gen_path = Path(gen_file)
+            if gen_path.exists():
+                with open(gen_path, encoding="utf-8") as f:
+                    gen_data = json.load(f)
+                for t in gen_data.get("tree", {}).get("trajs", []):
+                    tids = t.get("token_ids") or []
+                    arm_idx = t.get("arm_idx") or []
+                    atl = t.get("arm_token_lengths") or []
+                    traj_idx = t.get("traj_idx")
+                    if traj_idx is None or not tids or not arm_idx or not atl:
+                        continue
+                    a = arm_idx[0] if isinstance(arm_idx, list) else arm_idx
+                    if not (0 <= a < len(atl)):
+                        continue
+                    out[int(traj_idx)] = list(tids[atl[a]:])
+
+        self._continuation_tokens_cache = out  # type: ignore[attr-defined]
+        return out
+
     def group_by_arm(self) -> dict[str, list[TrajectoryScoringData]]:
         """Group results by arm (trunk or branch), returning TrajectoryScoringData objects."""
+        cont_tokens = self._load_continuation_tokens()
+        greedy_entries = self._load_greedy_entries()
+
         grouped: dict[str, list[TrajectoryScoringData]] = {}
         for result in self.results:
             arm = result.get("arm", "trunk")
@@ -406,13 +492,37 @@ class ScoringData(BaseSchema):
                     conditional_logprobs=conditional_logprobs,
                     n_generated_tokens=result.get("n_generated_tokens", 0),
                     text=text,
+                    is_greedy=bool(result.get("is_greedy", False)),
+                    continuation_token_ids=cont_tokens.get(int(idx), []),
                 )
             )
+
+        # Inject per-arm greedy entries from greedy.json (if present and
+        # already scored). Use a synthetic negative traj_idx so they don't
+        # collide with sample traj_idxs.
+        synthetic_idx = -1
+        for arm_name, entry in greedy_entries.items():
+            grouped.setdefault(arm_name, []).append(
+                TrajectoryScoringData(
+                    traj_idx=synthetic_idx,
+                    arm=arm_name,
+                    structure_scores=list(entry.get("structure_scores") or []),
+                    conditional_logprobs={},
+                    n_generated_tokens=int(entry.get("n_generated_tokens") or 0),
+                    text=entry.get("text") or "",
+                    is_greedy=True,
+                    continuation_token_ids=list(entry.get("token_ids") or [])[
+                        int(entry.get("prefill_length") or 0):
+                    ],
+                )
+            )
+            synthetic_idx -= 1
 
         return grouped
 
     def get_all_trajectories(self) -> list[TrajectoryScoringData]:
         """Get all trajectories as typed TrajectoryScoringData objects."""
+        cont_tokens = self._load_continuation_tokens()
         trajectories: list[TrajectoryScoringData] = []
         for result in self.results:
             arm = result.get("arm", "trunk")
@@ -429,6 +539,8 @@ class ScoringData(BaseSchema):
                     conditional_logprobs=conditional_logprobs,
                     n_generated_tokens=result.get("n_generated_tokens", 0),
                     text=text,
+                    is_greedy=bool(result.get("is_greedy", False)),
+                    continuation_token_ids=cont_tokens.get(int(idx), []),
                 )
             )
 

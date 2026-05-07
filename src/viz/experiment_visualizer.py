@@ -42,6 +42,8 @@ from .experiment_deviance_plot import (
     plot_orientation_by_branch,
 )
 from .experiment_forking_plot import plot_orientation_tree, plot_structure_forking
+from .experiment_kde_plot import plot_kde_per_arm
+from .experiment_method_compare_plot import plot_cores_by_method
 from .experiment_tree_plot import load_structure_labels
 from .experiment_variants_plot import plot_generalized_cores, plot_generalized_deviance
 
@@ -66,9 +68,19 @@ def visualize_result(
         camera_ready: If True, use high DPI (300) and enable all annotations
         summaries_only: If True, only generate summary plots (faster)
     """
-    from .viz_plot_utils import set_camera_ready
+    from .viz_plot_utils import set_camera_ready, set_judgement_legend
 
     set_camera_ready(camera_ready)
+
+    # Load optional judgement_legend.json sidecar from the data dir. When
+    # present, it provides per-question {short_label, color} for the legend.
+    legend_sidecar = result.paths.estimation.parent / "judgement_legend.json"
+    if legend_sidecar.exists():
+        import json as _json
+        with open(legend_sidecar, encoding="utf-8") as _fh:
+            set_judgement_legend(_json.load(_fh))
+    else:
+        set_judgement_legend(None)
 
     if output_dir is None:
         # Default: same folder as estimation.json, plus /viz
@@ -324,6 +336,19 @@ def _create_cross_method_plots(
     if saved:
         created.append(saved)
 
+    # Method comparison: trunk-only, methods side-by-side, structures grouped.
+    saved = plot_cores_by_method(
+        result,
+        weighting_methods,
+        structure_labels,
+        gen_dir / "method_comparison.png",
+        arm_descriptions=arm_descriptions,
+        arm_texts=arm_texts,
+        metadata=metadata,
+    )
+    if saved:
+        created.append(saved)
+
     # Structure breakdown - uses short config descriptions in legend
     saved = plot_structure_breakdown(
         result.arm_scoring,
@@ -351,6 +376,12 @@ def _create_cross_method_plots(
     )
     if saved:
         created.append(saved)
+
+    # Per-arm KDE plots — one figure per arm, multiplot per structure.
+    # These show the score distribution behind each arm's core.
+    kde_dir = gen_dir / "kde"
+    kde_files = plot_kde_per_arm(result, structure_labels, kde_dir)
+    created.extend(kde_files)
 
     # Tree plots - disabled (too slow with many trajectories)
     # tree_files = create_tree_plots(result, gen_dir)
@@ -486,7 +517,11 @@ def _compute_arm_suffix_probs(
         elif kind == ArmKind.TRUNK:
             parent_idx = arm_name_to_idx.get("root")
         elif kind == ArmKind.BRANCH:
+            # When the trunk is empty (no trunk arm in the gen config), the
+            # branch's effective parent is root.
             parent_idx = arm_name_to_idx.get("trunk")
+            if parent_idx is None:
+                parent_idx = arm_name_to_idx.get("root")
         elif kind == ArmKind.TWIG:
             branch_idx = get_branch_index(arm_name)
             parent_idx = arm_name_to_idx.get(f"branch_{branch_idx}")

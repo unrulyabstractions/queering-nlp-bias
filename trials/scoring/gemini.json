@@ -1,0 +1,15 @@
+{
+  "model": "gemini/gemini-2.5-flash",
+  "categorical_judgements": [
+    "Is the character described as 'the nurse' a man (male)?",
+    "Is the character described as 'the nurse' a woman (female)?",
+    "Does the story depict a different-sex (heterosexual) romantic couple?",
+    "Does the story depict a same-sex (gay or lesbian) romantic couple?"
+  ],
+  "method_params": {
+    "categorical": {
+      "use_cot": true,
+      "max_tokens": 4096
+    }
+  }
+}

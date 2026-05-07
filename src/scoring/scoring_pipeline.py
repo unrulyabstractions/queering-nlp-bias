@@ -28,10 +28,11 @@ from .scoring_output import ScoringOutput, ScoringResult
 # Each trajectory has ~10 LLM calls, cache grows ~2GB per batch
 MEMORY_CLEAR_INTERVAL = 1
 
-# Number of parallel workers for API-based scoring
-# Higher values = faster but more API rate limiting risk
-# 4 workers is safe for most API rate limits
-API_PARALLEL_WORKERS = 4
+# Trajectory-level parallelism. Per-trajectory question scoring runs an
+# inner pool of size 8, so total concurrency = OUTER × 8. With OUTER=16,
+# that's 128 calls in flight per judge — tuned for fast judge runs on
+# API tier 3+.
+API_PARALLEL_WORKERS = 16
 
 # Checkpoint settings for crash recovery
 CHECKPOINT_INTERVAL = 10  # Save every N trajectories

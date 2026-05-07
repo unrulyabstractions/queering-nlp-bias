@@ -30,7 +30,13 @@ from .estimation_output import EstimationOutput
 from .estimation_scoring_data import ScoringData
 from .estimation_structure import ArmEstimate, TrajectoryEstimate, TrajectoryScoringData
 from .estimation_weighted_types import WeightedEstimate
-from .weighting_method_registry import get_default_params, get_method, iter_methods
+from .weighting_method_registry import (
+    MethodNotApplicableError,
+    get_core_fn,
+    get_default_params,
+    get_method,
+    iter_methods,
+)
 
 
 @dataclass
@@ -77,16 +83,26 @@ def _compute_core_variants(
 
 def _compute_weighted_estimate(
     method_name: str,
+    trajs: list[TrajectoryScoringData],
     scores: list[list[float]],
     log_probs: list[float],
     n_tokens: list[int],
     ref_cores: dict[str, list[float] | None],
 ) -> WeightedEstimate:
-    """Compute estimate for one weighting method."""
-    weights = get_method(method_name)(
-        log_probs, n_tokens, get_default_params(method_name)
-    )
-    core = generalized_system_core(scores, weights, q=1.0, r=1.0)
+    """Compute estimate for one estimation method.
+
+    The method's `weight_fn` produces weights used for spread metrics
+    (deviance, orientation). If the method registers an optional `core_fn`,
+    the core is taken from it directly; otherwise the core is derived from
+    the weights via `generalized_system_core(q=1, r=1)`.
+    """
+    params = get_default_params(method_name)
+    weights = get_method(method_name)(log_probs, n_tokens, params)
+    core_fn = get_core_fn(method_name)
+    if core_fn is not None:
+        core = core_fn(trajs, params)
+    else:
+        core = generalized_system_core(scores, weights, q=1.0, r=1.0)
 
     if not core:
         raise ValueError(f"Empty core for method '{method_name}'")
@@ -139,10 +155,14 @@ def _compute_arm_estimate(
         raise ValueError(f"No trajectories for arm '{name}'")
 
     scores = [t.structure_scores for t in trajs]
-    log_probs = [t.conditional_logprobs[name] for t in trajs]
+    # Default to 0.0 for trajectories that don't carry an arm-conditional
+    # log prob (e.g. synthetic greedy entries injected from greedy.json).
+    log_probs = [t.conditional_logprobs.get(name, 0.0) for t in trajs]
     n_tokens = [t.n_generated_tokens for t in trajs]
 
-    # Compute estimates for all weighting methods
+    # Compute estimates for all weighting methods. Methods that aren't
+    # applicable to this arm's data (e.g. `greedy` with no greedy trajectory)
+    # raise MethodNotApplicableError and are silently excluded.
     estimates: dict[str, WeightedEstimate] = {}
     for method_name, _, _ in iter_methods():
         method_refs = {
@@ -150,9 +170,12 @@ def _compute_arm_estimate(
             "root": ref_cores.get("root", {}).get(method_name),
             "parent": ref_cores.get("parent", {}).get(method_name),
         }
-        estimates[method_name] = _compute_weighted_estimate(
-            method_name, scores, log_probs, n_tokens, method_refs
-        )
+        try:
+            estimates[method_name] = _compute_weighted_estimate(
+                method_name, trajs, scores, log_probs, n_tokens, method_refs
+            )
+        except MethodNotApplicableError:
+            continue
 
     # Per-trajectory estimates using prob-weighted core
     prob_core = estimates["prob"].core

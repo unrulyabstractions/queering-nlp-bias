@@ -32,8 +32,9 @@ out/{method}/{gen_name}/{scoring_name}/viz/
   - orientation/evolution_{ref}.png  # Evolution tree relative to reference arm
   - generalized_cores.png       # Heatmap of core variants
   - generalized_deviance.png    # E[∂] line plots as q/r→∞
-  - estimation_comparison.png   # Compare cores across weighting methods
+  - estimation_comparison.png   # Compare cores across estimation methods
   - breakdown.png               # Structure breakdown by branch
+  - kde/{arm}.png               # Per-arm logit-KDE of compliance, one subplot per structure
   - tree_word.png               # Word-level trajectory tree
   - tree_phrase.png             # Phrase-level trajectory tree
 
@@ -62,6 +63,8 @@ Compares trunk cores across multiple generation methods. Creates a comparison pl
 **Breakdown Plots**: Grouped horizontal bars showing per-branch percentages for all structures (both categorical and bundled questions).
 
 **Tree Plots**: DAG visualization of trajectory branching structure. Node colors reflect structure scores. Edge thickness indicates cumulative log probability. Word-level and phrase-level variants available.
+
+**KDE Plots**: Per-arm distributions of compliance scores. One figure per arm, with one subplot per structure. Each subplot shows the logit-transformed KDE on strictly-interior values (which corrects boundary bias for densities supported on [0, 1]), point-mass bars for the fraction of trajectories at exactly 0 and exactly 1 on a secondary y-axis, a rug at each sample, the population mean (dashed grey), and the logit-KDE mode (solid arm-color).
 
 ## Shared Utilities
 

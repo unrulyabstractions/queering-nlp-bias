@@ -50,6 +50,8 @@ dependencies = [
     "tiktoken>=0.5.0",
     # Anthropic
     "anthropic>=0.40.0",
+    # Google Gemini
+    "google-genai>=1.0.0",
     # Experiment tracking & utilities
     "wandb",
     "einops",

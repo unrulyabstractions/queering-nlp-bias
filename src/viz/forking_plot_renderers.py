@@ -15,7 +15,7 @@ from typing import Any
 import matplotlib.pyplot as plt
 
 from .viz_bounding_box import TreeContentTracker
-from .viz_plot_utils import get_structure_color
+from .viz_plot_utils import get_structure_color, get_structure_color_by_label
 
 
 def draw_wrapped_arm_label(
@@ -114,26 +114,36 @@ def render_legend(
         layout: Layout from compute_legend_layout
         legend_top_y: Y coordinate for top of legend in data units
     """
-    swatch_size = layout["swatch_size"]
+    layout_swatch = layout["swatch_size"]
+    swatch_size = max(layout_swatch, 0.36)
+    # Compensate text x-position for any enlargement of the swatch beyond what
+    # the layout engine assumed, otherwise text collides with the swatch.
+    text_x_shift = swatch_size - layout_swatch
     char_width = layout.get("char_width", 0.055)
 
-    # Scale fontsize based on char_width (base: 0.055 -> 9pt)
-    fontsize = int(9 * (char_width / 0.055))
+    # Sized to balance with branch labels and trunk text without dominating:
+    # 18pt floor reads as a peer to the bold metadata values, while 20pt cap
+    # prevents the legend from overwhelming the rest of the figure chrome.
+    fontsize = max(18, min(20, int(7 * (char_width / 0.055)) + 8))
 
-    # TIGHT line spacing for wrapped text - based on char_width, not row_height
-    line_height = char_width * 2.0
+    # Comfortable line spacing for the larger text.
+    line_height = char_width * 2.8
 
     for item in layout["items"]:
         idx = item["index"]
         lines = item.get("lines", [item["description"]])
         n_lines = item.get("n_lines", 1)
-        color = get_structure_color(idx)
+        # Use the full original description for color lookup when present
+        # (sidecar `judgement_legend.json` is keyed by full question text);
+        # fall back to the (short) display label, then to the indexed palette.
+        color_key = item.get("full_description") or item.get("description")
+        color = get_structure_color_by_label(color_key, fallback_idx=idx)
 
         # Layout positions are relative to legend top (negative Y)
         # Add legend_top_y to get absolute position
         swatch_x = item["swatch_x"]
         swatch_y = legend_top_y + item["swatch_y"]
-        text_x = item["text_x"]
+        text_x = item["text_x"] + text_x_shift
         text_y = legend_top_y + item["text_y"]
 
         # Draw swatch (centered vertically with text block)
@@ -143,8 +153,8 @@ def render_legend(
                 swatch_size,
                 swatch_size,
                 facecolor=color,
-                edgecolor="white",
-                linewidth=0.8,
+                edgecolor="#888",
+                linewidth=0.5,
                 clip_on=False,
                 zorder=100,
             )

@@ -14,6 +14,7 @@ from src.common.profiler import profile, track_memory
 
 from .backends import (
     AnthropicBackend,
+    GeminiBackend,
     HuggingFaceBackend,
     MLXBackend,
     ModelBackend,
@@ -142,6 +143,8 @@ class ModelRunner:
             self._init_openai()
         elif backend == ModelBackend.ANTHROPIC:
             self._init_anthropic()
+        elif backend == ModelBackend.GEMINI:
+            self._init_gemini()
         elif backend == ModelBackend.HUGGINGFACE:
             self._init_huggingface()
         elif backend == ModelBackend.MLX:
@@ -152,7 +155,11 @@ class ModelRunner:
         self._is_chat_model = self._detect_chat_model(model_name)
 
         log(f"Model loaded: {backend} {model_name} (chat={self._is_chat_model})")
-        if backend not in (ModelBackend.OPENAI, ModelBackend.ANTHROPIC):
+        if backend not in (
+            ModelBackend.OPENAI,
+            ModelBackend.ANTHROPIC,
+            ModelBackend.GEMINI,
+        ):
             log(f"  n_layers={self.n_layers}, d_model={self.d_model}\n")
         else:
             log("")
@@ -265,7 +272,11 @@ class ModelRunner:
         """Generate text from prompt, preserving special tokens like EOS."""
         # For API-based backends with prefilling, use the prefill-aware method
         # which sends prefill as assistant message turn (required for proper API behavior)
-        if self._backend_type in (ModelBackend.OPENAI, ModelBackend.ANTHROPIC):
+        if self._backend_type in (
+            ModelBackend.OPENAI,
+            ModelBackend.ANTHROPIC,
+            ModelBackend.GEMINI,
+        ):
             if prefilling:
                 # Use trajectory method which handles prefill correctly
                 # Returns (ids, logprobs, actual_prefill, continuation)
@@ -360,7 +371,11 @@ class ModelRunner:
             GeneratedTrajectory with full sequence (prompt + generated) and logprobs
         """
         # For API backends, delegate to backend's prefill-aware implementation
-        if self._backend_type in (ModelBackend.OPENAI, ModelBackend.ANTHROPIC):
+        if self._backend_type in (
+            ModelBackend.OPENAI,
+            ModelBackend.ANTHROPIC,
+            ModelBackend.GEMINI,
+        ):
             all_token_ids, all_logprobs, prefill_text, generated_text = (
                 self._backend.generate_trajectory_from_prompt(
                     prompt, max_new_tokens, temperature, prefilling
@@ -409,8 +424,17 @@ class ModelRunner:
         """Detect the appropriate backend based on model name."""
         name = model_name.lower()
 
-        # OpenAI models
-        openai_prefixes = ["openai", "gpt-4", "gpt-3", "o1", "o3"]
+        # Google Gemini
+        gemini_prefixes = ["gemini", "google/", "google-"]
+        if any(name.startswith(prefix) for prefix in gemini_prefixes):
+            return ModelBackend.GEMINI
+
+        # OpenAI models (GPT-3/4/5, o1/o3/o4 reasoning models)
+        openai_prefixes = [
+            "openai",
+            "gpt-3", "gpt-4", "gpt-5",
+            "o1", "o3", "o4",
+        ]
         if any(name.startswith(prefix) or name == prefix for prefix in openai_prefixes):
             return ModelBackend.OPENAI
 
@@ -435,6 +459,21 @@ class ModelRunner:
 
         log(f"Using OpenAI API with model: {model}")
         self._backend = OpenAIBackend(self, model=model)
+
+    def _init_gemini(self) -> None:
+        """Initialize Gemini backend.
+
+        Note: Gemini API does not provide per-token logprobs, so all
+        trajectory logprobs will be 0.0. Suitable for text generation and
+        categorical judgments, not for probability-weighted metrics.
+        """
+        # Extract model name (e.g., "gemini/gemini-2.5-pro" -> "gemini-2.5-pro")
+        model = self.model_name
+        if "/" in model:
+            model = model.split("/", 1)[1]
+
+        log(f"Using Gemini API with model: {model}")
+        self._backend = GeminiBackend(self, model=model)
 
     def _init_anthropic(self) -> None:
         """Initialize Anthropic backend.
@@ -494,7 +533,15 @@ class ModelRunner:
             return False
 
         # API-based models are always chat models
-        if any(x in name for x in ["claude", "anthropic", "gpt-4", "gpt-3", "openai"]):
+        if any(
+            x in name
+            for x in [
+                "claude", "anthropic",
+                "gpt-3", "gpt-4", "gpt-5", "openai",
+                "o1", "o3", "o4",
+                "gemini", "google/",
+            ]
+        ):
             return True
 
         # Qwen3/Qwen3.5 models are instruct/reasoning by default (no base variant)
