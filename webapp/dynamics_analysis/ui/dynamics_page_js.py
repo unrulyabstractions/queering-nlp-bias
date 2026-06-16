@@ -71,12 +71,11 @@ function initDynamicsViz(){
     dynamicsState.positions = nodes.map(n => ({
         position: n.depth,
         label: n.label,
-        core: n.core || [],
-        orientations: n.core || [],
+        system_default: n.system_default || [],
         pull: 0,
         drift: 0,
         potential: 0,
-        coreDiversity: 1.0,
+        effectiveStructures: 1.0,
     }));
     dynamicsState.questions = dynamicsState.questions || [];
     console.log('📊 Questions:', dynamicsState.questions);
@@ -93,17 +92,19 @@ function updateDynamicsPosition(d){
     // Store positions with all system data
     dynamicsState.positions = (d.all_positions || []).map(p => ({
         ...p,
-        // Per-dimension standard deviation
-        orientStd: p.orient_std || [],
-        // Compute drift and potential systems (vectors, not scalars)
-        driftSystem: (p.prefix_system || []).map((v, i) => v - (p.initial_prefix?.[i] || 0)),
-        potentialSystem: (p.final_prefix || []).map((v, i) => v - (p.prefix_system?.[i] || 0)),
-        // Core diversity (effective number of structures)
-        coreDiversity: p.core_diversity || 1.0,
+        // Per-structure standard deviation of orientations
+        orientationStd: p.orientation_std || [],
+        // Orientation vectors (per structure), both = attunement − a system default:
+        //   drift     = Λ_n(x_p)     − ⟨Λ_n⟩(x_0)   (current attunement vs initial default)
+        //   potential = Λ_n(x_final) − ⟨Λ_n⟩(x_p)   (final attunement vs current default)
+        driftSystem: (p.system_attunement || []).map((v, i) => v - (p.initial_system_default?.[i] || 0)),
+        potentialSystem: (p.final_system_attunement || []).map((v, i) => v - (p.system_default?.[i] || 0)),
+        // Effective number of structures (Hill D1)
+        effectiveStructures: p.effective_structures || 1.0,
     }));
 
     console.log('📊 Positions updated:', dynamicsState.positions.length,
-        'with core:', dynamicsState.positions.filter(p => p.core?.length).length);
+        'with system default:', dynamicsState.positions.filter(p => p.system_default?.length).length);
 
     dynamicsState.total_api_calls = d.total_api_calls || 0;
     if (d.total_errors !== undefined) dynamicsState.total_errors = d.total_errors;
@@ -150,7 +151,7 @@ function drawDynamicsChart(){
         console.log('📊 Sample position data:', {
             position: sample.position,
             label: sample.label,
-            orientations: sample.orientations,
+            system_default: sample.system_default,
             pull: sample.pull,
             drift: sample.drift,
             potential: sample.potential
@@ -159,10 +160,12 @@ function drawDynamicsChart(){
     const qs=dynamicsState.questions||[];
     const cw=w-m.left-m.right,ch=h-m.top-m.bottom;
 
-    // Use point scale for word labels on x-axis
-    const labels = pos.map(d => d.label || '');
-    const x = d3.scalePoint().domain(labels).range([0, cw]).padding(0.1);
-    const xByPos = d => x(d.label || '');
+    // Point scale keyed by each node's UNIQUE token position (char offset), not the
+    // word label — otherwise repeated words (e.g. two "the") collapse onto one x and
+    // their lines get mixed up. The word is shown on the axis via labelByPos/tickFormat.
+    const x = d3.scalePoint().domain(pos.map(d => d.position)).range([0, cw]).padding(0.1);
+    const labelByPos = new Map(pos.map(d => [d.position, d.label || '']));
+    const xByPos = d => x(d.position);
 
     // Dynamic font size based on number of words and chart width
     const wordCount = pos.length;
@@ -187,15 +190,15 @@ function drawDynamicsChart(){
             g.selectAll(`.dot-${mt.k}`).data(pos).enter().append('circle').attr('class','chart-dot').attr('cx',xByPos).attr('cy',d=>y(d[mt.k])).attr('r',5).attr('fill',mt.c);
         });
         // X-axis with word labels (dynamic font size, prefill dimmed)
-        const xAxis = g.append('g').attr('class','axis').attr('transform',`translate(0,${ch})`).call(d3.axisBottom(x));
+        const xAxis = g.append('g').attr('class','axis').attr('transform',`translate(0,${ch})`).call(d3.axisBottom(x).tickFormat(p => labelByPos.get(p) || ''));
         xAxis.selectAll('text').attr('transform','rotate(-45)').attr('text-anchor','end').attr('dx','-0.5em').attr('dy','0.5em').style('font-size', labelFontSize)
             .style('fill', (d, i) => i < prefillWordCount ? '#9a8baa' : '#4a3f5c')
             .style('font-style', (d, i) => i < prefillWordCount ? 'italic' : 'normal');
         g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(5));
 
         // Draw diversity on second y-axis if enabled - RAINBOW TREATMENT (also in magnitudes)
-        if(showDiversity && pos.some(d => d.coreDiversity > 0)) {
-            const maxDiversity = Math.max(...pos.map(d => d.coreDiversity || 1), 3);
+        if(showDiversity && pos.some(d => d.effectiveStructures > 0)) {
+            const maxDiversity = Math.max(...pos.map(d => d.effectiveStructures || 1), 3);
             const y2 = d3.scaleLinear().domain([1, maxDiversity * 1.1]).range([ch, 0]);
 
             // Rainbow gradient for line
@@ -213,13 +216,13 @@ function drawDynamicsChart(){
             glowFilter.append('feComposite').attr('in','SourceGraphic').attr('in2','blur').attr('operator','over');
 
             // Diversity line
-            const divLine = d3.line().x(xByPos).y(d => y2(d.coreDiversity || 1)).curve(d3.curveMonotoneX);
+            const divLine = d3.line().x(xByPos).y(d => y2(d.effectiveStructures || 1)).curve(d3.curveMonotoneX);
             g.append('path').datum(pos).attr('d',divLine).attr('stroke','url(#rainbowLineMag)').attr('stroke-width',12).attr('opacity',0.35).attr('fill','none').attr('filter','url(#diversityGlowMag)');
             g.append('path').datum(pos).attr('d',divLine).attr('stroke','url(#rainbowLineMag)').attr('stroke-width',4).attr('fill','none');
 
             // Diversity dots
             const dotColors = ['#FF6B9D','#E06C75','#E5C07B','#98C379','#56B6C2','#C678DD'];
-            g.selectAll('.diversity-dot').data(pos).enter().append('circle').attr('cx',xByPos).attr('cy',d=>y2(d.coreDiversity||1)).attr('r',7).attr('fill',(d,i)=>dotColors[i%dotColors.length]).attr('stroke','white').attr('stroke-width',2).attr('filter','url(#diversityGlowMag)');
+            g.selectAll('.diversity-dot').data(pos).enter().append('circle').attr('cx',xByPos).attr('cy',d=>y2(d.effectiveStructures||1)).attr('r',7).attr('fill',(d,i)=>dotColors[i%dotColors.length]).attr('stroke','white').attr('stroke-width',2).attr('filter','url(#diversityGlowMag)');
 
             // Second y-axis
             const y2Axis = d3.axisRight(y2).ticks(5);
@@ -227,12 +230,13 @@ function drawDynamicsChart(){
             axisG.selectAll('text').attr('fill','#C678DD').attr('font-weight','700').attr('font-size','12px');
             axisG.selectAll('line').attr('stroke','#C678DD').attr('stroke-width',2);
             axisG.select('path').attr('stroke','#C678DD').attr('stroke-width',2);
-            svg.append('text').attr('transform','rotate(90)').attr('x',h/2).attr('y',-w+22).attr('text-anchor','middle').attr('fill','#C678DD').attr('font-size','13px').attr('font-weight','700').text('🌈 DIVERSITY 🌈');
+            svg.append('text').attr('transform','rotate(90)').attr('x',h/2).attr('y',-w+22).attr('text-anchor','middle').attr('fill','#C678DD').attr('font-size','13px').attr('font-weight','700').text('🌈 EFFECTIVE STRUCTURES 🌈');
         }
     }else{
-        // Series mode: plot Core, Drift, or Potential system per question
+        // Series mode: plot System Default, Drift, or Potential per structure
         const getSystem = (d) => {
-            if(evolutionMode === 'core') return d.core || [];
+            // 'core' mode shows the system default ⟨Λ_n⟩(x_p) per structure
+            if(evolutionMode === 'core') return d.system_default || [];
             if(evolutionMode === 'drift') return d.driftSystem || [];
             if(evolutionMode === 'potential') return d.potentialSystem || [];
             return [];
@@ -281,7 +285,7 @@ function drawDynamicsChart(){
                 if(highlightedQuestion !== null && highlightedQuestion !== i) return;
                 const color = colors[i % colors.length];
                 pos.forEach(d => {
-                    const std = (d.orientStd || [])[i] || 0;
+                    const std = (d.orientationStd || [])[i] || 0;
                     if(std < 0.005) return;  // Skip tiny error bars
                     const val = (getSystem(d)[i] || 0);
                     const xPos = xByPos(d);
@@ -316,8 +320,8 @@ function drawDynamicsChart(){
         });
 
         // Draw diversity on second y-axis if enabled - RAINBOW TREATMENT
-        if(showDiversity && pos.some(d => d.coreDiversity > 0)) {
-            const maxDiversity = Math.max(...pos.map(d => d.coreDiversity || 1), qs.length);
+        if(showDiversity && pos.some(d => d.effectiveStructures > 0)) {
+            const maxDiversity = Math.max(...pos.map(d => d.effectiveStructures || 1), qs.length);
             const y2 = d3.scaleLinear().domain([1, maxDiversity * 1.1]).range([ch, 0]);
 
             // Rainbow gradient for line
@@ -330,7 +334,7 @@ function drawDynamicsChart(){
             rainbowGrad.append('stop').attr('offset','100%').attr('stop-color','#C678DD');
 
             // Rainbow area fill
-            const divArea = d3.area().x(xByPos).y0(ch).y1(d => y2(d.coreDiversity || 1)).curve(d3.curveMonotoneX);
+            const divArea = d3.area().x(xByPos).y0(ch).y1(d => y2(d.effectiveStructures || 1)).curve(d3.curveMonotoneX);
             const areaGrad = svg.append('defs').append('linearGradient').attr('id','rainbowArea').attr('x1','0%').attr('y1','0%').attr('x2','100%').attr('y2','0%');
             areaGrad.append('stop').attr('offset','0%').attr('stop-color','#FF6B9D').attr('stop-opacity',0.15);
             areaGrad.append('stop').attr('offset','25%').attr('stop-color','#E5C07B').attr('stop-opacity',0.12);
@@ -345,13 +349,13 @@ function drawDynamicsChart(){
             glowFilter.append('feComposite').attr('in','SourceGraphic').attr('in2','blur').attr('operator','over');
 
             // Diversity line - thick, rainbow, glowing
-            const divLine = d3.line().x(xByPos).y(d => y2(d.coreDiversity || 1)).curve(d3.curveMonotoneX);
+            const divLine = d3.line().x(xByPos).y(d => y2(d.effectiveStructures || 1)).curve(d3.curveMonotoneX);
             g.append('path').datum(pos).attr('class','chart-line diversity-line-glow').attr('d',divLine).attr('stroke','url(#rainbowLine)').attr('stroke-width',12).attr('opacity',0.35).attr('filter','url(#diversityGlow)');
             g.append('path').datum(pos).attr('class','chart-line diversity-line').attr('d',divLine).attr('stroke','url(#rainbowLine)').attr('stroke-width',4);
 
             // Diversity dots - rainbow colored based on position
             const dotColors = ['#FF6B9D','#E06C75','#E5C07B','#98C379','#56B6C2','#C678DD'];
-            g.selectAll('.diversity-dot').data(pos).enter().append('circle').attr('class','chart-dot diversity-dot').attr('cx',xByPos).attr('cy',d=>y2(d.coreDiversity||1)).attr('r',7).attr('fill',(d,i)=>dotColors[i%dotColors.length]).attr('stroke','white').attr('stroke-width',2).attr('filter','url(#diversityGlow)');
+            g.selectAll('.diversity-dot').data(pos).enter().append('circle').attr('class','chart-dot diversity-dot').attr('cx',xByPos).attr('cy',d=>y2(d.effectiveStructures||1)).attr('r',7).attr('fill',(d,i)=>dotColors[i%dotColors.length]).attr('stroke','white').attr('stroke-width',2).attr('filter','url(#diversityGlow)');
 
             // Second y-axis on right - purple styling (end of rainbow)
             const y2Axis = d3.axisRight(y2).ticks(5);
@@ -359,17 +363,17 @@ function drawDynamicsChart(){
             axisG.selectAll('text').attr('fill','#C678DD').attr('font-weight','700').attr('font-size','12px');
             axisG.selectAll('line').attr('stroke','#C678DD').attr('stroke-width',2);
             axisG.select('path').attr('stroke','#C678DD').attr('stroke-width',2);
-            svg.append('text').attr('transform','rotate(90)').attr('x',h/2).attr('y',-w+22).attr('text-anchor','middle').attr('fill','#C678DD').attr('font-size','13px').attr('font-weight','700').attr('letter-spacing','0.05em').text('🌈 DIVERSITY 🌈');
+            svg.append('text').attr('transform','rotate(90)').attr('x',h/2).attr('y',-w+22).attr('text-anchor','middle').attr('fill','#C678DD').attr('font-size','13px').attr('font-weight','700').attr('letter-spacing','0.05em').text('🌈 EFFECTIVE STRUCTURES 🌈');
         }
 
         // X-axis with word labels (dynamic font size, prefill dimmed)
-        const xAxis = g.append('g').attr('class','axis').attr('transform',`translate(0,${ch})`).call(d3.axisBottom(x));
+        const xAxis = g.append('g').attr('class','axis').attr('transform',`translate(0,${ch})`).call(d3.axisBottom(x).tickFormat(p => labelByPos.get(p) || ''));
         xAxis.selectAll('text').attr('transform','rotate(-45)').attr('text-anchor','end').attr('dx','-0.5em').attr('dy','0.5em').style('font-size', labelFontSize)
             .style('fill', (d, i) => i < prefillWordCount ? '#9a8baa' : '#4a3f5c')
             .style('font-style', (d, i) => i < prefillWordCount ? 'italic' : 'normal');
         g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(5));
     }
-    const yLabels = {core:'Core Score/Structure', drift:'Drift (Δ from start)', potential:'Potential (Δ to end)'};
+    const yLabels = {core:'System Default / structure', drift:'Drift (attunement − initial default)', potential:'Potential (final attunement − default)'};
     const yLabel = showMagnitudes ? 'Magnitude (L2)' : yLabels[evolutionMode] || 'Score';
     svg.append('text').attr('transform','rotate(-90)').attr('x',-h/2).attr('y',20).attr('text-anchor','middle').attr('fill','#6b7280').text(yLabel);
 }
@@ -391,7 +395,7 @@ function setupDynamicsLegend(){
         });
     }else{
         // Series mode - show questions with current mode label
-        const modeLabels = {core: 'Core', drift: 'Drift', potential: 'Potential'};
+        const modeLabels = {core: 'Default', drift: 'Drift', potential: 'Potential'};
         (dynamicsState.questions||[]).forEach((q,i)=>{
             const it=document.createElement('div');
             it.className='legend-item';
@@ -617,25 +621,27 @@ function precomputeTrajData() {
 
     for (let i = 0; i < positions.length; i++) {
         const posData = positions[i] || {};
-        const core = posData.core || [];
-        const prefixSystem = posData.prefix_system || [];
-        const initialPrefix = posData.initial_prefix || [];
-        const finalPrefix = posData.final_prefix || [];
+        const systemDefault = posData.system_default || [];
+        const systemAttunement = posData.system_attunement || [];
+        const initialSystemDefault = posData.initial_system_default || [];
+        const finalSystemAttunement = posData.final_system_attunement || [];
 
-        // Pre-compute values for each mode
-        const coreVals = core.length ? core : prefixSystem;
-        const driftVals = prefixSystem.map((v, j) => v - (initialPrefix[j] || 0));
-        const potentialVals = finalPrefix.map((v, j) => v - (prefixSystem[j] || 0));
+        // Pre-compute values for each mode (keyed by mode id: 'core' = system default)
+        const defaultVals = systemDefault.length ? systemDefault : systemAttunement;
+        // drift: orientation of the current attunement from the initial system default
+        const driftVals = systemAttunement.map((v, j) => v - (initialSystemDefault[j] || 0));
+        // potential: orientation of the final attunement from the current system default
+        const potentialVals = finalSystemAttunement.map((v, j) => v - (systemDefault[j] || 0));
 
         trajExplorerState.positionData.push({
-            core: coreVals,
+            core: defaultVals,
             drift: driftVals,
             potential: potentialVals,
             label: posData.label || ''
         });
 
         // Pre-compute ball color
-        const l2Norm = Math.sqrt(coreVals.reduce((sum, v) => sum + v * v, 0));
+        const l2Norm = Math.sqrt(defaultVals.reduce((sum, v) => sum + v * v, 0));
         const normRatio = Math.min(l2Norm / maxNorm, 1);
 
         let ballColor;
@@ -742,7 +748,7 @@ function updateTrajExplorerSmooth(t, updateWords) {
 
     // Update diversity display
     const posIdx = Math.round(t * (numPositions - 1));
-    const diversity = trajExplorerState.positions[posIdx]?.coreDiversity || 1;
+    const diversity = trajExplorerState.positions[posIdx]?.effectiveStructures || 1;
     document.getElementById('trajDiversityValue').textContent = diversity.toFixed(2);
 
     // Interpolate ball color between positions
@@ -793,9 +799,9 @@ function drawTrajChartInterpolated(floatIdx, mode) {
     const values = vals0.map((v, i) => v + (vals1[i] - v) * frac);
 
     const titles = {
-        core: 'Core (Mean Trajectory Score)',
-        drift: 'Drift (Change from Initial)',
-        potential: 'Potential (Distance to Final)'
+        core: 'System Default (mean attunement)',
+        drift: 'Drift (attunement − initial default)',
+        potential: 'Potential (final attunement − default)'
     };
 
     const svg = d3.select('#trajExplorerChart');
@@ -964,7 +970,7 @@ showDynamicsUI = function() {
 };
 
 // ════════════════════════════════════════════════════════════════════════════════
-// CONVERGENCE MODE - Core values over samples (iterations)
+// CONVERGENCE MODE - System default values over samples (iterations)
 // ════════════════════════════════════════════════════════════════════════════════
 let showConvergence = false;
 let convergenceState = {
@@ -1406,7 +1412,7 @@ function drawConvergenceChart() {
         .attr('y', 20)
         .attr('text-anchor', 'middle')
         .attr('fill', '#6b7280')
-        .text('Core Score');
+        .text('System Default');
 
     svg.append('text')
         .attr('x', w / 2)

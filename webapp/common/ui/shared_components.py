@@ -77,7 +77,7 @@ def get_settings_html() -> str:
                     <div class="config-group"><div class="config-label">Judge Temp: <span id="judgeTempVal">0.0</span></div><input type="range" class="config-input" id="settingsJudgeTemp" min="0" max="1" step="0.1" value="0.0" style="padding:0" oninput="document.getElementById('judgeTempVal').textContent=this.value"></div>
                 </div>
                 <div class="config-row">
-                    <div class="config-group"><div class="config-label">Max Tokens: <span id="maxTokensVal">300</span></div><input type="range" class="config-input" id="settingsMaxTokens" min="4" max="1000" step="1" value="300" style="padding:0" oninput="document.getElementById('maxTokensVal').textContent=this.value"></div>
+                    <div class="config-group"><div class="config-label">Max Tokens: <span id="maxTokensVal">250</span></div><input type="range" class="config-input" id="settingsMaxTokens" min="4" max="1000" step="1" value="250" style="padding:0" oninput="document.getElementById('maxTokensVal').textContent=this.value"></div>
                 </div>
                 <div class="config-row">
                     <div class="config-group"><div class="config-label">Anthropic Key</div><input type="password" class="config-input" id="settingsAnthropicKey" placeholder="sk-ant-..."></div>
@@ -115,8 +115,8 @@ def get_controls_html() -> str:
 
 <div class="mode-toggle" id="modeToggle"><button class="mode-btn active" id="btnCore">Core</button><button class="mode-btn" id="btnOrient">Orientation</button></div>
 <div class="view-toggle" id="viewToggle"><button class="mode-btn active" id="btnEvolution">Evolution</button><button class="mode-btn" id="btnMagnitudes">Magnitudes</button><button class="mode-btn" id="btnConvergence">Convergence</button></div>
-<div class="evolution-mode-toggle" id="evolutionModeToggle"><button class="mode-btn small active" id="btnEvolutionCore">Core</button><button class="mode-btn small" id="btnEvolutionDrift">Drift</button><button class="mode-btn small" id="btnEvolutionPotential">Potential</button></div>
-<div class="diversity-toggle" id="diversityToggle"><label class="toggle-label"><input type="checkbox" id="diversityCheckbox" onchange="toggleDiversity()"><span class="toggle-slider"></span><span class="toggle-text">Diversity</span></label></div>
+<div class="evolution-mode-toggle" id="evolutionModeToggle"><button class="mode-btn small active" id="btnEvolutionCore">Default</button><button class="mode-btn small" id="btnEvolutionDrift">Drift</button><button class="mode-btn small" id="btnEvolutionPotential">Potential</button></div>
+<div class="diversity-toggle" id="diversityToggle"><label class="toggle-label"><input type="checkbox" id="diversityCheckbox" onchange="toggleDiversity()"><span class="toggle-slider"></span><span class="toggle-text">Eff. Structures</span></label></div>
 <div class="judge-model-toggle" id="judgeModelToggle"></div>
 <div class="legend" id="legend"></div>
 <div class="control-buttons" id="controlButtons">
@@ -161,11 +161,11 @@ def get_controls_html() -> str:
             <div class="traj-explorer-slider-track" id="trajSliderTrack">
                 <div class="traj-explorer-slider-ball" id="trajSliderBall"></div>
             </div>
-            <div class="traj-explorer-diversity" id="trajExplorerDiversity">🌈 Diversity: <span id="trajDiversityValue">1.00</span></div>
+            <div class="traj-explorer-diversity" id="trajExplorerDiversity">🌈 Eff. Structures: <span id="trajDiversityValue">1.00</span></div>
         </div>
         <div class="traj-explorer-chart-section">
             <div class="traj-explorer-mode-toggle">
-                <button class="traj-mode-btn active" id="trajModeCore" onclick="setTrajMode('core')">Core</button>
+                <button class="traj-mode-btn active" id="trajModeCore" onclick="setTrajMode('core')">Default</button>
                 <button class="traj-mode-btn" id="trajModeDrift" onclick="setTrajMode('drift')">Drift</button>
                 <button class="traj-mode-btn" id="trajModePotential" onclick="setTrajMode('potential')">Potential</button>
             </div>

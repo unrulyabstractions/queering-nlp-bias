@@ -1,9 +1,9 @@
 """Visualization for dynamics analysis.
 
-Plots three metrics over token position k:
-- Pull: l2 norm of scores (normative strength)
-- Drift: deviance from initial scores (how far we've moved from start)
-- Potential: deviance from final scores (how far to end state)
+Plots three metrics over token position k (paper Eqs. 4, 5, 9):
+- Pull: ||Λ_n(x_p)||_Λ, dimension-normalized magnitude of the system attunement
+- Drift: ||Λ_n(x_p) - Λ_n(x_0)||_θ, deviance from the initial attunement
+- Potential: ||Λ_n(x_p) - Λ_n(x_final)||_θ, deviance from the final attunement
 
 Output structure:
     dynamics/

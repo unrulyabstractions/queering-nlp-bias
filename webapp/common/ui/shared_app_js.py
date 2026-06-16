@@ -13,7 +13,7 @@ let treeState={nodes:[],questions:[]}, dynamicsState={positions:[],questions:[],
 let judgeAddingMore=false;  // Flag to prevent results reset when adding texts
 let showOrientation=false, showMagnitudes=false, referenceNode='root', highlightedQuestion=null, highlightedMagnitude=null;
 let appConfig={anthropic_key:'',openai_key:'',models:{},provider_names:{},defaults:{}};
-let settings={gen_provider:'openai',gen_model:'gpt-4o-mini',judge_model:[{provider:'openai',model:'gpt-4o-mini'}],gen_temperature:1.0,judge_temperature:0.0,max_tokens:300,judge_prompt:''};
+let settings={gen_provider:'anthropic',gen_model:'claude-opus-4-1',judge_model:[{provider:'anthropic',model:'claude-opus-4-6'}],gen_temperature:1.0,judge_temperature:0.0,max_tokens:250,judge_prompt:''};
 const colors=['#FF6B9D','#C678DD','#56B6C2','#E5C07B','#98C379','#61AFEF','#E06C75','#D19A66'];
 
 // ════════════════════════════════════════════════════════════════════════════════
@@ -40,8 +40,8 @@ async function loadConfig(){
     document.getElementById('genTempVal').textContent=settings.gen_temperature||1.0;
     document.getElementById('settingsJudgeTemp').value=settings.judge_temperature||0.0;
     document.getElementById('judgeTempVal').textContent=settings.judge_temperature||0.0;
-    document.getElementById('settingsMaxTokens').value=settings.max_tokens||300;
-    document.getElementById('maxTokensVal').textContent=settings.max_tokens||300;
+    document.getElementById('settingsMaxTokens').value=settings.max_tokens||250;
+    document.getElementById('maxTokensVal').textContent=settings.max_tokens||250;
     initSyntaxEditor('settingsJudgePrompt',settings.judge_prompt);
     document.getElementById('settingsAnthropicKey').value=appConfig.anthropic_key;
     document.getElementById('settingsOpenaiKey').value=appConfig.openai_key;

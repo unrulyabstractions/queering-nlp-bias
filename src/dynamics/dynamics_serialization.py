@@ -16,7 +16,7 @@ def save_dynamics_json(result: DynamicsResult, output_path: Path | str) -> Path:
     Format:
     {
         "n_structures": 4,
-        "step": 4,
+        "step": 8,
         "trajectories": [
             {
                 "traj_idx": 0,

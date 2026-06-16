@@ -7,109 +7,128 @@ This document provides the mathematical foundations and implementation details f
 All parameters are in `src/common/default_config.py`:
 
 ```python
-DYNAMICS_STEP = 4              # Measure every N tokens
-DYNAMICS_TRAJS_PER_ARM = 2     # Extremal trajectories per arm
-DYNAMICS_ARMS = ["branch"]     # Arm types: "root", "trunk", "branch", "twig"
+DYNAMICS_STEP = 8                  # Measure the system default every N tokens
+DYNAMICS_SAMPLES_PER_POSITION = 8  # Continuations sampled per prefix for the barycenter
+DYNAMICS_CONTINUATION_MAX_TOKENS = 128  # Tokens per sampled continuation
+DYNAMICS_TRAJS_PER_ARM = 2         # Extremal trajectories per arm
+DYNAMICS_ARMS = ["root", "trunk", "branch", "twig"]  # Arm types analyzed
 ```
 
 ## Overview
 
-The dynamics module tracks how trajectories evolve by scoring partial text at each token position. Three complementary metrics capture different aspects of this evolution:
+The dynamics module tracks how a trajectory evolves token by token. At each measured
+position it tracks two distinct paper quantities — the realized **system attunement**
+Λ_n(x_p) and the **system default** ⟨Λ_n⟩(x_p) (the barycenter) — and from them computes
+three deviance-based metrics:
 
-- **Pull x(k)**: How strong is the normative characterization at position k?
-- **Drift y(k)**: How far has the trajectory deviated from its initial state?
-- **Potential z(k)**: How far is the trajectory from its final state?
+- **Pull x(k)**: How strong is the normative attractor (the system default) at position k?
+- **Drift y(k)**: How far has the realized text drifted from the *initial* normative frame?
+- **Potential z(k)**: How far is the final outcome from the *current* normative frame?
 
 ## Mathematical Definitions
 
-### Structure Scores at Position k
+### System Attunement and System Default at Position k
 
-At each measurement position k, we:
-1. Extract partial text proportional to k/n_tokens
-2. Score it using the scoring config to get structure scores
+At each measurement position k we compute two distinct vectors, never conflated:
 
-```
-scores(k) = Lambda(text[:char_pos])
-```
+1. **System attunement** Λ_n(x_p^k) — score the prefix text directly (paper Eqs. 2-3):
+   ```
+   Λ_n(x_p^k) = (α_1(x_p^k), ..., α_n(x_p^k))
+   ```
+   where `char_pos = int(len(text) * k / n_tokens)` approximates the character position
+   for k tokens.
 
-Where:
-- `char_pos = int(len(text) * k / n_tokens)` approximates the character position for k tokens
-- `Lambda(text)` is the structure compliance vector from scoring
+2. **System default** ⟨Λ_n⟩(x_p^k) — the expected attunement over continuations of the
+   prefix (paper Eq. 7), estimated by Monte-Carlo sampling:
+   ```
+   ⟨Λ_n⟩(x_p^k) ≈ (1/M) Σ_{m=1..M} Λ_n(y_m),   y_m ~ P(· | x_p^k)
+   ```
+   We sample M = `samples_per_position` completions from the model at temperature 1.0
+   (so the uniform mean is an unbiased estimate of the expectation), score each, average.
+
+All metrics use the paper's **dimension-normalized** norms,
+`||v||_Λ = ||v||_θ = ||v||_2 / sqrt(dim)` (paper Eqs. 4, 5, 9), so they stay in `[0, 1]`
+when scores are in `[0, 1]`. Each metric is an **orientation/deviance**: an *attunement*
+of a string minus a *system default* of a reference prefix.
 
 ### Pull x(k)
 
-Pull measures the L2 norm of structure scores at position k:
+Pull measures the dimension-normalized magnitude of the **system default** at position k:
 
 ```
-x(k) = ||scores(k)||_2 = sqrt(sum_i scores(k)[i]^2)
+x(k) = ||⟨Λ_n⟩(x_p^k)||_Λ
 ```
 
-**Interpretation**: Higher pull indicates stronger normative characterization at that point. A trajectory with consistently high pull shows strong normative tendencies throughout.
+**Interpretation**: higher pull = a more strongly oriented normative attractor at that point.
 
 ### Drift y(k)
 
-Drift measures how far the current scores have deviated from the initial scores:
+Drift is the deviance of the current **attunement** from the **initial system default**:
 
 ```
-y(k) = ||scores(k) - scores(initial)||_2
+y(k) = ∂_n(x_p^k | x_0) = ||Λ_n(x_p^k) - ⟨Λ_n⟩(x_0)||_θ
 ```
 
-Where `scores(initial)` is the scores at the first measurement position.
+where `⟨Λ_n⟩(x_0)` is the system default at the first measurement position.
 
 **Interpretation**:
-- Drift starts at 0 (by definition, initial deviance from initial is zero)
-- Rising drift indicates the trajectory is evolving away from its starting state
-- Stable drift indicates the trajectory has settled into a consistent pattern
+- Drift does NOT start at 0: at k=0 it is `||Λ_n(x_0) - ⟨Λ_n⟩(x_0)||`, the realized
+  prefix's deviance from its own default (generally nonzero).
+- Rising drift indicates the realized text is moving away from the starting normative frame.
 
 ### Potential z(k)
 
-Potential measures how far the current scores are from the final scores:
+Potential is the deviance of the **final attunement** from the **current system default**:
 
 ```
-z(k) = ||scores(k) - scores(final)||_2
+z(k) = ∂_n(x_final | x_p^k) = ||Λ_n(x_final) - ⟨Λ_n⟩(x_p^k)||_θ
 ```
 
-Where `scores(final)` is the scores at the last measurement position (full text).
+where `Λ_n(x_final)` is the attunement at the last measurement position (full text).
 
 **Interpretation**:
-- Potential ends at 0 (by definition, final deviance from final is zero)
-- Decreasing potential indicates the trajectory is converging toward its final state
-- High initial potential with rapid decrease suggests late-emerging normative patterns
+- Potential does NOT end at 0: at the last position it is the final attunement's deviance
+  from the final prefix's default (generally nonzero).
+- Decreasing potential indicates the system default is converging toward the realized end.
 
 ## Computation Algorithm
 
 ### compute_dynamics()
 
 ```python
-def compute_dynamics(trajectories, config, runner, embedder, step):
+def compute_dynamics(trajectories, scorer, runner, config):
     results = []
 
-    for traj_idx, arm_name, text, n_tokens in trajectories:
+    for traj in trajectories:  # DynamicsTrajectory: prompt, prefill, text, n_tokens, ...
         # 1. Identify measurement positions
         positions = [step, 2*step, ..., n_tokens]
         if n_tokens not in positions:
             positions.append(n_tokens)
 
-        # 2. Score at each position
-        scored = []
+        # 2. At each position: realized attunement + SAMPLED system default
+        measured = []
         for k in positions:
-            ratio = k / n_tokens
-            partial_text = text[:int(len(text) * ratio)]
-            scores = score_text(partial_text, config, runner, embedder)
-            scored.append((k, scores))
+            prefix_text = traj.text[:int(len(traj.text) * k / traj.n_tokens)]
+            attunement = scorer.score(prefix_text)                      # Λ_n(x_p)
+            default = estimate_system_default(                          # ⟨Λ_n⟩(x_p)
+                runner, scorer, traj.prompt, traj.prefill, prefix_text,
+                config.samples_per_position, config.continuation_max_tokens, config.temperature,
+            )  # samples M continuations, scores each, averages
+            measured.append((k, attunement, default))
 
-        # 3. Compute metrics
-        initial_scores = scored[0][1]
-        final_scores = scored[-1][1]
+        # 3. Compute deviance-based metrics (normalized_deviance = ||a-b||_2/sqrt(n))
+        initial_default = measured[0][2]     # ⟨Λ_n⟩(x_0)
+        final_attunement = measured[-1][1]   # Λ_n(x_final)
 
         position_scores = []
-        for k, scores in scored:
+        for k, attunement, default in measured:
             position_scores.append(PositionScores(
                 k=k,
-                scores=scores,
-                pull=l2_norm(scores),
-                drift=deviance(scores, initial_scores),
-                potential=deviance(scores, final_scores),
+                system_attunement=attunement,
+                system_default=default,
+                pull=pull(default),
+                drift=drift(attunement, initial_default),
+                potential=potential(final_attunement, default),
             ))
 
         results.append(TrajectoryDynamics(...))
@@ -129,8 +148,8 @@ def measurement_positions(n_tokens, step):
     return positions
 ```
 
-Example with step=4, n_tokens=15:
-- Positions: [4, 8, 12, 15]
+Example with step=8, n_tokens=20:
+- Positions: [8, 16, 20]
 
 ## Trajectory Selection
 
@@ -184,15 +203,15 @@ Each trajectory gets a single plot with three curves:
 ```json
 {
   "n_structures": 4,
-  "step": 4,
+  "step": 8,
   "trajectories": [
     {
       "traj_idx": 0,
       "arm_name": "trunk",
       "n_tokens": 64,
-      "pull": [[4, 1.12], [8, 1.62], [12, 1.45], ...],
-      "drift": [[4, 0.0], [8, 0.8], [12, 1.2], ...],
-      "potential": [[4, 1.5], [8, 1.2], [12, 0.8], ...]
+      "pull": [[8, 0.42], [16, 0.53], [24, 0.64], ...],
+      "drift": [[8, 0.03], [16, 0.11], [24, 0.25], ...],
+      "potential": [[8, 0.39], [16, 0.25], [24, 0.12], ...]
     }
   ]
 }
@@ -215,10 +234,10 @@ Each trajectory gets a single plot with three curves:
 
 ### Reading Potential Curves
 
-- **High initial value**: Final state is very different from initial state
-- **Gradual decrease**: Smooth convergence to final state
-- **Sharp late drop**: Sudden shift to final pattern near the end
-- **Zero at end**: By definition, always ends at zero
+- **High initial value**: the final outcome is far from the early normative frame
+- **Gradual decrease**: the system default converges toward the realized end
+- **Sharp late drop**: sudden shift to the final pattern near the end
+- **Small (not zero) at end**: the final attunement still deviates from the final default
 
 ### Combined Analysis
 
@@ -229,8 +248,13 @@ Each trajectory gets a single plot with three curves:
 
 ## Performance Considerations
 
-- **All metrics require re-scoring**: Each measurement position requires scoring the partial text
-- **Step size trade-off**: Smaller step = more resolution but more API calls
-- **Typical step=4**: Reasonable balance of resolution and cost
-- **Extremal selection**: Only `DYNAMICS_TRAJS_PER_ARM` trajectories per arm are analyzed (not all trajectories)
-- **Arm filtering**: Only arm types in `DYNAMICS_ARMS` are analyzed (default: branches only)
+- **Sampling dominates cost**: each measured position samples `samples_per_position`
+  continuations from the model to estimate the system default. Generations per trajectory
+  ≈ `positions × samples_per_position` (e.g. step=8 over 128 tokens × 8 samples ≈ 128).
+- **Two models resident**: the judge model (scorer) and the generation model (runner) are
+  loaded together during dynamics — watch GPU memory.
+- **Step / sample trade-off**: raise `DYNAMICS_STEP` or lower `DYNAMICS_SAMPLES_PER_POSITION`
+  for speed; lower step / more samples for resolution and a lower-variance default.
+- **temperature=1.0**: required for the uniform sample mean to be a valid estimate of ⟨Λ_n⟩.
+- **Extremal selection**: only `DYNAMICS_TRAJS_PER_ARM` trajectories per arm are analyzed.
+- **Arm filtering**: only arm types in `DYNAMICS_ARMS` are analyzed.

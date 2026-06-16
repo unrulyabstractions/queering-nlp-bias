@@ -22,25 +22,35 @@ System = list[Structure]  # Scores for all questions in one trajectory sample
 # ════════════════════════════════════════════════════════════════════════════════
 
 
-def compute_l2_norm(scores: System) -> Scoring:
-    """L2 norm (magnitude) of score vector."""
-    if not scores:
+def compute_normalized_norm(vector: System) -> Scoring:
+    """Dimension-normalized L2 norm: ||v||_Λ = ||v||_2 / sqrt(dim) (paper Eq. 4).
+
+    The RMS of the components, so the magnitude stays comparable across systems of
+    different dimensionality and lands in [0, 1] when scores are in [0, 1]. Applies
+    to any vector in attunement space — a system attunement Λ_n(x) or a system
+    default ⟨Λ_n⟩(x_p).
+    """
+    if not vector:
         return 0.0
-    return math.sqrt(sum(s * s for s in scores))
+    return math.sqrt(sum(v * v for v in vector) / len(vector))
 
 
-def compute_l2_distance(a: System, b: System) -> Scoring:
-    """L2 distance between two score vectors."""
+def compute_deviance(a: System, b: System) -> Scoring:
+    """Dimension-normalized L2 distance between two system attunements: ||a - b||_θ.
+
+    Paper Eq. 5 / Eq. 9: the orientation a - b summarized as its
+    dimension-normalized magnitude (the RMS of the per-structure differences).
+    """
     if not a or not b or len(a) != len(b):
         return 0.0
-    return compute_l2_norm([x - y for x, y in zip(a, b)])
+    return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)) / len(a))
 
 
-def compute_core_diversity(system: System) -> Scoring:
-    """Compute effective number of structures represented (exp of entropy).
+def compute_effective_structures(system: System) -> Scoring:
+    """Effective number of operating structures: exp(H) of the abundance distribution.
 
-    Takes a System (list of scores), normalizes to probability distribution,
-    and returns exp(Shannon entropy) = Hill number D_1.
+    Paper Section 6.1: normalize the system default into the structure abundance
+    distribution, then return exp(Shannon entropy) = Hill number D_1.
 
     The result is in units of "effective number of structures" - ranges from
     1 (all weight on one structure) to len(system) (uniform distribution).
@@ -349,16 +359,18 @@ class NormativityEstimate:
 
     @property
     def core(self) -> System:
-        """Mean score vector across all samples."""
+        """System default (barycenter) ⟨Λ_n⟩(x_p): mean attunement across sampled continuations."""
         return compute_system_means(self.samples)
 
     @property
-    def orient_std(self) -> System:
-        """Standard deviation per dimension of sample orientations (deviations from core)."""
+    def orientation_std(self) -> System:
+        """Per-structure standard deviation of sample orientations (deviations from the system default)."""
         if not self.samples:
             return []
-        core = self.core
-        orientations = [compute_deviation(sample, core) for sample in self.samples]
+        system_default = self.core
+        orientations = [
+            compute_deviation(sample, system_default) for sample in self.samples
+        ]
         return compute_system_stds(orientations)
 
     @property

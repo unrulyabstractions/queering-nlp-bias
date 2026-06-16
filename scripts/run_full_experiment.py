@@ -35,7 +35,12 @@ from schemas.script_utils import (
 )
 from score_trajectories import score_trajectories
 
-from src.common.default_config import DYNAMICS_ARMS, DYNAMICS_STEP, DYNAMICS_TRAJS_PER_ARM
+from src.common.default_config import (
+    DYNAMICS_ARMS,
+    DYNAMICS_SAMPLES_PER_POSITION,
+    DYNAMICS_STEP,
+    DYNAMICS_TRAJS_PER_ARM,
+)
 from src.common.logging import (
     STAGE_GAP,
     log,
@@ -46,7 +51,13 @@ from src.common.logging import (
 )
 from src.common.profiler import P, profile
 from src.common.random_seed import set_seed
-from src.dynamics import compute_dynamics, plot_dynamics, save_dynamics_json
+from src.dynamics import (
+    DynamicsConfig,
+    DynamicsTrajectory,
+    compute_dynamics,
+    plot_dynamics,
+    save_dynamics_json,
+)
 from src.estimation import EstimationOutput, ScoringData
 from src.estimation.estimation_experiment_types import EstimationResult
 from src.estimation.logging.estimation_comparison_logging import (
@@ -305,30 +316,69 @@ def _select_extremal_trajectories(all_trajs: list) -> list[tuple[int, str, str, 
     return selected
 
 
+def _build_dynamics_trajectories(
+    selected: list[tuple[int, str, str, int]], config: GenerationConfig, gen_path: Path
+) -> list[DynamicsTrajectory]:
+    """Attach each selected trajectory's prompt + arm prefill (needed to sample continuations)."""
+    gen_data = GenerationOutputData.load(gen_path)
+    # In template mode arm.prompt is the filled prompt; otherwise the shared config.prompt is used.
+    arm_context = {
+        arm.name: (arm.prompt or config.prompt, arm.prefill) for arm in gen_data.arms
+    }
+    dyn_trajectories = []
+    for traj_idx, arm, text, n_tokens in selected:
+        prompt, prefill = arm_context.get(arm, (config.prompt, ""))
+        dyn_trajectories.append(
+            DynamicsTrajectory(
+                traj_idx=traj_idx,
+                arm_name=arm,
+                prompt=prompt,
+                prefill=prefill,
+                text=text,
+                n_tokens=n_tokens,
+            )
+        )
+    return dyn_trajectories
+
+
 @profile
-def step_dynamics(result: EstimationResult, scoring_config_path: Path) -> None:
-    """Compute drift and potential dynamics for trajectories."""
+def step_dynamics(
+    result: EstimationResult, scoring_config_path: Path, config: GenerationConfig
+) -> None:
+    """Compute paper-correct pull/drift/potential dynamics for trajectories.
+
+    Estimates the system default ⟨Λ_n⟩(x_p) at each prefix by sampling continuations
+    from the generation model, so it loads BOTH the judge model (scorer) and the
+    generation model (runner).
+    """
     log_section("DYNAMICS")
     log("Computing dynamics (pull, drift, potential)...")
 
     scorer = Scorer.load(scoring_config_path)
     log(f"Loaded scorer: {scorer.num_structures} structures")
 
-    # Load trajectories from scoring data
+    # Select extremal trajectories (highest and lowest inv_ppl per arm), then attach
+    # the prompt/prefill each one needs so continuations can be sampled from any prefix.
     scoring_data = ScoringData.load(result.paths.judgment)
-    all_trajs = scoring_data.get_all_trajectories()
+    selected = _select_extremal_trajectories(scoring_data.get_all_trajectories())
+    dyn_trajectories = _build_dynamics_trajectories(selected, config, result.paths.generation)
 
-    # Select extremal trajectories (highest and lowest inv_ppl per arm)
-    trajectories = _select_extremal_trajectories(all_trajs)
+    log(f"Selected {len(dyn_trajectories)} trajectories (extremal inv_ppl per arm)")
+    for traj in dyn_trajectories:
+        log(f"  [{traj.traj_idx}] {traj.arm_name} ({traj.n_tokens} tokens)")
 
-    log(f"Selected {len(trajectories)} trajectories (extremal inv_ppl per arm)")
-    for traj_idx, arm, _, n_tokens in trajectories:
-        log(f"  [{traj_idx}] {arm} ({n_tokens} tokens)")
+    # Reload the generation model to sample continuations for the system default.
+    runner = load_model(config)
+    dyn_config = DynamicsConfig(
+        step=DYNAMICS_STEP,
+        samples_per_position=DYNAMICS_SAMPLES_PER_POSITION,
+        continuation_max_tokens=config.max_new_tokens,
+        temperature=config.temperature,
+    )
+    dynamics_result = compute_dynamics(dyn_trajectories, scorer, runner, dyn_config, log_fn=log)
 
-    # Compute dynamics
-    dynamics_result = compute_dynamics(trajectories, scorer, step=DYNAMICS_STEP, log_fn=log)
-
-    # Cleanup scorer models to free memory
+    # Cleanup both models to free memory
+    runner.cleanup()
     scorer.cleanup()
 
     # Save dynamics data as JSON
@@ -423,7 +473,7 @@ def run_single_experiment(
 
     # Compute dynamics if requested
     if dynamics:
-        step_dynamics(result, scoring_config_path)
+        step_dynamics(result, scoring_config_path, config)
 
     return result
 

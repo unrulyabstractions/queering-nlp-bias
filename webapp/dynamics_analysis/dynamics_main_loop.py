@@ -7,13 +7,17 @@ from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 
 from webapp.common.algorithm_config import AlgorithmEvent, SamplingConfig
-from webapp.common.llm_clients import generate_from_llm, get_client, multi_provider_judge_all_questions
+from webapp.common.llm_clients import (
+    generate_from_llm,
+    get_client,
+    multi_provider_judge_all_questions,
+)
 from webapp.common.normativity_types import (
     GenerationNode,
     System,
-    compute_core_diversity,
-    compute_l2_distance,
-    compute_l2_norm,
+    compute_deviance,
+    compute_effective_structures,
+    compute_normalized_norm,
     get_word_positions,
 )
 from webapp.common.sampling_loop import (
@@ -21,7 +25,11 @@ from webapp.common.sampling_loop import (
     build_state,
     run_sampling_loop,
 )
-from webapp.common.text_formatting_utils import TextComponents, format_scores, truncate_for_log
+from webapp.common.text_formatting_utils import (
+    TextComponents,
+    format_scores,
+    truncate_for_log,
+)
 
 
 def _extract_last_word(text: str) -> str:
@@ -64,36 +72,71 @@ def build_dynamics_state(
 
 
 @dataclass
-class PrefixSystems:
-    """Prefix systems for all nodes in dynamics analysis."""
+class PrefixSystemAttunements:
+    """System attunements Λ_n(x_p) (the judged scores of each prefix string).
 
-    systems: dict[int, System]
+    These are the *realized* attunements of the actual text at each position.
+    initial/final are the attunements at the first and last prefixes.
+    """
+
+    by_node: dict[int, System]
+    initial: System
+    final: System
+
+
+@dataclass
+class PrefixSystemDefaults:
+    """System defaults ⟨Λ_n⟩(x_p) (the sampled barycenters at each prefix).
+
+    These are the *expected* attunements over continuations sampled from each
+    prefix — a different object from the realized attunement, never conflated.
+    initial/final are the system defaults at the first and last prefixes.
+    """
+
+    by_node: dict[int, System]
     initial: System
     final: System
 
 
 def _compute_dynamics_metrics(
-    core: System,
-    prefix_system: System,
-    initial_prefix: System,
-    final_prefix: System,
+    system_default: System,
+    system_attunement: System,
+    initial_system_default: System,
+    final_system_attunement: System,
 ) -> dict[str, float]:
-    """Compute dynamics metrics.
+    """Dynamics metrics at one prefix x_p, grounded in the paper's quantities.
 
-    - pull: L2 norm of core (magnitude of trajectory scores)
-    - drift: distance of prefix_system from initial
-    - potential: distance of prefix_system to final
-    - core_diversity: effective number of structures (exp of entropy of normalized core)
+    Every metric below is an orientation/deviance in the paper's sense (Eqs. 8-9):
+    the deviance ∂_n(x | x_ref) = ||Λ_n(x) - ⟨Λ_n⟩(x_ref)||_θ is always an *attunement*
+    of a string minus a *system default* of a reference prefix. We never subtract two
+    attunements or two defaults.
+
+    - pull: ||⟨Λ_n⟩(x_p)||_Λ, the dimension-normalized magnitude of the current system
+      default (barycenter) — how strongly the prefix is normatively oriented.
+    - drift: ∂_n(x_p | x_0) = ||Λ_n(x_p) - ⟨Λ_n⟩(x_0)||_θ, the deviance of the current
+      attunement from the *initial* system default — how far the realized text has
+      drifted from the starting normative frame.
+    - potential: ∂_n(x_final | x_p) = ||Λ_n(x_final) - ⟨Λ_n⟩(x_p)||_θ, the deviance of
+      the final outcome from the *current* system default — its remaining pull.
+    - effective_structures: exp(H) of the current system default's abundance distribution.
+
+    Args use distinct attunement vs default vectors and must not be conflated:
+      system_default          = ⟨Λ_n⟩(x_p)      (current barycenter)
+      system_attunement       = Λ_n(x_p)         (current realized attunement)
+      initial_system_default  = ⟨Λ_n⟩(x_0)       (drift reference frame)
+      final_system_attunement = Λ_n(x_final)     (potential subject string)
     """
     return {
-        "pull": compute_l2_norm(core) if core else 0.0,
-        "drift": compute_l2_distance(prefix_system, initial_prefix)
-        if prefix_system and initial_prefix
+        "pull": compute_normalized_norm(system_default) if system_default else 0.0,
+        "drift": compute_deviance(system_attunement, initial_system_default)
+        if system_attunement and initial_system_default
         else 0.0,
-        "potential": compute_l2_distance(final_prefix, prefix_system)
-        if prefix_system and final_prefix
+        "potential": compute_deviance(final_system_attunement, system_default)
+        if final_system_attunement and system_default
         else 0.0,
-        "core_diversity": compute_core_diversity(core) if core else 1.0,
+        "effective_structures": compute_effective_structures(system_default)
+        if system_default
+        else 1.0,
     }
 
 
@@ -145,7 +188,7 @@ class WelfordAccumulator:
         return ConvergenceEntry(mean=self.mean.copy(), std=self.get_std())
 
     @classmethod
-    def from_entry(cls, n: int, entry: ConvergenceEntry) -> "WelfordAccumulator":
+    def from_entry(cls, n: int, entry: ConvergenceEntry) -> WelfordAccumulator:
         """Restore accumulator state from a ConvergenceEntry.
 
         The m2 value (sum of squared deviations) can be reconstructed from std:
@@ -248,7 +291,9 @@ async def _judge_prefix(
     for i, r in enumerate(results):
         if r.score is None:
             error_count += 1
-            print(f"     ⚠️ JUDGE PARSE ERROR [Q{i}]: treating as 0.0 | raw: {r.raw_response[:50]}...")
+            print(
+                f"     ⚠️ JUDGE PARSE ERROR [Q{i}]: treating as 0.0 | raw: {r.raw_response[:50]}..."
+            )
             scores.append(0.0)
         else:
             scores.append(r.score)
@@ -269,7 +314,7 @@ async def _judge_prefixes_streaming(
     print("=" * 60)
     print(f"  Total prefixes to judge: {len(state.nodes)}")
 
-    systems: dict[int, System] = {}
+    system_attunements: dict[int, System] = {}
     completed = 0
 
     # Create tasks with node info
@@ -299,30 +344,32 @@ async def _judge_prefixes_streaming(
             print(f"  -> ERROR judging node {node_id}: {str(result)[:80]}")
             continue
 
-        systems[node_id] = result
+        system_attunements[node_id] = result
         node = state.nodes_by_id.get(node_id)
 
         # Build position data for this node
-        first_node_id = state.nodes[0].node_id if state.nodes else 0
         last_node_id = state.nodes[-1].node_id if state.nodes else 0
-        initial = systems.get(first_node_id, [])
-        final = systems.get(last_node_id, [])
+        final_system_attunement = system_attunements.get(last_node_id, [])
 
         pos_data = {
             "position": position_map.get(node_id, 0),
             "label": node.label if node else "",
-            "core": [],  # No core yet, just prefix
-            "prefix_system": result,
-            "initial_prefix": initial,
-            "final_prefix": final,
+            # Every metric is a deviance from the system default (barycenter), which
+            # only exists after sampling; during prefix judging we have just the
+            # realized attunement, so pull/drift/potential stay 0 until sampling runs.
+            "system_default": [],
+            "system_attunement": result,
+            "initial_system_default": [],
+            "final_system_attunement": final_system_attunement,
             "pull": 0.0,
-            "drift": compute_l2_distance(result, initial) if result and initial else 0.0,
-            "potential": compute_l2_distance(final, result) if result and final else 0.0,
+            "drift": 0.0,
+            "potential": 0.0,
+            "effective_structures": 1.0,
         }
 
         yield (node_id, result, pos_data)
 
-    print(f"  -> Prefix judging complete: {len(systems)} success")
+    print(f"  -> Prefix judging complete: {len(system_attunements)} success")
 
 
 async def track_text_dynamics(
@@ -349,7 +396,9 @@ async def track_text_dynamics(
     print("=" * 60)
     print(f"  Prompt: {truncate_for_log(prompt, 100)}")
     print(f"  Prefill: {truncate_for_log(prefill, 50) if prefill else '(none)'}")
-    print(f"  Continuation: {truncate_for_log(continuation, 50) if continuation else '(none)'}")
+    print(
+        f"  Continuation: {truncate_for_log(continuation, 50) if continuation else '(none)'}"
+    )
     print(f"  Max tokens: {config.gen_max_tokens}")
     print(f"  Max rounds: {max_rounds}")
     print(f"  Questions: {len(questions)}")
@@ -357,11 +406,11 @@ async def track_text_dynamics(
     # Generate or use provided text
     if continuation:
         # Use provided continuation directly, skip generation
-        print(f"\n  -> Using provided continuation directly")
+        print("\n  -> Using provided continuation directly")
         text = TextComponents(prefill="", generated=continuation)
     elif prefill:
         # Generate with prefill
-        print(f"\n  -> Generating with prefill...")
+        print("\n  -> Generating with prefill...")
         yield AlgorithmEvent("status", {"message": "Generating from prefill..."})
         gen_client = get_client(config.gen_provider, config.gen_api_key)
         gen_result = await generate_from_llm(
@@ -394,12 +443,13 @@ async def track_text_dynamics(
         print(f"  -> Generated: {truncate_for_log(text.full, 100)}")
 
     yield AlgorithmEvent(
-        "continuation", {
+        "continuation",
+        {
             "text": text.full,
             "generated": text.generated,
             "prefill": text.prefill,
-            "length": len(text.full)
-        }
+            "length": len(text.full),
+        },
     )
 
     state = build_dynamics_state(prompt, text.full, questions)
@@ -407,26 +457,39 @@ async def track_text_dynamics(
     positions_data: dict[int, dict] = {}
 
     # Send initial started event so UI can show something immediately
-    yield AlgorithmEvent("started", {
-        "mode": "dynamics",
-        "data": {
-            "nodes": [{"node_id": n.node_id, "label": n.label, "depth": n.depth, "core": []} for n in state.nodes],
-            "questions": questions,
-            "total_samples": 0,
-            "total_api_calls": 0,
-        }
-    })
+    yield AlgorithmEvent(
+        "started",
+        {
+            "mode": "dynamics",
+            "data": {
+                "nodes": [
+                    {
+                        "node_id": n.node_id,
+                        "label": n.label,
+                        "depth": n.depth,
+                        "system_default": [],
+                    }
+                    for n in state.nodes
+                ],
+                "questions": questions,
+                "total_samples": 0,
+                "total_api_calls": 0,
+            },
+        },
+    )
 
     # Stream prefix judging results
     print("\n  -> Starting prefix judging phase (streaming)...")
     yield AlgorithmEvent("status", {"message": "Judging partial texts..."})
 
-    prefix_systems_dict: dict[int, System] = {}
+    system_attunements_by_node: dict[int, System] = {}
     first_node_id = state.nodes[0].node_id if state.nodes else 0
     last_node_id = state.nodes[-1].node_id if state.nodes else 0
 
-    async for node_id, prefix_scores, pos_data in _judge_prefixes_streaming(state, config, position_map, should_stop):
-        prefix_systems_dict[node_id] = prefix_scores
+    async for node_id, system_attunement, pos_data in _judge_prefixes_streaming(
+        state, config, position_map, should_stop
+    ):
+        system_attunements_by_node[node_id] = system_attunement
         positions_data[node_id] = pos_data
 
         # Yield position update as each prefix is judged
@@ -435,14 +498,19 @@ async def track_text_dynamics(
             {
                 "node_id": node_id,
                 "label": pos_data["label"],
-                "core": [],
-                "prefix_system": prefix_scores,
+                "system_default": [],
+                "system_attunement": system_attunement,
                 "position": pos_data["position"],
                 "pull": 0.0,
                 "drift": pos_data["drift"],
                 "potential": pos_data["potential"],
-                "all_positions": sorted(positions_data.values(), key=lambda p: p["position"]),
-                "progress": len(positions_data) / len(state.nodes) if state.nodes else 0.0,
+                "effective_structures": 1.0,
+                "all_positions": sorted(
+                    positions_data.values(), key=lambda p: p["position"]
+                ),
+                "progress": len(positions_data) / len(state.nodes)
+                if state.nodes
+                else 0.0,
                 "total_api_calls": len(positions_data) * len(questions),
             },
         )
@@ -452,15 +520,15 @@ async def track_text_dynamics(
         print("  -> Stopped during prefix judging phase")
         return
 
-    # Build final prefix_systems for sampling loop
-    prefix_systems = PrefixSystems(
-        systems=prefix_systems_dict,
-        initial=prefix_systems_dict.get(first_node_id, []),
-        final=prefix_systems_dict.get(last_node_id, []),
+    # Build final prefix system attunements for sampling loop
+    system_attunements = PrefixSystemAttunements(
+        by_node=system_attunements_by_node,
+        initial=system_attunements_by_node.get(first_node_id, []),
+        final=system_attunements_by_node.get(last_node_id, []),
     )
 
-    print(f"  Initial prefix system: {format_scores(prefix_systems.initial)}")
-    print(f"  Final prefix system: {format_scores(prefix_systems.final)}")
+    print(f"  Initial system attunement: {format_scores(system_attunements.initial)}")
+    print(f"  Final system attunement: {format_scores(system_attunements.final)}")
 
     # Now run sampling loop for trajectory scores
     print("\n  -> Starting sampling loop for dynamics...")
@@ -474,18 +542,35 @@ async def track_text_dynamics(
             continue
         elif event.type == "point_update":
             node_id = event.data.get("node_id")
-            core: System = event.data.get("core", [])
-            orient_std: System = event.data.get("orient_std", [])
-            prefix_system = prefix_systems.systems.get(node_id, [])
+            orientation_std: System = event.data.get("orientation_std", [])
+
+            # System defaults ⟨Λ_n⟩(x_p): the sampled barycenters, tracked per prefix
+            # and kept strictly distinct from the realized attunements Λ_n(x_p).
+            system_defaults_by_node = {
+                nid: est.core for nid, est in state.normativities.items()
+            }
+            system_defaults = PrefixSystemDefaults(
+                by_node=system_defaults_by_node,
+                initial=system_defaults_by_node.get(first_node_id, []),
+                final=system_defaults_by_node.get(last_node_id, []),
+            )
+
+            system_default = system_defaults.by_node.get(node_id, [])
+            system_attunement = system_attunements.by_node.get(node_id, [])
 
             metrics = _compute_dynamics_metrics(
-                core, prefix_system, prefix_systems.initial, prefix_systems.final
+                system_default,
+                system_attunement,
+                system_defaults.initial,
+                system_attunements.final,
             )
 
             # Log dynamics metrics for this position
-            print(f"  -> Position {node_id} metrics: pull={metrics['pull']:.3f}, "
-                  f"drift={metrics['drift']:.3f}, potential={metrics['potential']:.3f}, "
-                  f"diversity={metrics['core_diversity']:.2f}")
+            print(
+                f"  -> Position {node_id} metrics: pull={metrics['pull']:.3f}, "
+                f"drift={metrics['drift']:.3f}, potential={metrics['potential']:.3f}, "
+                f"effective_structures={metrics['effective_structures']:.2f}"
+            )
 
             # Build convergence history for all positions
             convergence_history = _build_convergence_history(state)
@@ -493,11 +578,11 @@ async def track_text_dynamics(
             positions_data[node_id] = {
                 "position": position_map.get(node_id, 0),
                 "label": event.data.get("label", ""),
-                "core": core,
-                "orient_std": orient_std,
-                "prefix_system": prefix_system,
-                "initial_prefix": prefix_systems.initial,
-                "final_prefix": prefix_systems.final,
+                "system_default": system_default,
+                "orientation_std": orientation_std,
+                "system_attunement": system_attunement,
+                "initial_system_default": system_defaults.initial,
+                "final_system_attunement": system_attunements.final,
                 "convergence_history": convergence_history.get(node_id, []),
                 **metrics,
             }
@@ -524,7 +609,11 @@ async def track_text_dynamics(
                 "position_update",
                 {
                     **event.data,
-                    "prefix_system": prefix_system,
+                    "system_default": system_default,
+                    "orientation_std": orientation_std,
+                    "system_attunement": system_attunement,
+                    "initial_system_default": system_defaults.initial,
+                    "final_system_attunement": system_attunements.final,
                     **metrics,
                     "position": position_map.get(node_id, 0),
                     "all_positions": sorted(
@@ -533,7 +622,18 @@ async def track_text_dynamics(
                     "all_convergence": all_convergence,
                     "all_trajectories": all_trajectories,
                     "all_samples": all_samples,
-                    "progress": 0.5 + 0.5 * (len([p for p in positions_data.values() if p.get("core")]) / len(state.nodes))
+                    "progress": 0.5
+                    + 0.5
+                    * (
+                        len(
+                            [
+                                p
+                                for p in positions_data.values()
+                                if p.get("system_default")
+                            ]
+                        )
+                        / len(state.nodes)
+                    )
                     if state.nodes
                     else 0.0,
                 },

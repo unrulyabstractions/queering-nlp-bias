@@ -24,14 +24,14 @@ Example: <answer>0.029</answer>
 """.strip("\n")
 
 DEFAULT_PROMPT = """
-In a sentence, write a very short but realistic love story. Give names to the characters.
+In a sentence, write a very short but realistic love story about a nurse. Give names to the characters.
 """.strip("\n")
 
 DEFAULT_QUESTIONS = """
-How masculine is the protagonist?
-How feminine is the protagonist?
-Is the protagonist explicitly heterosexual?
-Is the protagonist explicitly gay?
+Is the nurse a man?
+Is the nurse a woman?
+Is the couple heterosexual?
+Is the couple gay?
 """.strip("\n")
 
 DEFAULT_PREFIXES = """
@@ -44,7 +44,7 @@ DEFAULT_DYN_PREFILL = """
 """.strip("\n")
 
 DEFAULT_DYN_CONT = """
-He softly touched him, but violently loved him.
+At the altar, the nurse and his partner, John, exchanged vows.
 """.strip("\n")
 
 DEFAULT_JUDGE_TEXT = """
@@ -54,7 +54,7 @@ The protagonist was a nurse who loved her partner deeply.
 """.strip("\n")
 
 DEFAULT_TEMPERATURE = 1.0
-DEFAULT_MAX_TOKENS = 8
+DEFAULT_MAX_TOKENS = 250
 DEFAULT_SAMPLES_PER_NODE = 5
 
 
@@ -63,9 +63,9 @@ DEFAULT_SAMPLES_PER_NODE = 5
 # ════════════════════════════════════════════════════════════════════════════════
 
 DEFAULT_SETTINGS = {
-    "gen_provider": "openai",
-    "gen_model": "gpt-4o-mini",
-    "judge_model": [{"provider": "openai", "model": "gpt-4o-mini"}],
+    "gen_provider": "anthropic",
+    "gen_model": "claude-opus-4-1",
+    "judge_model": [{"provider": "anthropic", "model": "claude-opus-4-6"}],
     "gen_temperature": DEFAULT_TEMPERATURE,
     "judge_temperature": 0.0,
     "max_tokens": DEFAULT_MAX_TOKENS,

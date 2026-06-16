@@ -34,7 +34,7 @@ def get_dynamics_config_html() -> str:
                 <div class="colored-editor" id="dynQuestions" data-init="{questions_escaped}" data-placeholder="Enter a question..." style="min-height:220px"></div>
             </div>
         </div>
-        <div class="config-group" style="margin-top:20px"><div class="config-label">Samples per position: <span id="dynStepVal">1</span></div><input type="range" class="config-input" id="dynStep" min="1" max="100" value="1" style="padding:0" oninput="document.getElementById('dynStepVal').textContent=this.value"></div>
+        <div class="config-group" style="margin-top:20px"><div class="config-label">Samples per position: <span id="dynStepVal">30</span></div><input type="range" class="config-input" id="dynStep" min="1" max="100" value="30" style="padding:0" oninput="document.getElementById('dynStepVal').textContent=this.value"></div>
         <button class="start-btn" onclick="startDynamics()">Start</button>
     </div>
 </div>

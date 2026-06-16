@@ -1,6 +1,10 @@
 # CLAUDE.md - src/dynamics/
 
-This module analyzes how trajectories evolve by scoring partial text at each token position.
+This module tracks how a trajectory evolves token by token and computes the paper's
+**deviance-based** pull/drift/potential. At each measured prefix it tracks two distinct
+quantities: the realized **system attunement** Λ_n(x_p) (score of the prefix) and the
+**system default** ⟨Λ_n⟩(x_p) (the barycenter, estimated by **sampling continuations**
+from the model and averaging their attunements — paper Eq. 7).
 
 ## Configuration
 
@@ -8,59 +12,74 @@ All dynamics parameters are defined in `src/common/default_config.py`:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `DYNAMICS_STEP` | 4 | Measure scores every N tokens |
+| `DYNAMICS_STEP` | 8 | Measure the system default every N tokens (each measure samples → small step is expensive) |
+| `DYNAMICS_SAMPLES_PER_POSITION` | 8 | Continuations sampled per prefix to estimate ⟨Λ_n⟩(x_p) |
+| `DYNAMICS_CONTINUATION_MAX_TOKENS` | 128 | Max tokens per sampled continuation |
 | `DYNAMICS_TRAJS_PER_ARM` | 2 | Number of most extremal trajectories to analyze per arm |
-| `DYNAMICS_ARMS` | `["branch"]` | Arm types to analyze: `"root"`, `"trunk"`, `"branch"`, `"twig"` |
+| `DYNAMICS_ARMS` | all four | Arm types to analyze: `"root"`, `"trunk"`, `"branch"`, `"twig"` |
 
 ## Main Entry Points
 
 ```python
-from src.dynamics import compute_dynamics, plot_dynamics, save_dynamics_json
+from src.dynamics import (
+    DynamicsConfig, DynamicsTrajectory,
+    compute_dynamics, plot_dynamics, save_dynamics_json,
+)
+from src.inference import ModelRunner
 from src.scoring import Scorer
 
-# Build trajectory tuples (with string selection applied)
+scorer = Scorer.load(scoring_config_path)   # judge model → system attunement
+runner = ModelRunner(gen_model_name)        # generation model → sampled continuations
+
+# Each trajectory carries the prompt + arm prefill needed to sample continuations.
 trajectories = [
-    (traj.traj_idx, traj.arm, traj.text, traj.n_generated_tokens)
-    for traj in scoring_data.get_all_trajectories()
+    DynamicsTrajectory(
+        traj_idx=t.traj_idx, arm_name=t.arm, prompt=prompt, prefill=arm_prefill,
+        text=continuation, n_tokens=t.n_generated_tokens,
+    )
+    for t in selected_trajectories
 ]
 
-# Compute dynamics
-scorer = Scorer(config)  # or pass config directly
-result = compute_dynamics(trajectories, scorer, step=4)
+config = DynamicsConfig(step=8, samples_per_position=8, continuation_max_tokens=128, temperature=1.0)
+result = compute_dynamics(trajectories, scorer, runner, config)
 
-# Save dynamics data as JSON
 save_dynamics_json(result, Path("out/.../dynamics.json"))
-
-# Generate visualization plots
-saved_paths = plot_dynamics(result, Path("out/.../viz/dynamics/"))
+plot_dynamics(result, Path("out/.../viz/dynamics/"))
 ```
 
 ## Metrics
 
-At each token position k, we score the partial text and compute:
+Every metric is an **orientation/deviance** (paper Eqs. 8-9): an *attunement* of a string
+minus a *system default* of a reference prefix — never attunement−attunement or
+default−default. All are dimension-normalized (`||·||_2 / sqrt(dim)`):
 
 | Metric | Symbol | Description |
 |--------|--------|-------------|
-| **Pull** | x(k) | L2 norm of scores at position k (normative strength) |
-| **Drift** | y(k) | Deviance from initial scores (how far from start) |
-| **Potential** | z(k) | Deviance from final scores (how far to end state) |
+| **Pull** | x(k) | `||⟨Λ_n⟩(x_p)||`, magnitude of the **system default** (normative strength) |
+| **Drift** | y(k) | `||Λ_n(x_p) - ⟨Λ_n⟩(x_0)||`, current **attunement** vs the **initial default** |
+| **Potential** | z(k) | `||Λ_n(x_final) - ⟨Λ_n⟩(x_p)||`, **final attunement** vs the **current default** |
 
 ## Algorithm
 
 1. For each trajectory, identify measurement positions: `step, 2*step, ..., n_tokens`
 2. At each position k:
-   - Extract partial text (proportional to k/n_tokens)
-   - Score it using the scoring config to get structure scores
-   - Compute pull = `||scores||` (L2 norm)
-   - Compute drift = `||scores - initial_scores||` (deviance from position 0)
-   - Compute potential = `||scores - final_scores||` (deviance from end)
+   - Extract the prefix text (proportional to k/n_tokens)
+   - Score it → the realized **system attunement** `Λ_n(x_p)`
+   - **Sample `samples_per_position` continuations** from the prefix, score each, average
+     → the **system default** `⟨Λ_n⟩(x_p)` (paper Eq. 7)
+3. With per-position attunements and defaults, compute:
+   - pull = `||⟨Λ_n⟩(x_p)||`
+   - drift = `||Λ_n(x_p) - ⟨Λ_n⟩(x_0)||` (uses the **initial** default ⟨Λ_n⟩(x_0))
+   - potential = `||Λ_n(x_final) - ⟨Λ_n⟩(x_p)||` (uses the **final** attunement Λ_n(x_final))
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `dynamics_computation.py` | `compute_dynamics()` - main computation |
-| `dynamics_types.py` | `PositionScores`, `TrajectoryDynamics`, `DynamicsResult` |
+| `dynamics_computation.py` | `compute_dynamics()` - main computation/orchestration |
+| `dynamics_sampling.py` | `estimate_system_default()` - sample continuations → barycenter ⟨Λ_n⟩ |
+| `dynamics_metrics.py` | `pull()`, `drift()`, `potential()`, `normalized_norm()` |
+| `dynamics_types.py` | `DynamicsTrajectory`, `DynamicsConfig`, `PositionScores`, `TrajectoryDynamics`, `DynamicsResult` |
 | `dynamics_visualization.py` | `plot_dynamics()` - per-trajectory plots |
 | `dynamics_serialization.py` | `save_dynamics_json()` - save to JSON |
 
@@ -84,15 +103,15 @@ out/<method>/<gen_name>/<scoring_name>/
 ```json
 {
   "n_structures": 4,
-  "step": 4,
+  "step": 8,
   "trajectories": [
     {
       "traj_idx": 0,
       "arm_name": "trunk",
       "n_tokens": 64,
-      "pull": [[4, 1.12], [8, 1.62], ...],
-      "drift": [[4, 0.0], [8, 0.8], ...],
-      "potential": [[4, 1.5], [8, 1.2], ...]
+      "pull": [[8, 0.42], [16, 0.53], ...],
+      "drift": [[8, 0.03], [16, 0.11], ...],
+      "potential": [[8, 0.39], [16, 0.25], ...]
     }
   ]
 }
@@ -111,12 +130,22 @@ Dynamics analyzes **extremal trajectories** - those with highest and lowest inve
 
 ## Common Pitfalls
 
-1. **Re-scoring at each position** - partial text is re-scored at each k
-2. **Step size matters** - smaller step = more measurements but slower
-3. **Drift starts at 0** - by definition, drift from initial scores is 0 at first position
-4. **Potential ends at 0** - by definition, potential to final scores is 0 at last position
-5. **String selection applies** - thinking blocks are stripped before dynamics scoring (same as main scoring)
-6. **Extremal selection** - not all trajectories are analyzed, only the most/least probable per arm
+1. **Sampling cost dominates** - each position samples `samples_per_position` continuations
+   from the model: cost ≈ `positions × samples_per_position` generations per trajectory.
+   Raise `DYNAMICS_STEP` / lower `DYNAMICS_SAMPLES_PER_POSITION` to trade resolution for speed.
+2. **Two models loaded at once** - the judge model (scorer) AND the generation model (runner)
+   are resident together during dynamics; watch GPU memory.
+3. **Drift does NOT start at 0** - drift = `||Λ_n(x_p) - ⟨Λ_n⟩(x_0)||`; at the first position
+   this is the attunement's deviance from the default, which is generally nonzero.
+4. **Potential does NOT end at 0** - potential = `||Λ_n(x_final) - ⟨Λ_n⟩(x_p)||`; at the last
+   position the final attunement still deviates from the final prefix's default in general.
+5. **Attunement ≠ default** - never conflate Λ_n(x_p) (realized prefix score) with ⟨Λ_n⟩(x_p)
+   (sampled barycenter); they are tracked separately per position.
+6. **temperature=1.0 for a valid barycenter** - the uniform mean over samples estimates
+   E[Λ_n] only when sampling from the true distribution (temperature 1.0).
+7. **String selection applies** - thinking blocks are stripped from both the analyzed text
+   and each sampled continuation (same as main scoring).
+8. **Extremal selection** - not all trajectories are analyzed, only the most/least probable per arm.
 
 ## See Also
 

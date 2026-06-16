@@ -12,10 +12,13 @@ import asyncio
 from collections import defaultdict
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
-from typing import Any
 
 from webapp.common.algorithm_config import AlgorithmEvent, SamplingConfig
-from webapp.common.llm_clients import generate_from_llm, get_client, multi_provider_judge
+from webapp.common.llm_clients import (
+    generate_from_llm,
+    get_client,
+    multi_provider_judge,
+)
 from webapp.common.normativity_types import (
     GenerationNode,
     NormativityEstimate,
@@ -23,7 +26,10 @@ from webapp.common.normativity_types import (
     compute_system_means,
 )
 from webapp.common.rate_limited_executor import ExecutorConfig, RateLimitedExecutor
-from webapp.common.text_formatting_utils import combine_prefill_generated, format_scores, truncate_for_log
+from webapp.common.text_formatting_utils import (
+    combine_prefill_generated,
+    format_scores,
+)
 
 
 def _log(msg: str) -> None:
@@ -89,7 +95,9 @@ def build_state(
     _log(f"Building state: {len(nodes)} nodes, {len(questions)} questions")
     return SamplingState(
         nodes=nodes,
-        normativities={n.node_id: NormativityEstimate(node_id=n.node_id) for n in nodes},
+        normativities={
+            n.node_id: NormativityEstimate(node_id=n.node_id) for n in nodes
+        },
         questions=questions,
         prompt=prompt,
     )
@@ -105,7 +113,9 @@ def serialize_node(node: GenerationNode, state: SamplingState) -> dict:
         "parent": node.parent,
         "depth": node.depth,
         "core": normativity.core,
-        "expected_relative_orientations": state.get_orientations_relative_to(node.node_id),
+        "expected_relative_orientations": state.get_orientations_relative_to(
+            node.node_id
+        ),
         "n_samples": normativity.n_samples,
         "trajectories": normativity.trajectories,
         "logprob": normativity.mean_logprob,
@@ -145,15 +155,21 @@ async def run_sampling_loop(
 
     # Separate executors for gen and judge (may be different APIs)
     gen_executor = RateLimitedExecutor(ExecutorConfig(max_concurrent=3, max_retries=5))
-    judge_executor = RateLimitedExecutor(ExecutorConfig(max_concurrent=3, max_retries=5))
+    judge_executor = RateLimitedExecutor(
+        ExecutorConfig(max_concurrent=3, max_retries=5)
+    )
 
     # Event queue for yielding results
     event_queue: asyncio.Queue[AlgorithmEvent | None] = asyncio.Queue()
 
     # Track pending work per node
     pending_judges: dict[int, int] = {}  # node_id -> remaining judge count
-    node_scores: dict[int, dict[int, float]] = defaultdict(dict)  # node_id -> {q_idx: score}
-    node_errors: dict[int, int] = defaultdict(int)  # node_id -> error count for this sample
+    node_scores: dict[int, dict[int, float]] = defaultdict(
+        dict
+    )  # node_id -> {q_idx: score}
+    node_errors: dict[int, int] = defaultdict(
+        int
+    )  # node_id -> error count for this sample
     node_texts: dict[int, str] = {}  # node_id -> generated text
     node_logprobs: dict[int, float | None] = {}  # node_id -> logprob
     total_errors = 0  # Track total judge parse errors across all samples
@@ -176,7 +192,9 @@ async def run_sampling_loop(
 
             if not result.success:
                 _log(f"✗ Gen [{node.node_id}] failed: {result.error}")
-                await event_queue.put(AlgorithmEvent("error", {"message": str(result.error)}))
+                await event_queue.put(
+                    AlgorithmEvent("error", {"message": str(result.error)})
+                )
                 return
 
             gen_output = result.result
@@ -189,7 +207,9 @@ async def run_sampling_loop(
             # Immediately queue judge tasks (track for cancellation)
             pending_judges[node.node_id] = len(state.questions)
             for q_idx, question in enumerate(state.questions):
-                task = asyncio.create_task(do_judge(node.node_id, q_idx, question, full_text))
+                task = asyncio.create_task(
+                    do_judge(node.node_id, q_idx, question, full_text)
+                )
                 active_judge_tasks.append(task)
 
         except Exception as e:
@@ -215,7 +235,9 @@ async def run_sampling_loop(
 
             if not result.success:
                 _log(f"✗ Judge [{node_id}][Q{q_idx}] failed: {result.error}")
-                await event_queue.put(AlgorithmEvent("error", {"message": str(result.error)}))
+                await event_queue.put(
+                    AlgorithmEvent("error", {"message": str(result.error)})
+                )
                 pending_judges[node_id] -= 1
                 return
 
@@ -225,7 +247,9 @@ async def run_sampling_loop(
                 nonlocal total_errors
                 total_errors += 1
                 node_errors[node_id] += 1
-                _log(f"⚠️ JUDGE PARSE ERROR [{node_id}][Q{q_idx}]: treating as 0.0 | raw: {result.result.raw_response[:50]}...")
+                _log(
+                    f"⚠️ JUDGE PARSE ERROR [{node_id}][Q{q_idx}]: treating as 0.0 | raw: {result.result.raw_response[:50]}..."
+                )
                 score = 0.0
             node_scores[node_id][q_idx] = score
             pending_judges[node_id] -= 1
@@ -261,29 +285,34 @@ async def run_sampling_loop(
         _log(f"★ Node [{node_id}] complete: {format_scores(scores)}{errors_str}")
 
         # Yield event
-        await event_queue.put(AlgorithmEvent("point_update", {
-            "node_id": node_id,
-            "label": node.label,
-            "core": normativity.core,
-            "orient_std": normativity.orient_std,
-            "expected_relative_orientations": state.get_orientations_relative_to(node_id),
-            "n_samples": normativity.n_samples,
-            "total_samples": state.total_samples,
-            "total_api_calls": state.total_api_calls,
-            "scores": scores,
-            "trajectory": text,
-            "logprob": normativity.mean_logprob,
-            "errors_this_sample": errors_this_sample,
-            "total_errors": total_errors,
-        }))
+        await event_queue.put(
+            AlgorithmEvent(
+                "point_update",
+                {
+                    "node_id": node_id,
+                    "label": node.label,
+                    "core": normativity.core,
+                    "orientation_std": normativity.orientation_std,
+                    "expected_relative_orientations": state.get_orientations_relative_to(
+                        node_id
+                    ),
+                    "n_samples": normativity.n_samples,
+                    "total_samples": state.total_samples,
+                    "total_api_calls": state.total_api_calls,
+                    "scores": scores,
+                    "trajectory": text,
+                    "logprob": normativity.mean_logprob,
+                    "errors_this_sample": errors_this_sample,
+                    "total_errors": total_errors,
+                },
+            )
+        )
 
         # Clear per-round tracking for this node
         del node_scores[node_id]
         del node_texts[node_id]
-        if node_id in node_logprobs:
-            del node_logprobs[node_id]
-        if node_id in node_errors:
-            del node_errors[node_id]
+        node_logprobs.pop(node_id, None)
+        node_errors.pop(node_id, None)
 
     async def run_round() -> int:
         """Run one sampling round. Returns number of successful samples."""
@@ -332,7 +361,9 @@ async def run_sampling_loop(
         # Clear completed judge tasks
         active_judge_tasks.clear()
 
-        return len([n for n in state.nodes if state.normativities[n.node_id].n_samples > 0])
+        return len(
+            [n for n in state.nodes if state.normativities[n.node_id].n_samples > 0]
+        )
 
     # Consumer: yield events as they arrive
     async def consume_events() -> AsyncIterator[AlgorithmEvent]:
@@ -382,4 +413,6 @@ async def run_sampling_loop(
         _log(f"Round {round_num} complete | samples/node: {state.min_samples}")
 
     _log(f"Sampling complete | total: {state.total_samples} | errors: {total_errors}")
-    yield AlgorithmEvent("complete", {"mode": mode, "data": serialize_state(state, total_errors)})
+    yield AlgorithmEvent(
+        "complete", {"mode": mode, "data": serialize_state(state, total_errors)}
+    )

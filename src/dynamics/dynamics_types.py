@@ -1,30 +1,68 @@
 """Data types for dynamics analysis.
 
-At each token position k, we:
-1. Score the partial text to get a "core estimate" (structure scores)
-2. Compute metrics from those scores:
-   - Pull: l2 norm of scores (normative strength)
-   - Drift: deviance from initial scores (how far we've moved)
-   - Potential: deviance from final scores (how far to end state)
+This module tracks how a trajectory evolves token by token. At each measured
+position k it tracks BOTH paper quantities, kept strictly distinct:
+
+- the realized system attunement Λ_n(x_p) — score of the prefix text, and
+- the system default ⟨Λ_n⟩(x_p) — barycenter estimated by sampling continuations.
+
+From these it computes the paper's deviance-based metrics (Eqs. 8-9), all
+dimension-normalized (||·|| = ||·||_2 / sqrt(dim)):
+
+- Pull:      ||⟨Λ_n⟩(x_p)||                  magnitude of the system default
+- Drift:     ||Λ_n(x_p) - ⟨Λ_n⟩(x_0)||       current attunement vs the initial default
+- Potential: ||Λ_n(x_final) - ⟨Λ_n⟩(x_p)||   final attunement vs the current default
 """
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 
 from src.common.base_schema import BaseSchema
+from src.common.default_config import (
+    DYNAMICS_CONTINUATION_MAX_TOKENS,
+    DYNAMICS_SAMPLES_PER_POSITION,
+    DYNAMICS_STEP,
+    TEMPERATURE,
+)
+
+
+@dataclass
+class DynamicsTrajectory(BaseSchema):
+    """One trajectory to analyze, with the context needed to sample continuations.
+
+    prompt + prefill condition the model exactly as during generation; `text` is
+    the (string-selected) generated continuation whose prefixes we walk.
+    """
+
+    traj_idx: int
+    arm_name: str
+    prompt: str  # The prompt that conditioned generation (filled template in template mode)
+    prefill: str  # Arm prefill (trunk/branch text) prepended before the generated text
+    text: str  # The generated continuation (string-selected)
+    n_tokens: int  # Number of generated tokens in `text`
+
+
+@dataclass
+class DynamicsConfig(BaseSchema):
+    """Parameters controlling how the dynamics (and its sampling) are computed."""
+
+    step: int = DYNAMICS_STEP  # Measure every N tokens
+    samples_per_position: int = DYNAMICS_SAMPLES_PER_POSITION  # Continuations per prefix
+    continuation_max_tokens: int = DYNAMICS_CONTINUATION_MAX_TOKENS  # Tokens per continuation
+    temperature: float = TEMPERATURE  # Sampling temperature (1.0 → true Monte-Carlo of ⟨Λ_n⟩)
 
 
 @dataclass
 class PositionScores(BaseSchema):
-    """Scores computed at a specific token position."""
+    """System attunement, system default, and dynamics metrics at one token position."""
 
     k: int  # Token position
-    scores: list[float]  # Structure scores at this position
-    pull: float  # l2 norm of scores
-    drift: float  # Deviance from initial scores
-    potential: float  # Deviance from final scores
+    system_attunement: list[float]  # Λ_n(x_p): structure scores of the prefix text
+    system_default: list[float]  # ⟨Λ_n⟩(x_p): sampled barycenter at the prefix
+    pull: float  # ||⟨Λ_n⟩(x_p)||: dimension-normalized magnitude of the system default
+    drift: float  # ||Λ_n(x_p) - ⟨Λ_n⟩(x_0)||: deviance from the initial default
+    potential: float  # ||Λ_n(x_final) - ⟨Λ_n⟩(x_p)||: deviance of the final outcome from the default
 
 
 @dataclass
@@ -59,4 +97,4 @@ class DynamicsResult(BaseSchema):
 
     trajectories: list[TrajectoryDynamics] = field(default_factory=list)
     n_structures: int = 0  # Number of structure dimensions
-    step: int = 2  # Token step between measurements
+    step: int = DYNAMICS_STEP  # Token step between measurements

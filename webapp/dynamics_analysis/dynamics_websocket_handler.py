@@ -45,7 +45,7 @@ async def run_dynamics(ws: WebSocket, session: dict, data: dict) -> None:
             prefill=data.get("prefill", ""),
             continuation=data.get("continuation", ""),
             questions=questions,
-            max_rounds=data.get("max_rounds", 10),
+            max_rounds=data.get("max_rounds", 30),
             config=config,
             should_stop=lambda: session.get("stop", False),
         ):
@@ -58,9 +58,12 @@ async def run_dynamics(ws: WebSocket, session: dict, data: dict) -> None:
                 await ws.send_json({"type": "position_update", "data": event.data})
             elif event.type == "position_update":
                 # New position_update from streaming prefix judging
-                prefix = event.data.get("prefix_system") or []
-                core = event.data.get("core") or []
-                scores_str = [f"{s:.2f}" for s in (core if core else prefix)]
+                system_attunement = event.data.get("system_attunement") or []
+                system_default = event.data.get("system_default") or []
+                scores_str = [
+                    f"{s:.2f}"
+                    for s in (system_default if system_default else system_attunement)
+                ]
                 log_timestamped(
                     f"  [{event.data.get('node_id', '?')}] {event.data.get('label', '?')}: {scores_str}"
                 )

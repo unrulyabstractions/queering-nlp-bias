@@ -71,8 +71,16 @@ DEFAULT_WEIGHTING_METHOD = "inv-ppl"
 # Dynamics Defaults
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Measure scores every N tokens
-DYNAMICS_STEP = 1
+# Measure the system default every N tokens. Each measured position samples
+# DYNAMICS_SAMPLES_PER_POSITION continuations, so a small step is expensive.
+DYNAMICS_STEP = 8
+
+# Continuations sampled from each prefix to estimate the system default ⟨Λ_n⟩(x_p)
+# (the barycenter). Higher = lower-variance default, linearly more generation cost.
+DYNAMICS_SAMPLES_PER_POSITION = 8
+
+# Max tokens per sampled continuation when estimating the system default.
+DYNAMICS_CONTINUATION_MAX_TOKENS = MAX_NEW_TOKENS
 
 # Number of most extremal trajectories to analyze per arm
 DYNAMICS_TRAJS_PER_ARM = 2
