@@ -219,6 +219,35 @@ def pilot_report(summ, contr, agree, arm_stats):
         print(agree.sort_values("fleiss_kappa").head(20).to_string(index=False))
         print(f"  mean pairwise agreement {agree.pairwise_agreement.mean():.3f}; mean kappa {agree.fleiss_kappa.mean():.3f}")
 
+COMPARISONS = [  # (key, label, arms in group a, arms in group b); difference = mean(a) - mean(b)
+    ("lat_pol", "Latino vs Polish", ["EL", "IL", "HL"], ["EP", "IP", "HP"]),
+    ("lat_f", "Latino vs formal", ["EL", "IL", "HL"], ["F"]),
+    ("pol_f", "Polish vs formal", ["EP", "IP", "HP"], ["F"]),
+    ("lat_ei", "Latino explicit vs implicit", ["EL"], ["IL"]),
+    ("pol_ei", "Polish explicit vs implicit", ["EP"], ["IP"]),
+]
+
+def group_comparisons(df, n_perm):
+    """For every axis, the five comparisons the paper reports: pooled group means, their difference, a permutation p,
+    and Holm across axes within each comparison."""
+    axes_ = [a["id"] for a in JUDGE_AXES if a["id"] in df] + [k for k in sorted(SCRIPT_BINARY) + SCRIPT_NUMERIC + ["set_divergence_from_f"] if k in df]
+    rows = []
+    for ax in axes_:
+        for key, label, ga, gb in COMPARISONS:
+            a = df.loc[df.arm.isin(ga), ax].astype(float).dropna().values
+            b = df.loc[df.arm.isin(gb), ax].astype(float).dropna().values
+            if len(a) < 2 or len(b) < 2:
+                rows.append({"axis": ax, "comparison": key, "label": label, "mean_a": np.nan, "mean_b": np.nan, "diff": np.nan, "p": np.nan}); continue
+            rows.append({"axis": ax, "comparison": key, "label": label, "mean_a": a.mean(), "mean_b": b.mean(), "diff": a.mean() - b.mean(), "p": perm_p(a, b, n_perm)})
+    out = pd.DataFrame(rows); out["p_holm"] = np.nan
+    for key, g in out.groupby("comparison"):
+        ps = g["p"].values; order = np.argsort(ps); m = np.sum(~np.isnan(ps)); adj = np.full(len(ps), np.nan); running = 0.0
+        for rank, i in enumerate(order):
+            if np.isnan(ps[i]): continue
+            val = min(1.0, (m - rank) * ps[i]); running = max(running, val); adj[i] = running
+        out.loc[g.index, "p_holm"] = adj
+    return out
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--run", required=True); ap.add_argument("--perms", type=int, default=3000)
     args = ap.parse_args()
@@ -229,6 +258,7 @@ def main():
     summ, contr, agree = summarize(df, judges, args.perms)
     df.to_csv(out / "table.csv", index=False); summ.to_csv(out / "summary.csv", index=False)
     contr.to_csv(out / "contrasts.csv", index=False); agree.to_csv(out / "agreement.csv", index=False)
+    group_comparisons(df, args.perms).to_csv(out / "comparisons.csv", index=False)
     json.dump({"arm_stats": arm_stats, "judges": judges, "n_responses": len(df)}, (out / "summary.json").open("w"), indent=1, default=str)
     print(f"responses={len(df)} judges={judges} -> {out}")
     pilot_report(summ, contr, agree, arm_stats)

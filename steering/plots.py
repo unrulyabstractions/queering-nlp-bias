@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from axes import AXES, JUDGE_AXES
-from select_axes import moving_axes
+from select_axes import moving_axes, comparisons
 from prompts import ORDER, ARMS
 
 HERE = Path(__file__).resolve().parent
@@ -285,7 +285,7 @@ def main():
     ident = [c for c in piv.columns if c not in ("F", "D")]
     gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
     top = gap.sort_values(ascending=False).index.tolist()  # judge axes only: the heatmap and the twelve-panel grid are judge views
-    keep = moving_axes(summ)
+    keep = moving_axes(comparisons(an))
     rows = [r for r in all_rows(summ) if r[0] in keep]
     fig_cores(summ, out, [], fname="steering-arms-all", rows=rows, row_h=0.105, label_size=5.2)
     fig_heatmap(summ, out, [k for k, _, _ in rows], labels={k: lab for k, lab, _ in rows})

@@ -10,7 +10,7 @@ from pathlib import Path
 import numpy as np, pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from axes import AXES, JUDGE_AXES
-from select_axes import moving_axes
+from select_axes import moving_axes, comparisons, largest, LABELS, ORDER5
 from prompts import ARMS, ORDER
 
 HERE = Path(__file__).resolve().parent
@@ -90,6 +90,35 @@ def rates_longtable(summ, contr, axes_ids, label, caption, kinds, run, labels=No
     lines += ["\\end{longtable}", "\\end{center}", ""]
     return "\n".join(lines)
 
+COMP_HEAD = {"lat_pol": "Lat$-$Pol", "lat_f": "Lat$-$F", "pol_f": "Pol$-$F", "lat_ei": "Lat E$-$I", "pol_ei": "Pol E$-$I"}
+
+def comparison_longtable(comp, axes_ids, label, caption, run, labels=None):
+    """One row per axis, one column per group comparison: signed difference of pooled means, starred when Holm p < 0.05."""
+    labels = labels or {}
+    d = comp.pivot(index="axis", columns="comparison", values="diff")
+    p_ = comp.pivot(index="axis", columns="comparison", values="p_holm")
+    head = "\\textbf{axis} & " + " & ".join(f"\\textbf{{{COMP_HEAD[k]}}}" for k in ORDER5) + " \\\\"
+    foot = "\\multicolumn{6}{r}{\\footnotesize $^{*}$ permutation test, Holm-adjusted across axes within the comparison, $p<0.05$} \\\\"
+    lines = [header(run, caption.split(".")[0]), "\\begin{center}\\footnotesize", "\\setlength{\\tabcolsep}{5pt}",
+             "\\begin{longtable}{@{}lrrrrr@{}}", f"\\caption{{{caption}}}\\label{{{label}}}\\\\",
+             "\\toprule " + head + " \\midrule \\endfirsthead", "\\toprule " + head + " \\midrule \\endhead",
+             "\\midrule " + foot + " \\endfoot", "\\bottomrule " + foot + " \\endlastfoot"]
+    for ax in axes_ids:
+        if ax.startswith("#"):
+            lines.append(f"\\multicolumn{{6}}{{@{{}}l}}{{\\textbf{{{tex_escape(ax[1:])}}}}} \\\\"); continue
+        if ax not in d.index: continue
+        cells = []
+        for k in ORDER5:
+            v = d.loc[ax].get(k, np.nan); pv = p_.loc[ax].get(k, np.nan)
+            if v is None or (isinstance(v, float) and np.isnan(v)): cells.append("--"); continue
+            c = f"{v:+.2f}".replace("+", "$+$").replace("-", "$-$")
+            if isinstance(pv, float) and not np.isnan(pv) and pv < 0.05: c += "$^{*}$"
+            if abs(v) >= 0.2: c = "\\textbf{" + c + "}"
+            cells.append(c)
+        lines.append(tex_escape(labels.get(ax, ax.replace("_", " "))) + " & " + " & ".join(cells) + " \\\\")
+    lines += ["\\end{longtable}", "\\end{center}", ""]
+    return "\n".join(lines)
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--run", required=True); ap.add_argument("--out", required=True); ap.add_argument("--top", type=int, default=16)
     args = ap.parse_args()
@@ -108,7 +137,7 @@ def main():
            "Judge protocol & eight batched calls per response, grouped by axis family, the rubric beside each question; evidence quote then yes/no, JSON schema output \\\\",
            "Blinding     & identity, constraint and preference batches see the formal request in place of the user's message \\\\",
            "Judge-free axes & gazetteer crosswalk to the 77 community areas, one census vintage, CTA rail table, pinned lexicons \\\\",
-           "Estimator    & per-arm mean of the three-judge ensemble score; bootstrap and Wilson 95\\% intervals; permutation tests against the formal arm with Holm correction \\\\",
+           "Estimator    & per-arm mean of the three-judge ensemble score; bootstrap and Wilson 95\\% intervals; five group comparisons (Latino vs Polish, each group vs formal, explicit vs implicit within each group), permutation tests with Holm correction \\\\",
            "\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
     (out / "steering_config.tex").write_text("\n".join(cfg))
     # prompts
@@ -132,7 +161,7 @@ def main():
             ks = sorted([k for k in ids if fam.get(k) == f], key=lambda k: -float(gap.get(k, 0) or 0))
             if ks: out_ += ["#" + f] + ks
         return out_
-    keep = moving_axes(summ)
+    comp = comparisons(HERE / "out" / args.run / "analysis"); keep = moving_axes(comp)
     judge_ids = [a["id"] for a in JUDGE_AXES if a["id"] in set(summ.axis) and a["id"] in keep]
     script_ids = [a["id"] for a in AXES if a["kind"] == "script" and a["id"] in set(summ.axis) and a["id"] in keep]
     pct = {"hispanic_share_mean": "pct", "white_nh_share_mean": "pct", "black_nh_share_mean": "pct", "median_rent_mean": "pct"}
@@ -142,10 +171,13 @@ def main():
                                "mock_language_markers", "echo_user_l2", "casual_lexicon_rate", "emoji_count", "contraction_rate", "endearment_vocative",
                                "comprehension_checks", "warmth_markers", "fk_grade")}
     kinds = {}
-    (out / "steering_rates.tex").write_text(rates_longtable(summ, contr, ordered(judge_ids), "tab:steering-rates",
-        f"Judge axes whose rate ranges by at least 0.2 across the arms: ensemble yes rate, three judges averaged, ${n_per_arm}$ responses per arm, grouped by family and ordered within a family by the largest gap from the baseline. Identity fit share is a share in $[0,1]$ averaged over the judges that wrote a count.", kinds, args.run))
-    (out / "steering_service.tex").write_text(rates_longtable(summ, contr, ordered(script_ids), "tab:steering-service",
-        "Measured axes whose score ranges by at least 0.2 across the arms. Every score is in $[0,1]$: shares of responses or of offered areas, census shares of the offered community areas as fractions, and counts divided by their largest value over all responses. Grouped by family and ordered within a family by the largest gap from the baseline.", kinds, args.run))
+    expl = ("Each column is the difference of mean scores between two groups of arms: Lat = the three Mexican-American arms pooled, "
+            "Pol = the three Polish-American arms pooled, F = formal, E and I = explicit and implicit arms of one group. "
+            "Every score is in $[0,1]$; differences of at least 0.2 in bold.")
+    (out / "steering_rates.tex").write_text(comparison_longtable(comp, ordered(judge_ids), "tab:steering-rates",
+        "Judge axes with a difference of at least 0.2 in one of the five group comparisons. " + expl, args.run))
+    (out / "steering_service.tex").write_text(comparison_longtable(comp, ordered(script_ids), "tab:steering-service",
+        "Measured axes with a difference of at least 0.2 in one of the five group comparisons. " + expl, args.run))
     # agreement over every judge axis
     ag = agree[~agree.axis.str.endswith("@r1")].set_index("axis")
     ag_ids = [k for k in ordered(judge_ids) if k.startswith("#") or k in ag.index]
@@ -165,16 +197,14 @@ def main():
     # catalogue, with the largest difference between two arms and which arms
     pv = summ.pivot(index="axis", columns="arm", values="mean")
     def maxdiff(ax):
-        if ax not in pv.index: return "--", "--"
-        r = pv.loc[ax].reindex(ORDER).dropna()
-        if len(r) < 2: return "--", "--"
-        hi, lo = r.idxmax(), r.idxmin(); d = r[hi] - r[lo]
-        return f"{d:.2f}", f"{hi}--{lo}"
+        d, k = largest(comp, ax)
+        if k is None: return "--", "--"
+        return f"{d:.2f}", COMP_HEAD[k]
     cl = [header(args.run, "The candidate axes"), "\\begin{center}\\scriptsize",
           "\\begin{longtable}{@{}>{\\raggedright\\arraybackslash}p{0.19\\linewidth}l>{\\raggedright\\arraybackslash}p{0.55\\linewidth}rl@{}}",
-          f"\\caption{{The {len(AXES)} behavior axes. Kind: J = yes/no answered by the judge ensemble, M = measured from the text and the pinned tables. Every axis is a score in $[0,1]$; counts are divided by their largest value over all responses. $\\Delta$: the largest difference between two arms' mean scores, and the two arms, higher first. Arms: F formal, D Democrat, E explicit, I implicit, H heavy; L Mexican-American, P Polish-American (\\autoref{{tab:steering-prompts}}). The judge rubrics, lexicons and tables are in the pipeline repository.}}\\label{{tab:steering-axes}}\\\\",
-          "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} & $\\Delta$ & \\textbf{arms} \\\\ \\midrule \\endfirsthead",
-          "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} & $\\Delta$ & \\textbf{arms} \\\\ \\midrule \\endhead", "\\bottomrule \\endfoot"]
+          f"\\caption{{The {len(AXES)} behavior axes. Kind: J = yes/no answered by the judge ensemble, M = measured from the text and the pinned tables. Every axis is a score in $[0,1]$; counts are divided by their largest value over all responses. $\\Delta$: the largest absolute difference among the five group comparisons, and which comparison: Lat = the three Mexican-American arms pooled, Pol = the three Polish-American arms pooled, F = formal, E$-$I = explicit against implicit within one group. The judge rubrics, lexicons and tables are in the pipeline repository.}}\\label{{tab:steering-axes}}\\\\",
+          "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} & $\\Delta$ & \\textbf{comparison} \\\\ \\midrule \\endfirsthead",
+          "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} & $\\Delta$ & \\textbf{comparison} \\\\ \\midrule \\endhead", "\\bottomrule \\endfoot"]
     for fam in ("steering", "identity", "constraints", "preferences", "service", "form"):
         cl.append(f"\\multicolumn{{5}}{{@{{}}l}}{{\\textbf{{{tex_escape(fam)}}}}} \\\\")
         for a in [x for x in AXES if x["family"] == fam]:
