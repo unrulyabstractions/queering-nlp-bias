@@ -170,7 +170,7 @@ def all_rows(summ):
 def fig_arm_panels_all(summ, out, rows, fname="steering-arms-all"):
     """One full-width panel per arm, stacked, every axis as a vertical bar; drawn for a sideways page (9.2 by 6.4 inches)."""
     x = np.arange(len(rows))
-    fig, axs = plt.subplots(len(ORDER), 1, figsize=(9.2, 6.6), sharex=True, sharey=True)
+    fig, axs = plt.subplots(len(ORDER), 1, figsize=(9.2, 5.6), sharex=True, sharey=True)
     for ax, arm in zip(axs, ORDER):
         d = summ[summ.arm == arm].set_index("axis")
         vals = np.array([d["mean"].get(k, np.nan) for k, _, _ in rows], dtype=float)
@@ -202,7 +202,7 @@ def round3_rows():
         rows += [(a["id"], AX_NAME.get(a["id"], a["id"]), f) for a in r3 if a["kind"] == "judge" and a["family"] == f]
     return rows
 
-def fig_cores(summ, out, judge_ids, fname="steering-cores", rows=None):
+def fig_cores(summ, out, judge_ids, fname="steering-cores", rows=None, row_h=0.17, label_size=6):
     """Default behavior per arm: one panel per arm, one horizontal bar per axis, dashed midline, as the paper's core bars."""
     fam = {a["id"]: a["family"] for a in AXES}
     if rows is None:
@@ -210,7 +210,7 @@ def fig_cores(summ, out, judge_ids, fname="steering-cores", rows=None):
         for f in FAM_ORDER[1:]:
             rows += [(k, AX_NAME.get(k, k), f) for k in judge_ids if fam.get(k) == f]
     n = len(rows)
-    fig, axs = plt.subplots(1, len(ORDER), figsize=(6.8, 0.17 * n + 1.1), sharey=True)
+    fig, axs = plt.subplots(1, len(ORDER), figsize=(6.8, row_h * n + 1.1), sharey=True)
     y = np.arange(n)[::-1]
     for ax, arm in zip(axs, ORDER):
         d = summ[summ.arm == arm].set_index("axis")
@@ -225,7 +225,7 @@ def fig_cores(summ, out, judge_ids, fname="steering-cores", rows=None):
         ax.grid(axis="y", visible=False); ax.grid(axis="x", visible=False)
         for sp in ("left", "bottom"): ax.spines[sp].set_color(GRID)
         ax.tick_params(axis="y", length=0)
-    axs[0].set_yticks(y); axs[0].set_yticklabels([lab for _, lab, _ in rows], fontsize=6)
+    axs[0].set_yticks(y); axs[0].set_yticklabels([lab for _, lab, _ in rows], fontsize=label_size)
     fig.tight_layout(rect=(0, 0.05, 1, 0.93)); fig.subplots_adjust(wspace=0.18)
     # group labels above the panels, in figure coordinates
     spans = {"baseline": (0, 1), "Latino": (2, 4), "Polish-American": (5, 7)}
@@ -281,7 +281,7 @@ def main():
     gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
     top = gap.sort_values(ascending=False).index.tolist()  # judge axes only: the heatmap and the twelve-panel grid are judge views
     rows = all_rows(summ)
-    fig_arm_panels_all(summ, out, rows)
+    fig_cores(summ, out, [], fname="steering-arms-all", rows=rows, row_h=0.105, label_size=5.2)
     fig_heatmap(summ, out, [k for k, _, _ in rows], labels={k: lab for k, lab, _ in rows})
     if len(agree): fig_agreement(agree, out)
     json.dump({"rows": [k for k, _, _ in rows]}, (an / "top_axes.json").open("w"), indent=1)

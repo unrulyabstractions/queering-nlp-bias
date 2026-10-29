@@ -156,7 +156,8 @@ def main():
         if ax.startswith("#"):
             al.append(f"\\multicolumn{{6}}{{@{{}}l}}{{\\textbf{{{tex_escape(ax[1:])}}}}} \\\\"); continue
         row = ag.loc[ax]
-        al.append(f"{tex_escape(ax.replace('_',' '))} & {row.fleiss_kappa:.2f} & {row.pairwise_agreement:.2f} & {row.get('yes_haiku55', float('nan')):.2f} & {row.get('yes_nano', float('nan')):.2f} & {row.get('yes_qwen', float('nan')):.2f} \\\\")
+        f2 = lambda v: "--" if (v is None or (isinstance(v, float) and np.isnan(v))) else f"{v:.2f}"
+        al.append(f"{tex_escape(ax.replace('_',' '))} & {f2(row.fleiss_kappa)} & {f2(row.pairwise_agreement)} & {f2(row.get('yes_haiku55', float('nan')))} & {f2(row.get('yes_nano', float('nan')))} & {f2(row.get('yes_qwen', float('nan')))} \\\\")
     al += ["\\end{longtable}", "\\end{center}", ""]
     (out / "steering_agreement.tex").write_text("\n".join(al))
     # catalogue
@@ -171,7 +172,7 @@ def main():
             cl.append(f"{tex_escape(a['id'].replace('_',' '))} & {'J' if a['kind']=='judge' else 'S'} & {tex_escape(a['q'])} \\\\")
     cl += ["\\end{longtable}", "\\end{center}", ""]
     (out / "steering_axes_catalogue.tex").write_text("\n".join(cl))
-    print("tables ->", out, "| headline axes:", top)
+    print("tables ->", out)
 
 if __name__ == "__main__":
     main()
