@@ -52,23 +52,54 @@ def bars(ax, summ, axis, ylabel=None, fmt="{:.2f}", ylim=None, title=None, label
     if title: ax.set_title(title, fontsize=8.5, color=INK, loc="left")
     ax.grid(axis="x", visible=False)
 
-def fig_headline(summ, out):
-    fig, axs = plt.subplots(1, 2, figsize=(6.6, 2.4), sharey=False)
-    bars(axs[0], summ, "hispanic_share_mean", ylabel="share of offered areas (%)", fmt="{:.0f}", title="Hispanic share")
-    bars(axs[1], summ, "white_nh_share_mean", ylabel=None, fmt="{:.0f}", title="White non-Hispanic share")
-    for ax in axs: group_brackets(ax)
-    fig.tight_layout(); fig.subplots_adjust(bottom=0.40)
-    fig.savefig(out / "steering-headline.png"); fig.savefig(out / "steering-headline.pdf"); plt.close(fig)
+def fig_shares(summ, out):
+    """One figure, six panels: the three census shares of the offered areas and three response shares, per arm."""
+    fig, axs = plt.subplots(2, 3, figsize=(6.6, 4.6))
+    short = lambda v: "0" if v < 0.005 else ("1.0" if v > 0.995 else f"{v:.2f}"[1:])
+    bars(axs[0, 0], summ, "hispanic_share_mean", ylabel="share of offered areas (%)", fmt="{:.0f}", title="Hispanic share", label_size=5.5)
+    bars(axs[0, 1], summ, "white_nh_share_mean", fmt="{:.0f}", title="white non-Hispanic share", label_size=5.5)
+    bars(axs[0, 2], summ, "black_nh_share_mean", fmt="{:.0f}", title="Black non-Hispanic share", label_size=5.5)
+    bars(axs[1, 0], summ, "enclave_offered_latino_list", ylabel="share of responses", fmt=short, ylim=(0, 1.18), title="majority-Hispanic area offered", label_size=5.5)
+    bars(axs[1, 1], summ, "enclave_offered_polish_list", fmt=short, ylim=(0, 1.18), title="Polish-heritage area offered", label_size=5.5)
+    bars(axs[1, 2], summ, "l2_greeting_signoff", fmt=short, ylim=(0, 1.18), title="Spanish or Polish greeting", label_size=5.5)
+    top = max(ax.get_ylim()[1] for ax in axs[0]);
+    for ax in axs[0]: ax.set_ylim(0, top)
+    for ax in axs.flat: group_brackets(ax, short=True)
+    fig.tight_layout(h_pad=2.6, w_pad=1.0)
+    fig.savefig(out / "steering-shares.png"); fig.savefig(out / "steering-shares.pdf"); plt.close(fig)
 
-def fig_enclave(summ, out):
-    fig, axs = plt.subplots(1, 3, figsize=(6.6, 2.5))
-    short = lambda v: "0" if v < 0.005 else ("1.0" if v > 0.995 else f"{v:.2f}"[1:])  # .17, 1.0, 0: short labels so neighbours do not touch
-    bars(axs[0], summ, "enclave_offered_latino_list", ylabel="share of responses", fmt=short, ylim=(0, 1.18), title="majority-Hispanic area offered", label_size=5.5)
-    bars(axs[1], summ, "enclave_offered_polish_list", ylabel=None, fmt=short, ylim=(0, 1.18), title="Polish-heritage area offered", label_size=5.5)
-    bars(axs[2], summ, "l2_greeting_signoff", ylabel=None, fmt=short, ylim=(0, 1.18), title="Spanish or Polish greeting", label_size=5.5)
-    for ax in axs: group_brackets(ax, short=True)
-    fig.tight_layout(); fig.subplots_adjust(bottom=0.40, wspace=0.32)
-    fig.savefig(out / "steering-enclave.png"); fig.savefig(out / "steering-enclave.pdf"); plt.close(fig)
+def fig_core_grid(summ, out, judge_ids):
+    """Default behavior per user group as one figure: four rows by two columns of vertical bar panels over the headline axes.
+    Row one holds the two baseline arms; rows two to four hold explicit, implicit and heavy, Mexican-American left, Polish-American right."""
+    fam = {a["id"]: a["family"] for a in AXES}
+    rows = [(k, lab, "steering") for k, lab in CORE_SCRIPT]
+    for f in FAM_ORDER[1:]:
+        rows += [(k, AX_NAME.get(k, k), f) for k in judge_ids if fam.get(k) == f]
+    x = np.arange(len(rows))
+    grid = [["F", "D"], ["EL", "EP"], ["IL", "IP"], ["HL", "HP"]]
+    fig, axs = plt.subplots(4, 2, figsize=(6.6, 7.4), sharex=True, sharey=True)
+    for r, pair in enumerate(grid):
+        for c, arm in enumerate(pair):
+            ax = axs[r, c]; d = summ[summ.arm == arm].set_index("axis")
+            vals = np.array([d["mean"].get(k, np.nan) for k, _, _ in rows], dtype=float)
+            lo = np.array([d["lo"].get(k, np.nan) for k, _, _ in rows], dtype=float); hi = np.array([d["hi"].get(k, np.nan) for k, _, _ in rows], dtype=float)
+            ax.bar(x, vals, width=0.68, color=[FAM_COL[f] for _, _, f in rows], linewidth=0)
+            ok = ~np.isnan(lo)
+            ax.errorbar(x[ok], vals[ok], yerr=np.vstack([(vals - lo)[ok].clip(0), (hi - vals)[ok].clip(0)]), fmt="none", ecolor=INK2, elinewidth=0.6, capsize=1.2)
+            ax.axhline(0.5, color=INK2, lw=0.6, ls=(0, (3, 3)))
+            ax.set_ylim(0, 1.0); ax.set_yticks([0, 0.5, 1]); ax.set_yticklabels(["0", ".5", "1"], fontsize=6)
+            ax.set_title(ARM_TITLE[arm], fontsize=8, color=INK, loc="left", pad=3)
+            ax.grid(visible=False)
+            for sp in ("left", "bottom"): ax.spines[sp].set_color(GRID)
+            ax.tick_params(axis="x", length=2, color=GRID); ax.tick_params(axis="y", length=0)
+    for ax in axs[-1]:
+        ax.set_xticks(x); ax.set_xticklabels([lab for _, lab, _ in rows], rotation=45, ha="right", fontsize=6, rotation_mode="anchor")
+    used = [f for f in FAM_ORDER if any(r[2] == f for r in rows)]
+    names = {"steering": "recommended set (script)", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "form": "form"}
+    handles = [plt.Rectangle((0, 0), 1, 1, color=FAM_COL[f]) for f in used]
+    fig.legend(handles, [names[f] for f in used], loc="upper center", ncol=len(used), fontsize=6.5, bbox_to_anchor=(0.5, 1.0), handlelength=1.2, columnspacing=1.2)
+    fig.tight_layout(rect=(0, 0, 1, 0.965), h_pad=1.2, w_pad=1.0)
+    fig.savefig(out / "steering-core-grid.png"); fig.savefig(out / "steering-core-grid.pdf"); plt.close(fig)
 
 def fig_axes_grid(summ, out, axes_ids, fname="steering-axes", ncols=4, ylabel="ensemble yes rate"):
     n = len(axes_ids); nrows = int(np.ceil(n / ncols))
@@ -129,31 +160,6 @@ def fig_cores(summ, out, judge_ids, fname="steering-cores"):
 ARM_TITLE = {"F": "formal, no identity", "D": "formal, \u201cI am a Democrat\u201d", "EL": "Mexican-American, explicit", "IL": "Mexican-American, implicit",
              "HL": "Mexican-American, heavy", "EP": "Polish-American, explicit", "IP": "Polish-American, implicit", "HP": "Polish-American, heavy"}
 
-def fig_core_panels(summ, out, judge_ids):
-    """One standalone figure per arm: vertical bars over the headline axes, so each user group reads on its own."""
-    fam = {a["id"]: a["family"] for a in AXES}
-    rows = [(k, lab, "steering") for k, lab in CORE_SCRIPT]
-    for f in FAM_ORDER[1:]:
-        rows += [(k, AX_NAME.get(k, k), f) for k in judge_ids if fam.get(k) == f]
-    x = np.arange(len(rows))
-    for arm in ORDER:
-        d = summ[summ.arm == arm].set_index("axis")
-        vals = np.array([d["mean"].get(k, np.nan) for k, _, _ in rows], dtype=float)
-        lo = np.array([d["lo"].get(k, np.nan) for k, _, _ in rows], dtype=float); hi = np.array([d["hi"].get(k, np.nan) for k, _, _ in rows], dtype=float)
-        fig, ax = plt.subplots(figsize=(3.1, 2.9))  # 0.48 of the text width, so fonts print at their nominal size
-        ax.bar(x, vals, width=0.68, color=[FAM_COL[f] for _, _, f in rows], linewidth=0)
-        ok = ~np.isnan(lo)
-        ax.errorbar(x[ok], vals[ok], yerr=np.vstack([(vals - lo)[ok].clip(0), (hi - vals)[ok].clip(0)]), fmt="none", ecolor=INK2, elinewidth=0.6, capsize=1.2)
-        ax.axhline(0.5, color=INK2, lw=0.6, ls=(0, (3, 3)))
-        ax.set_ylim(0, 1.0); ax.set_yticks([0, 0.5, 1]); ax.set_yticklabels(["0", ".5", "1"], fontsize=6)
-        ax.set_xticks(x); ax.set_xticklabels([lab for _, lab, _ in rows], rotation=45, ha="right", fontsize=5.8, rotation_mode="anchor")
-        ax.set_title(ARM_TITLE[arm], fontsize=8, color=INK, loc="left", pad=4)
-        ax.grid(axis="x", visible=False); ax.grid(axis="y", visible=False)
-        for sp in ("left", "bottom"): ax.spines[sp].set_color(GRID)
-        ax.tick_params(axis="x", length=2, color=GRID)
-        fig.tight_layout()
-        fig.savefig(out / f"steering-core-{arm}.png"); fig.savefig(out / f"steering-core-{arm}.pdf"); plt.close(fig)
-
 def fig_heatmap(summ, out, axes_ids, fname="steering-heatmap"):
     piv = summ[summ.axis.isin(axes_ids)].pivot(index="axis", columns="arm", values="mean").reindex(axes_ids)[ORDER]
     piv = piv[piv.max(axis=1) >= 0.05]; axes_ids = list(piv.index)
@@ -192,8 +198,8 @@ def main():
     ident = [c for c in piv.columns if c not in ("F", "D")]
     gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
     top = gap.sort_values(ascending=False).index.tolist()
-    fig_headline(summ, out); fig_enclave(summ, out)
-    fig_axes_grid(summ, out, top[: args.top]); fig_heatmap(summ, out, top); fig_cores(summ, out, top[:16]); fig_core_panels(summ, out, top[:16])
+    fig_shares(summ, out); fig_cores(summ, out, top[:16]); fig_core_grid(summ, out, top[:16])
+    fig_axes_grid(summ, out, top[: args.top]); fig_heatmap(summ, out, top)
     if len(agree): fig_agreement(agree, out)
     json.dump({"top_axes": top[: args.top], "gap": gap.sort_values(ascending=False).round(3).to_dict()}, (an / "top_axes.json").open("w"), indent=1)
     print("figures ->", out, "| top axes:", top[: args.top])
