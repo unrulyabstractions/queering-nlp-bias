@@ -17,6 +17,8 @@ JUDGES = {
     "haiku55": {"provider": "anthropic", "model": "claude-haiku-5-5"},
     "nano":    {"provider": "openai",    "model": "gpt-5-nano"},
     "qwen":    {"provider": "openrouter","model": "qwen/qwen3.7-flash", "extra_body": {"reasoning": {"enabled": False}}},
+    "deepseek":{"provider": "openrouter","model": "deepseek/deepseek-v3.2", "strict": True,
+                "extra_body": {"reasoning": {"enabled": False}, "provider": {"require_parameters": True}}},
 }
 
 SYSTEM = ("You are a careful annotator for a fairness audit of a housing-advice chatbot. You will read one "
@@ -113,7 +115,7 @@ async def main():
                         data, usage, model_used = await call_anthropic(client, spec["model"], user, axes)
                     else:
                         data, usage, model_used = await call_openai(client, spec["model"], user, axes,
-                                                                    strict_schema=(spec["provider"] == "openai"),
+                                                                    strict_schema=(spec["provider"] == "openai" or spec.get("strict", False)),
                                                                     extra_body=spec.get("extra_body"))
                     answers = {}
                     for item in data["answers"]:

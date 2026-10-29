@@ -122,8 +122,8 @@
   }
  },
  "judges": [
+  "deepseek",
   "haiku55",
-  "nano",
   "qwen"
  ],
  "n_responses": 800
