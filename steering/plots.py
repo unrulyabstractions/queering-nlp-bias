@@ -147,6 +147,53 @@ def headline_rows(summ, n=24):
         rows += [(k, label.get(k, AX_NAME.get(k, k)), f) for k in top if fam.get(k) == f]
     return rows
 
+def all_rows(summ):
+    """Every judge axis and every script axis that lives in [0,1], as (id, label, family) rows: families in FAM_ORDER,
+    within a family by the largest gap from the baseline, so the eye meets the moving axes first."""
+    fam = {a["id"]: a["family"] for a in AXES}
+    label = dict(CORE_SCRIPT); label.update({"westside_black_area_named": "majority-Black West Side area offered", "full_switch": "reply in Spanish or Polish",
+                                            "congrats_opener": "opens with congratulations", "identity_in_opening": "ethnicity named in the opening",
+                                            "top_pick_over_limit": "closing pick over the commute limit", "enclave_epithet": "ethnic nickname for the enclave",
+                                            "offrail_share": "offered areas without rail", "rent_over_budget_share": "offered areas over budget",
+                                            "polish_heritage_share": "share of offered areas Polish-heritage", "family_section_share": "share of words on the family"})
+    for k in UNIT_SCRIPT: fam.setdefault(k, "steering")
+    ids = [a["id"] for a in JUDGE_AXES if a["id"] in set(summ.axis)] + [k for k in UNIT_SCRIPT if k in set(summ.axis)]
+    piv = summ[summ.axis.isin(ids)].pivot(index="axis", columns="arm", values="mean")
+    ident = [c for c in piv.columns if c not in ("F", "D")]
+    gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
+    rows = []
+    for f in FAM_ORDER:
+        ks = sorted([k for k in ids if fam.get(k) == f], key=lambda k: -gap.get(k, 0))
+        rows += [(k, label.get(k, AX_NAME.get(k, k)), f) for k in ks]
+    return rows
+
+def fig_arm_panels_all(summ, out, rows, fname="steering-arms-all"):
+    """One full-width panel per arm, stacked, every axis as a vertical bar; drawn for a sideways page (9.2 by 6.4 inches)."""
+    x = np.arange(len(rows))
+    fig, axs = plt.subplots(len(ORDER), 1, figsize=(9.2, 6.6), sharex=True, sharey=True)
+    for ax, arm in zip(axs, ORDER):
+        d = summ[summ.arm == arm].set_index("axis")
+        vals = np.array([d["mean"].get(k, np.nan) for k, _, _ in rows], dtype=float)
+        lo = np.array([d["lo"].get(k, np.nan) for k, _, _ in rows], dtype=float); hi = np.array([d["hi"].get(k, np.nan) for k, _, _ in rows], dtype=float)
+        ax.bar(x, vals, width=0.72, color=[FAM_COL[f] for _, _, f in rows], linewidth=0)
+        ok = ~np.isnan(lo)
+        ax.errorbar(x[ok], vals[ok], yerr=np.vstack([(vals - lo)[ok].clip(0), (hi - vals)[ok].clip(0)]), fmt="none", ecolor=INK2, elinewidth=0.4, capsize=0)
+        ax.axhline(0.5, color=INK2, lw=0.5, ls=(0, (3, 3)))
+        ax.set_ylim(0, 1.0); ax.set_yticks([0, 0.5, 1]); ax.set_yticklabels(["0", ".5", "1"], fontsize=5.5)
+        ax.text(0.004, 0.95, ARM_TITLE[arm], transform=ax.transAxes, fontsize=7.5, color=INK, ha="left", va="top",
+                bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="none", alpha=0.9), zorder=5)
+        ax.grid(visible=False)
+        for sp in ("left", "bottom"): ax.spines[sp].set_color(GRID)
+        ax.tick_params(axis="x", length=1.5, color=GRID); ax.tick_params(axis="y", length=0)
+        ax.set_xlim(-0.7, len(rows) - 0.3)
+    axs[-1].set_xticks(x); axs[-1].set_xticklabels([lab for _, lab, _ in rows], rotation=90, fontsize=4.6)
+    used = [f for f in FAM_ORDER if any(r[2] == f for r in rows)]
+    names = {"steering": "recommended set (script)", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "service": "service", "form": "form"}
+    handles = [plt.Rectangle((0, 0), 1, 1, color=FAM_COL[f]) for f in used]
+    fig.legend(handles, [names[f] for f in used], loc="upper center", ncol=len(used), fontsize=6.5, bbox_to_anchor=(0.5, 1.0), handlelength=1.2, columnspacing=1.2)
+    fig.tight_layout(rect=(0, 0, 1, 0.97), h_pad=0.4)
+    fig.savefig(out / f"{fname}.png"); fig.savefig(out / f"{fname}.pdf"); plt.close(fig)
+
 def round3_rows():
     """All third-round axes as (id, label, family) rows, script rows first, then by family order."""
     r3 = [a for a in AXES if a.get("round") == 3]
@@ -195,18 +242,18 @@ def fig_cores(summ, out, judge_ids, fname="steering-cores", rows=None):
 ARM_TITLE = {"F": "formal, no identity", "D": "formal, \u201cI am a Democrat\u201d", "EL": "Mexican-American, explicit", "IL": "Mexican-American, implicit",
              "HL": "Mexican-American, heavy", "EP": "Polish-American, explicit", "IP": "Polish-American, implicit", "HP": "Polish-American, heavy"}
 
-def fig_heatmap(summ, out, axes_ids, fname="steering-heatmap"):
+def fig_heatmap(summ, out, axes_ids, fname="steering-heatmap", labels=None):
     piv = summ[summ.axis.isin(axes_ids)].pivot(index="axis", columns="arm", values="mean").reindex(axes_ids)[ORDER]
-    piv = piv[piv.max(axis=1) >= 0.05]; axes_ids = list(piv.index)
-    fig, ax = plt.subplots(figsize=(6.6, 0.145 * len(axes_ids) + 0.9))
+    piv = piv[piv.max(axis=1) >= 0.05]; axes_ids = list(piv.index); labels = labels or {}
+    fig, ax = plt.subplots(figsize=(6.6, 0.118 * len(axes_ids) + 0.9))
     im = ax.imshow(piv.values, cmap=SEQ, vmin=0, vmax=1, aspect="auto")
     ax.set_xticks(range(len(ORDER))); ax.set_xticklabels([f"{a}\n{ARM_LABEL[a]}" for a in ORDER], fontsize=7)
-    ax.set_yticks(range(len(axes_ids))); ax.set_yticklabels([AX_NAME.get(a, a) for a in axes_ids], fontsize=6.5)
+    ax.set_yticks(range(len(axes_ids))); ax.set_yticklabels([labels.get(a, AX_NAME.get(a, a)) for a in axes_ids], fontsize=5.6)
     ax.grid(False)
     for i in range(len(axes_ids)):
         for j in range(len(ORDER)):
             v = piv.values[i, j]
-            if not np.isnan(v): ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=5.5, color=("white" if v > 0.6 else INK))
+            if not np.isnan(v): ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=4.6, color=("white" if v > 0.6 else INK))
     cb = fig.colorbar(im, ax=ax, fraction=0.02, pad=0.01); cb.set_label("yes rate", fontsize=7); cb.ax.tick_params(labelsize=6)
     fig.tight_layout(); fig.savefig(out / f"{fname}.png"); fig.savefig(out / f"{fname}.pdf"); plt.close(fig)
 
@@ -233,12 +280,12 @@ def main():
     ident = [c for c in piv.columns if c not in ("F", "D")]
     gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
     top = gap.sort_values(ascending=False).index.tolist()  # judge axes only: the heatmap and the twelve-panel grid are judge views
-    rows = headline_rows(summ, 24)
-    fig_shares(summ, out); fig_cores(summ, out, [], rows=rows); fig_core_grid(summ, out, [], rows=rows)
-    fig_axes_grid(summ, out, top[: args.top]); fig_heatmap(summ, out, top)
+    rows = all_rows(summ)
+    fig_arm_panels_all(summ, out, rows)
+    fig_heatmap(summ, out, [k for k, _, _ in rows], labels={k: lab for k, lab, _ in rows})
     if len(agree): fig_agreement(agree, out)
-    json.dump({"top_axes": top[: args.top], "gap": gap.sort_values(ascending=False).round(3).to_dict()}, (an / "top_axes.json").open("w"), indent=1)
-    print("figures ->", out, "| top axes:", top[: args.top])
+    json.dump({"rows": [k for k, _, _ in rows]}, (an / "top_axes.json").open("w"), indent=1)
+    print("figures ->", out, "|", len(rows), "axes")
 
 if __name__ == "__main__":
     main()

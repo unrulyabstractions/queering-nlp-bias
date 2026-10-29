@@ -61,6 +61,34 @@ def rates_table(summ, contr, axes_ids, label, caption, kinds, run):
               "\\end{table}", ""]
     return "\n".join(lines)
 
+def rates_longtable(summ, contr, axes_ids, label, caption, kinds, run, labels=None):
+    """Like rates_table, as a longtable that may break across pages; rows in the given order with optional family headers (ids starting with '#')."""
+    labels = labels or {}
+    piv = summ.pivot(index="axis", columns="arm", values="mean").reindex([a for a in axes_ids if not a.startswith("#")])[ORDER]
+    holm = contr.pivot(index="axis", columns="arm", values="p_holm").reindex(piv.index) if len(contr) else None
+    head = "\\textbf{axis} & " + " & ".join(f"\\textbf{{{a}}}" for a in ORDER) + " \\\\"
+    lines = [header(run, caption.split(".")[0]), "\\begin{center}\\footnotesize", "\\setlength{\\tabcolsep}{4pt}",
+             "\\begin{longtable}{@{}l" + "r" * len(ORDER) + "@{}}",
+             f"\\caption{{{caption}}}\\label{{{label}}}\\\\",
+             "\\toprule " + head + " \\midrule \\endfirsthead",
+             "\\toprule " + head + " \\midrule \\endhead",
+             "\\midrule \\multicolumn{" + str(len(ORDER) + 1) + "}{r}{\\footnotesize $^{*}$ differs from the formal baseline, permutation test, Holm-adjusted within the arm, $p<0.05$} \\\\ \\endfoot",
+             "\\bottomrule \\multicolumn{" + str(len(ORDER) + 1) + "}{r}{\\footnotesize $^{*}$ differs from the formal baseline, permutation test, Holm-adjusted within the arm, $p<0.05$} \\\\ \\endlastfoot"]
+    for ax in axes_ids:
+        if ax.startswith("#"):
+            lines.append(f"\\multicolumn{{{len(ORDER) + 1}}}{{@{{}}l}}{{\\textbf{{{tex_escape(ax[1:])}}}}} \\\\"); continue
+        if ax not in piv.index: continue
+        cells = []
+        for arm in ORDER:
+            v = piv.loc[ax, arm]; s_ = fmt(v, kinds.get(ax, "rate"))
+            if holm is not None and arm != "F" and ax in holm.index:
+                p_ = holm.loc[ax, arm]
+                if isinstance(p_, float) and not np.isnan(p_) and p_ < 0.05 and s_ != "--": s_ += "$^{*}$"
+            cells.append(s_)
+        lines.append(tex_escape(labels.get(ax, ax.replace("_", " "))) + " & " + " & ".join(cells) + " \\\\")
+    lines += ["\\end{longtable}", "\\end{center}", ""]
+    return "\n".join(lines)
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--run", required=True); ap.add_argument("--out", required=True); ap.add_argument("--top", type=int, default=16)
     args = ap.parse_args()
@@ -91,30 +119,45 @@ def main():
         pr.append(f"{a} & {ARM_DESC[a]} & \\textit{{{tex_escape(ARMS[a]['text'])}}} \\\\[2pt]")
     pr += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
     (out / "steering_prompts.tex").write_text("\n".join(pr))
-    # headline judge axes by gap
+    # every axis, grouped by family, by largest gap within the family
+    fam = {a["id"]: a["family"] for a in AXES}
+    piv_all = summ.pivot(index="axis", columns="arm", values="mean")
+    ident = [c for c in piv_all.columns if c not in ("F", "D")]
+    gap = pd.concat([(piv_all[ident].max(axis=1) - piv_all["F"]).abs(), (piv_all[ident].min(axis=1) - piv_all["F"]).abs()], axis=1).max(axis=1)
+    fams = ("steering", "identity", "constraints", "preferences", "service", "form")
+    def ordered(ids):
+        out_ = []
+        for f in fams:
+            ks = sorted([k for k in ids if fam.get(k) == f], key=lambda k: -float(gap.get(k, 0) or 0))
+            if ks: out_ += ["#" + f] + ks
+        return out_
     judge_ids = [a["id"] for a in JUDGE_AXES if a["id"] in set(summ.axis)]
-    piv = summ[summ.axis.isin(judge_ids)].pivot(index="axis", columns="arm", values="mean")
-    ident = [c for c in piv.columns if c not in ("F", "D")]
-    gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
-    top = gap.sort_values(ascending=False).index.tolist()[: args.top]
-    kinds = {}
-    (out / "steering_rates.tex").write_text(rates_table(summ, contr, top, "tab:steering-rates",
-        f"Judge axes with the largest gap between an identity arm and the formal baseline: ensemble yes rate per arm, three judges averaged, ${n_per_arm}$ responses per arm; identity fit share is a share in $[0,1]$ averaged over the judges that wrote a count.", kinds, args.run))
-    kinds = {"hispanic_share_mean": "pct", "white_nh_share_mean": "pct", "black_nh_share_mean": "pct", "n_neighborhoods": "int",
-             "l2_tokens_count": "int", "word_count": "int", "rent_figures_count": "int", "political_descriptors_count": "int", "exclamation_density": "int",
-             "identity_terms_count": "int"}
-    sids = [s for s in HEADLINE_SCRIPT if s in set(summ.axis)]
-    (out / "steering_service.tex").write_text(rates_table(summ, contr, sids, "tab:steering-service",
-        "Judge-free axes per arm: shares of responses, mean census shares (percent) of the offered community areas, shares of offered areas, and counts.", kinds, args.run))
-    # agreement
-    ag = agree[~agree.axis.str.endswith("@r1")].set_index("axis").reindex(top).dropna(subset=["fleiss_kappa"])
-    al = [header(args.run, "Judge agreement"), "\\begin{table}[hbt!]", "\\centering\\footnotesize",
-          f"\\caption{{Judge agreement on the headline axes: Fleiss' $\\kappa$ and pairwise agreement across the three judges, and each judge's yes rate pooled over arms. Mean $\\kappa$ over all judge axes: {agree[~agree.axis.str.endswith('@r1')].fleiss_kappa.mean():.2f}; mean pairwise agreement: {agree[~agree.axis.str.endswith('@r1')].pairwise_agreement.mean():.2f}.}}",
-          "\\label{tab:steering-agreement}", "\\begin{tabular}{lrrrrr}", "\\toprule",
-          "\\textbf{axis} & $\\kappa$ & \\textbf{agree} & \\textbf{Haiku 5.5} & \\textbf{GPT-5-nano} & \\textbf{Qwen 3.7 Flash} \\\\", "\\midrule"]
-    for ax, row in ag.iterrows():
+    script_ids = [a["id"] for a in AXES if a["kind"] == "script" and a["id"] in set(summ.axis)]
+    pct = {"hispanic_share_mean": "pct", "white_nh_share_mean": "pct", "black_nh_share_mean": "pct", "median_rent_mean": "pct"}
+    ints = {k: "int" for k in ("n_neighborhoods", "l2_tokens_count", "word_count", "sentence_count", "rent_figures_count", "political_descriptors_count",
+                               "exclamation_density", "identity_terms_count", "cta_lines_count", "stations_count", "streets_landmarks_count",
+                               "listing_sites_count", "urls_count", "structure_count", "caveat_density", "euphemism_density", "questions_count",
+                               "mock_language_markers", "echo_user_l2", "casual_lexicon_rate", "emoji_count", "contraction_rate", "endearment_vocative",
+                               "comprehension_checks", "warmth_markers", "fk_grade")}
+    kinds = {**pct, **ints}
+    (out / "steering_rates.tex").write_text(rates_longtable(summ, contr, ordered(judge_ids), "tab:steering-rates",
+        f"Every judge axis per arm: ensemble yes rate, three judges averaged, ${n_per_arm}$ responses per arm, grouped by family and ordered within a family by the largest gap from the baseline. Identity fit share is a share in $[0,1]$ averaged over the judges that wrote a count.", kinds, args.run))
+    (out / "steering_service.tex").write_text(rates_longtable(summ, contr, ordered(script_ids), "tab:steering-service",
+        "Every script axis per arm: shares of responses or of offered areas in $[0,1]$, mean census shares of the offered community areas in percent, mean rent in dollars, and counts, grouped by family and ordered within a family by the largest gap from the baseline.", kinds, args.run))
+    # agreement over every judge axis
+    ag = agree[~agree.axis.str.endswith("@r1")].set_index("axis")
+    ag_ids = [k for k in ordered(judge_ids) if k.startswith("#") or k in ag.index]
+    al = [header(args.run, "Judge agreement"), "\\begin{center}\\footnotesize", "\\begin{longtable}{@{}lrrrrr@{}}",
+          f"\\caption{{Judge agreement per judge axis: Fleiss' $\\kappa$ and pairwise agreement across the three judges, and each judge's yes rate pooled over arms. Mean $\\kappa$ over all judge axes: {ag.fleiss_kappa.mean():.2f}; mean pairwise agreement: {ag.pairwise_agreement.mean():.2f}.}}\\label{{tab:steering-agreement}}\\\\",
+          "\\toprule \\textbf{axis} & $\\kappa$ & \\textbf{agree} & \\textbf{Haiku 5.5} & \\textbf{GPT-5-nano} & \\textbf{Qwen 3.7 Flash} \\\\ \\midrule \\endfirsthead",
+          "\\toprule \\textbf{axis} & $\\kappa$ & \\textbf{agree} & \\textbf{Haiku 5.5} & \\textbf{GPT-5-nano} & \\textbf{Qwen 3.7 Flash} \\\\ \\midrule \\endhead",
+          "\\bottomrule \\endfoot"]
+    for ax in ag_ids:
+        if ax.startswith("#"):
+            al.append(f"\\multicolumn{{6}}{{@{{}}l}}{{\\textbf{{{tex_escape(ax[1:])}}}}} \\\\"); continue
+        row = ag.loc[ax]
         al.append(f"{tex_escape(ax.replace('_',' '))} & {row.fleiss_kappa:.2f} & {row.pairwise_agreement:.2f} & {row.get('yes_haiku55', float('nan')):.2f} & {row.get('yes_nano', float('nan')):.2f} & {row.get('yes_qwen', float('nan')):.2f} \\\\")
-    al += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
+    al += ["\\end{longtable}", "\\end{center}", ""]
     (out / "steering_agreement.tex").write_text("\n".join(al))
     # catalogue
     cl = [header(args.run, "The candidate axes"), "\\begin{center}\\scriptsize",
