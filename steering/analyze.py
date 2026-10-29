@@ -120,7 +120,20 @@ def build_table(resp, judg, judges, script):
             row[k] = (np.nan if v is None else v)
         row["offered_areas"] = "|".join(s.get("offered_areas", []))
         rows.append(row)
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    return to_unit(df)
+
+PERCENT_AXES = {"hispanic_share_mean", "white_nh_share_mean", "black_nh_share_mean"}
+
+def to_unit(df):
+    """Put every measured axis on [0,1]: census shares in percent become fractions; any other axis with values above 1
+    (counts, rents, densities, grade levels) is divided by its largest value over all responses, so arm comparisons are kept."""
+    for k in SCRIPT_NUMERIC:
+        if k not in df: continue
+        x = df[k].astype(float)
+        if k in PERCENT_AXES: df[k] = x / 100.0
+        elif x.max(skipna=True) > 1.0: df[k] = x / x.max(skipna=True)
+    return df
 
 def arm_level(df):
     """set_divergence_from_f and within_arm_entropy."""

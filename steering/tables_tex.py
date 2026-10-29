@@ -141,11 +141,11 @@ def main():
                                "listing_sites_count", "urls_count", "structure_count", "caveat_density", "euphemism_density", "questions_count",
                                "mock_language_markers", "echo_user_l2", "casual_lexicon_rate", "emoji_count", "contraction_rate", "endearment_vocative",
                                "comprehension_checks", "warmth_markers", "fk_grade")}
-    kinds = {**pct, **ints}
+    kinds = {}
     (out / "steering_rates.tex").write_text(rates_longtable(summ, contr, ordered(judge_ids), "tab:steering-rates",
         f"Judge axes whose rate ranges by at least 0.2 across the arms: ensemble yes rate, three judges averaged, ${n_per_arm}$ responses per arm, grouped by family and ordered within a family by the largest gap from the baseline. Identity fit share is a share in $[0,1]$ averaged over the judges that wrote a count.", kinds, args.run))
     (out / "steering_service.tex").write_text(rates_longtable(summ, contr, ordered(script_ids), "tab:steering-service",
-        "Measured axes that move across the arms (a range of at least 0.2 for shares, of at least 20 percent of the largest value for counts and census percentages): shares of responses or of offered areas in $[0,1]$, mean census shares of the offered community areas in percent, and counts, grouped by family and ordered within a family by the largest gap from the baseline.", kinds, args.run))
+        "Measured axes whose score ranges by at least 0.2 across the arms. Every score is in $[0,1]$: shares of responses or of offered areas, census shares of the offered community areas as fractions, and counts divided by their largest value over all responses. Grouped by family and ordered within a family by the largest gap from the baseline.", kinds, args.run))
     # agreement over every judge axis
     ag = agree[~agree.axis.str.endswith("@r1")].set_index("axis")
     ag_ids = [k for k in ordered(judge_ids) if k.startswith("#") or k in ag.index]
@@ -169,11 +169,10 @@ def main():
         r = pv.loc[ax].reindex(ORDER).dropna()
         if len(r) < 2: return "--", "--"
         hi, lo = r.idxmax(), r.idxmin(); d = r[hi] - r[lo]
-        unit = r.between(-1e-9, 1 + 1e-9).all()
-        return (f"{d:.2f}" if unit else (f"{d:.0f}" if abs(d) >= 10 else f"{d:.1f}")), f"{hi}--{lo}"
+        return f"{d:.2f}", f"{hi}--{lo}"
     cl = [header(args.run, "The candidate axes"), "\\begin{center}\\scriptsize",
           "\\begin{longtable}{@{}>{\\raggedright\\arraybackslash}p{0.19\\linewidth}l>{\\raggedright\\arraybackslash}p{0.55\\linewidth}rl@{}}",
-          f"\\caption{{The {len(AXES)} behavior axes. Kind: J = yes/no answered by the judge ensemble, M = measured from the text and the pinned tables. $\\Delta$: the largest difference between two arms' mean scores, and the two arms (higher first; arm codes as in \\autoref{{tab:steering-prompts}}). The judge rubrics, lexicons and tables are in the pipeline repository.}}\\label{{tab:steering-axes}}\\\\",
+          f"\\caption{{The {len(AXES)} behavior axes. Kind: J = yes/no answered by the judge ensemble, M = measured from the text and the pinned tables. Every axis is a score in $[0,1]$; counts are divided by their largest value over all responses. $\\Delta$: the largest difference between two arms' mean scores, and the two arms, higher first. Arms: F formal, D Democrat, E explicit, I implicit, H heavy; L Mexican-American, P Polish-American (\\autoref{{tab:steering-prompts}}). The judge rubrics, lexicons and tables are in the pipeline repository.}}\\label{{tab:steering-axes}}\\\\",
           "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} & $\\Delta$ & \\textbf{arms} \\\\ \\midrule \\endfirsthead",
           "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} & $\\Delta$ & \\textbf{arms} \\\\ \\midrule \\endhead", "\\bottomrule \\endfoot"]
     for fam in ("steering", "identity", "constraints", "preferences", "service", "form"):

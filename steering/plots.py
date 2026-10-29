@@ -157,9 +157,12 @@ def all_rows(summ):
                                             "congrats_opener": "opens with congratulations", "identity_in_opening": "ethnicity named in the opening",
                                             "top_pick_over_limit": "closing pick over the commute limit", "enclave_epithet": "ethnic nickname for the enclave",
                                             "offrail_share": "offered areas without rail", "rent_over_budget_share": "offered areas over budget",
-                                            "polish_heritage_share": "share of offered areas Polish-heritage", "family_section_share": "share of words on the family"})
-    for k in UNIT_SCRIPT: fam.setdefault(k, "steering")
-    ids = [a["id"] for a in JUDGE_AXES if a["id"] in set(summ.axis)] + [k for k in UNIT_SCRIPT if k in set(summ.axis)]
+                                            "polish_heritage_share": "share of offered areas Polish-heritage", "family_section_share": "share of words on the family",
+                                            "hispanic_share_mean": "Hispanic share of offered areas", "white_nh_share_mean": "white share of offered areas",
+                                            "black_nh_share_mean": "Black share of offered areas"})
+    judge = {a["id"] for a in JUDGE_AXES}
+    ids = [a["id"] for a in JUDGE_AXES if a["id"] in set(summ.axis)] + [k for k in sorted(set(summ.axis)) if k not in judge and "@" not in k]
+    for k in ids: fam.setdefault(k, "steering")
     piv = summ[summ.axis.isin(ids)].pivot(index="axis", columns="arm", values="mean")
     ident = [c for c in piv.columns if c not in ("F", "D")]
     gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
