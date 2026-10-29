@@ -97,7 +97,7 @@ def fig_core_grid(summ, out, judge_ids, fname="steering-core-grid", rows=None):
     for ax in axs[-1]:
         ax.set_xticks(x); ax.set_xticklabels([lab for _, lab, _ in rows], rotation=45, ha="right", fontsize=6, rotation_mode="anchor")
     used = [f for f in FAM_ORDER if any(r[2] == f for r in rows)]
-    names = {"steering": "recommended set", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "form": "form"}
+    names = {"steering": "recommended set", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "service": "service", "form": "form"}
     handles = [plt.Rectangle((0, 0), 1, 1, color=FAM_COL[f]) for f in used]
     fig.legend(handles, [names[f] for f in used], loc="upper center", ncol=len(used), fontsize=6.5, bbox_to_anchor=(0.5, 1.0), handlelength=1.2, columnspacing=1.2)
     fig.tight_layout(rect=(0, 0, 1, 0.965), h_pad=1.2, w_pad=1.0)
@@ -118,9 +118,9 @@ def fig_axes_grid(summ, out, axes_ids, fname="steering-axes", ncols=4, ylabel="e
     fig.tight_layout(rect=(0, 0.04, 1, 1))
     fig.savefig(out / f"{fname}.png"); fig.savefig(out / f"{fname}.pdf"); plt.close(fig)
 
-FAM_COL = {"steering": "#4b5d78", "identity": "#7b4fb3", "constraints": "#1f8a8a", "preferences": "#c9972b", "form": "#8a6d5a"}
+FAM_COL = {"steering": "#4b5d78", "identity": "#7b4fb3", "constraints": "#1f8a8a", "preferences": "#c9972b", "service": "#b5536b", "form": "#8a6d5a"}
 KEEP = set()
-FAM_ORDER = ["steering", "identity", "constraints", "preferences", "form"]
+FAM_ORDER = ["steering", "identity", "constraints", "preferences", "service", "form"]
 CORE_SCRIPT = [("enclave_offered_latino_list", "majority-Hispanic area offered"), ("enclave_offered_polish_list", "Polish-heritage area offered"),
                ("commute_fail_share", "offered areas beyond commute limit"), ("over_limit_share", "offered areas the reply puts over 30 min"),
                ("adjacent_to_imd_offered", "walk-to-work area offered"), ("l2_greeting_signoff", "Spanish or Polish greeting")]
@@ -239,13 +239,59 @@ def fig_cores(summ, out, judge_ids, fname="steering-cores", rows=None, row_h=0.1
         fig.add_artist(plt.Line2D([x0, x1], [ytop, ytop], color=INK2, lw=0.8))
         fig.text((x0 + x1) / 2, ytop + 0.012, name, ha="center", va="bottom", fontsize=7.5, color=INK2)
     used = [f for f in FAM_ORDER if any(r[2] == f for r in rows)]
-    names = {"steering": "recommended set", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "form": "form"}
+    names = {"steering": "recommended set", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "service": "service", "form": "form"}
     handles = [plt.Rectangle((0, 0), 1, 1, color=FAM_COL[f]) for f in used]
     fig.legend(handles, [names[f] for f in used], loc="lower center", ncol=len(used), fontsize=6.5, bbox_to_anchor=(0.5, 0.0), handlelength=1.2, columnspacing=1.2)
     fig.savefig(out / f"{fname}.png"); fig.savefig(out / f"{fname}.pdf"); plt.close(fig)
 
 ARM_TITLE = {"F": "formal, no identity", "D": "formal, \u201cI am a Democrat\u201d", "EL": "Mexican-American, explicit", "IL": "Mexican-American, implicit",
              "HL": "Mexican-American, heavy", "EP": "Polish-American, explicit", "IP": "Polish-American, implicit", "HP": "Polish-American, heavy"}
+
+CMP_GROUPS = {"lat_f": (("Latino (EL, IL, HL)", ["EL", "IL", "HL"]), ("formal", ["F"])),
+              "pol_f": (("Polish-American (EP, IP, HP)", ["EP", "IP", "HP"]), ("formal", ["F"])),
+              "lat_pol": (("Latino (EL, IL, HL)", ["EL", "IL", "HL"]), ("Polish-American (EP, IP, HP)", ["EP", "IP", "HP"])),
+              "lat_ei": (("Latino explicit (EL)", ["EL"]), ("Latino implicit (IL)", ["IL"])),
+              "pol_ei": (("Polish explicit (EP)", ["EP"]), ("Polish implicit (IP)", ["IP"]))}
+
+def fig_comparisons(an, out, labels):
+    """One core-bar figure per group comparison: two panels (the two groups), one bar per axis whose pooled means differ by at
+    least 0.2, axes grouped by family and ordered by the difference; bootstrap intervals over responses."""
+    table = pd.read_csv(an / "table.csv"); comp = pd.read_csv(an / "comparisons.csv")
+    fam = {a["id"]: a["family"] for a in AXES}
+    rng = np.random.default_rng(0)
+    def mean_ci(x):
+        x = x[~np.isnan(x)]
+        if len(x) == 0: return np.nan, np.nan, np.nan
+        bs = rng.choice(x, size=(1000, len(x)), replace=True).mean(axis=1)
+        return x.mean(), np.percentile(bs, 2.5), np.percentile(bs, 97.5)
+    for k, ((na, ga), (nb, gb)) in CMP_GROUPS.items():
+        g = comp[(comp.comparison == k) & (comp["diff"].abs() >= 0.2)].copy()
+        g["fam"] = g.axis.map(lambda a: fam.get(a, "steering"))
+        g["fo"] = g.fam.map(lambda f: FAM_ORDER.index(f) if f in FAM_ORDER else 0)
+        g = g.sort_values(["fo", "diff"], ascending=[True, False])
+        rows = [(r.axis, labels.get(r.axis, AX_NAME.get(r.axis, r.axis)), r.fam) for r in g.itertuples()]
+        n = len(rows); y = np.arange(n)[::-1]
+        fig, axs = plt.subplots(1, 2, figsize=(6.4, 0.2 * n + 1.3), sharey=True)
+        for ax, (name, arms) in zip(axs, [(na, ga), (nb, gb)]):
+            sub = table[table.arm.isin(arms)]
+            st = [mean_ci(sub[a].astype(float).values) if a in sub else (np.nan,) * 3 for a, _, _ in rows]
+            vals = np.array([t[0] for t in st]); lo = np.array([t[1] for t in st]); hi = np.array([t[2] for t in st])
+            ax.barh(y, vals, height=0.62, color=[FAM_COL.get(f, FAM_COL["steering"]) for _, _, f in rows], linewidth=0)
+            ok = ~np.isnan(lo)
+            ax.errorbar(vals[ok], y[ok], xerr=np.vstack([(vals - lo)[ok].clip(0), (hi - vals)[ok].clip(0)]), fmt="none", ecolor=INK2, elinewidth=0.6, capsize=0)
+            ax.axvline(0.5, color=INK2, lw=0.6, ls=(0, (3, 3)))
+            ax.set_xlim(0, 1); ax.set_xticks([0, 0.5, 1]); ax.set_xticklabels(["0", ".5", "1"], fontsize=6.5)
+            ax.set_title(name, fontsize=8, color=INK, pad=4)
+            ax.grid(visible=False)
+            for sp in ("left", "bottom"): ax.spines[sp].set_color(GRID)
+            ax.tick_params(axis="y", length=0)
+        axs[0].set_yticks(y); axs[0].set_yticklabels([lab for _, lab, _ in rows], fontsize=6.5)
+        used = [f for f in FAM_ORDER if any(r[2] == f for r in rows)]
+        names = {"steering": "recommended set", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "service": "service", "form": "form"}
+        fig.legend([plt.Rectangle((0, 0), 1, 1, color=FAM_COL[f]) for f in used], [names[f] for f in used], loc="lower center",
+                   ncol=len(used), fontsize=6.5, bbox_to_anchor=(0.5, 0.0), handlelength=1.2, columnspacing=1.2)
+        fig.tight_layout(rect=(0, 0.06, 1, 1)); fig.subplots_adjust(wspace=0.08)
+        fig.savefig(out / f"steering-cmp-{k.replace('_', '-')}.png"); fig.savefig(out / f"steering-cmp-{k.replace('_', '-')}.pdf"); plt.close(fig)
 
 def fig_heatmap(summ, out, axes_ids, fname="steering-heatmap", labels=None):
     piv = summ[summ.axis.isin(axes_ids)].pivot(index="axis", columns="arm", values="mean").reindex(axes_ids)[ORDER]
@@ -288,6 +334,7 @@ def main():
     keep = moving_axes(comparisons(an))
     rows = [r for r in all_rows(summ) if r[0] in keep]
     fig_cores(summ, out, [], fname="steering-arms-all", rows=rows, row_h=0.105, label_size=5.2)
+    fig_comparisons(an, out, {k: lab for k, lab, _ in all_rows(summ)})
     fig_heatmap(summ, out, [k for k, _, _ in rows], labels={k: lab for k, lab, _ in rows})
     global KEEP; KEEP = keep
     if len(agree): fig_agreement(agree, out)
