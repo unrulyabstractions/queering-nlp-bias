@@ -76,7 +76,7 @@ def main():
            f"Decoding     & temperature $\\tau = {resp[0]['temperature']:.1f}$, up to ${resp[0]['max_tokens']}$ new tokens, single turn, no system prompt; ${sum(1 for r in resp if r.get('finish') == 'length')}$ of ${len(resp)}$ responses reached the cap and were kept \\\\",
            f"Arms         & {len(ORDER)} (\\autoref{{tab:steering-prompts}}); ${n_per_arm}$ samples per arm, ${len(resp)}$ responses \\\\",
            "Judges       & Claude Haiku 5.5 (\\texttt{claude-haiku-5-5}), GPT-5-nano (\\texttt{gpt-5-nano-2025-08-07}, reasoning effort low), Qwen 3.7 Flash (\\texttt{qwen/qwen3.7-flash}, reasoning disabled); each returns a JSON object constrained to the batch schema \\\\",
-           "Judge protocol & eight batched calls per response: four in the first round (identity, constraints, preferences, form), two in the second (the rewritten axes, blind and open) and two in the third (the fifteen judge axes written after reading the responses, blind and open); evidence quote then yes/no, JSON schema output \\\\",
+           "Judge protocol & eight batched calls per response, grouped by axis family, the rubric beside each question; evidence quote then yes/no, JSON schema output \\\\",
            "Blinding     & identity, constraint and preference batches see the formal request in place of the user's message \\\\",
            "Judge-free axes & gazetteer crosswalk to the 77 community areas, one census vintage, CTA rail table, pinned lexicons \\\\",
            "Estimator    & per-arm mean of the three-judge ensemble score; bootstrap and Wilson 95\\% intervals; permutation tests against the formal arm with Holm correction \\\\",
@@ -116,33 +116,16 @@ def main():
         al.append(f"{tex_escape(ax.replace('_',' '))} & {row.fleiss_kappa:.2f} & {row.pairwise_agreement:.2f} & {row.get('yes_haiku55', float('nan')):.2f} & {row.get('yes_nano', float('nan')):.2f} & {row.get('yes_qwen', float('nan')):.2f} \\\\")
     al += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
     (out / "steering_agreement.tex").write_text("\n".join(al))
-    # second judging round: agreement before and after the rewrite
-    r2 = [a for a in JUDGE_AXES if "rubric_round1" in a]
-    agi = agree.set_index("axis")
-    rl = [header(args.run, "Second judging round"), "\\begin{table}[hbt!]", "\\centering\\footnotesize",
-          "\\caption{Axes re-judged with a rewritten rubric after the first round: Fleiss' $\\kappa$ and pairwise agreement among the three judges before and after, the number of responses with a first-round vote from all three judges, and the ensemble yes rate pooled over arms after.}",
-          "\\label{tab:steering-refine}", "\\begin{tabular}{lrrrrrr}", "\\toprule",
-          "\\textbf{axis} & $n$ before & $\\kappa$ before & agree before & $\\kappa$ after & agree after & yes rate after \\\\", "\\midrule"]
-    for a in r2:
-        b = agi.loc[a["id"] + "@r1"] if a["id"] + "@r1" in agi.index else None; c = agi.loc[a["id"]] if a["id"] in agi.index else None
-        rl.append(f"{tex_escape(a['id'].replace('_',' '))} & " + " & ".join([
-            f"{int(b.n)}" if b is not None else "--",
-            f"{b.fleiss_kappa:.2f}" if b is not None else "--", f"{b.pairwise_agreement:.2f}" if b is not None else "--",
-            f"{c.fleiss_kappa:.2f}" if c is not None else "--", f"{c.pairwise_agreement:.2f}" if c is not None else "--",
-            f"{c.yes_rate_overall:.2f}" if c is not None else "--"]) + " \\\\")
-    rl += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
-    (out / "steering_refine.tex").write_text("\n".join(rl))
     # catalogue
     cl = [header(args.run, "The candidate axes"), "\\begin{center}\\scriptsize",
           "\\begin{longtable}{@{}>{\\raggedright\\arraybackslash}p{0.21\\linewidth}l>{\\raggedright\\arraybackslash}p{0.66\\linewidth}@{}}",
-          f"\\caption{{The {len(AXES)} candidate behavior axes. Kind: J = yes/no answered by the judge ensemble, S = computed by script from the text and the pinned tables. A dagger marks an axis whose rubric was rewritten for the second judging round or that was added after the first round; a double dagger marks the third round, written after reading the responses. The judge rubrics, lexicons and tables are in the pipeline repository.}}\\label{{tab:steering-axes}}\\\\",
+          f"\\caption{{The {len(AXES)} behavior axes. Kind: J = yes/no answered by the judge ensemble, S = computed by script from the text and the pinned tables. The judge rubrics, lexicons and tables are in the pipeline repository.}}\\label{{tab:steering-axes}}\\\\",
           "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} \\\\ \\midrule \\endfirsthead",
           "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} \\\\ \\midrule \\endhead", "\\bottomrule \\endfoot"]
     for fam in ("steering", "identity", "constraints", "preferences", "service", "form"):
         cl.append(f"\\multicolumn{{3}}{{@{{}}l}}{{\\textbf{{{tex_escape(fam)}}}}} \\\\")
         for a in [x for x in AXES if x["family"] == fam]:
-            mark = '$^{\\dagger}$' if a.get('round') == 2 else ('$^{\\ddagger}$' if a.get('round') == 3 else '')
-            cl.append(f"{tex_escape(a['id'].replace('_',' '))}{mark} & {'J' if a['kind']=='judge' else 'S'} & {tex_escape(a['q'])} \\\\")
+            cl.append(f"{tex_escape(a['id'].replace('_',' '))} & {'J' if a['kind']=='judge' else 'S'} & {tex_escape(a['q'])} \\\\")
     cl += ["\\end{longtable}", "\\end{center}", ""]
     (out / "steering_axes_catalogue.tex").write_text("\n".join(cl))
     print("tables ->", out, "| headline axes:", top)
