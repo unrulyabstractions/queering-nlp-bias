@@ -68,13 +68,14 @@ def fig_shares(summ, out):
     fig.tight_layout(h_pad=2.6, w_pad=1.0)
     fig.savefig(out / "steering-shares.png"); fig.savefig(out / "steering-shares.pdf"); plt.close(fig)
 
-def fig_core_grid(summ, out, judge_ids):
+def fig_core_grid(summ, out, judge_ids, fname="steering-core-grid", rows=None):
     """Default behavior per user group as one figure: four rows by two columns of vertical bar panels over the headline axes.
     Row one holds the two baseline arms; rows two to four hold explicit, implicit and heavy, Mexican-American left, Polish-American right."""
     fam = {a["id"]: a["family"] for a in AXES}
-    rows = [(k, lab, "steering") for k, lab in CORE_SCRIPT]
-    for f in FAM_ORDER[1:]:
-        rows += [(k, AX_NAME.get(k, k), f) for k in judge_ids if fam.get(k) == f]
+    if rows is None:
+        rows = [(k, lab, "steering") for k, lab in CORE_SCRIPT]
+        for f in FAM_ORDER[1:]:
+            rows += [(k, AX_NAME.get(k, k), f) for k in judge_ids if fam.get(k) == f]
     x = np.arange(len(rows))
     grid = [["F", "D"], ["EL", "EP"], ["IL", "IP"], ["HL", "HP"]]
     fig, axs = plt.subplots(4, 2, figsize=(6.6, 7.4), sharex=True, sharey=True)
@@ -99,7 +100,7 @@ def fig_core_grid(summ, out, judge_ids):
     handles = [plt.Rectangle((0, 0), 1, 1, color=FAM_COL[f]) for f in used]
     fig.legend(handles, [names[f] for f in used], loc="upper center", ncol=len(used), fontsize=6.5, bbox_to_anchor=(0.5, 1.0), handlelength=1.2, columnspacing=1.2)
     fig.tight_layout(rect=(0, 0, 1, 0.965), h_pad=1.2, w_pad=1.0)
-    fig.savefig(out / "steering-core-grid.png"); fig.savefig(out / "steering-core-grid.pdf"); plt.close(fig)
+    fig.savefig(out / f"{fname}.png"); fig.savefig(out / f"{fname}.pdf"); plt.close(fig)
 
 def fig_axes_grid(summ, out, axes_ids, fname="steering-axes", ncols=4, ylabel="ensemble yes rate"):
     n = len(axes_ids); nrows = int(np.ceil(n / ncols))
@@ -122,12 +123,21 @@ CORE_SCRIPT = [("enclave_offered_latino_list", "majority-Hispanic area offered")
                ("commute_fail_share", "offered areas beyond commute limit"), ("over_limit_share", "offered areas the reply puts over 30 min"),
                ("adjacent_to_imd_offered", "walk-to-work area offered"), ("l2_greeting_signoff", "Spanish or Polish greeting")]
 
-def fig_cores(summ, out, judge_ids, fname="steering-cores"):
+def round3_rows():
+    """All third-round axes as (id, label, family) rows, script rows first, then by family order."""
+    r3 = [a for a in AXES if a.get("round") == 3]
+    rows = [(a["id"], AX_NAME.get(a["id"], a["id"]), "steering") for a in r3 if a["kind"] == "script"]
+    for f in FAM_ORDER:
+        rows += [(a["id"], AX_NAME.get(a["id"], a["id"]), f) for a in r3 if a["kind"] == "judge" and a["family"] == f]
+    return rows
+
+def fig_cores(summ, out, judge_ids, fname="steering-cores", rows=None):
     """Default behavior per arm: one panel per arm, one horizontal bar per axis, dashed midline, as the paper's core bars."""
     fam = {a["id"]: a["family"] for a in AXES}
-    rows = [(k, lab, "steering") for k, lab in CORE_SCRIPT]
-    for f in FAM_ORDER[1:]:
-        rows += [(k, AX_NAME.get(k, k), f) for k in judge_ids if fam.get(k) == f]
+    if rows is None:
+        rows = [(k, lab, "steering") for k, lab in CORE_SCRIPT]
+        for f in FAM_ORDER[1:]:
+            rows += [(k, AX_NAME.get(k, k), f) for k in judge_ids if fam.get(k) == f]
     n = len(rows)
     fig, axs = plt.subplots(1, len(ORDER), figsize=(6.8, 0.17 * n + 1.1), sharey=True)
     y = np.arange(n)[::-1]
@@ -200,6 +210,7 @@ def main():
     gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
     top = gap.sort_values(ascending=False).index.tolist()
     fig_shares(summ, out); fig_cores(summ, out, top[:16]); fig_core_grid(summ, out, top[:16])
+    fig_cores(summ, out, [], fname="steering-cores-r3", rows=round3_rows()); fig_core_grid(summ, out, [], fname="steering-core-grid-r3", rows=round3_rows())
     fig_axes_grid(summ, out, top[: args.top]); fig_heatmap(summ, out, top)
     if len(agree): fig_agreement(agree, out)
     json.dump({"top_axes": top[: args.top], "gap": gap.sort_values(ascending=False).round(3).to_dict()}, (an / "top_axes.json").open("w"), indent=1)
