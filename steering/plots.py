@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from axes import AXES, JUDGE_AXES
+from select_axes import moving_axes
 from prompts import ORDER, ARMS
 
 HERE = Path(__file__).resolve().parent
@@ -96,7 +97,7 @@ def fig_core_grid(summ, out, judge_ids, fname="steering-core-grid", rows=None):
     for ax in axs[-1]:
         ax.set_xticks(x); ax.set_xticklabels([lab for _, lab, _ in rows], rotation=45, ha="right", fontsize=6, rotation_mode="anchor")
     used = [f for f in FAM_ORDER if any(r[2] == f for r in rows)]
-    names = {"steering": "recommended set (script)", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "form": "form"}
+    names = {"steering": "recommended set", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "form": "form"}
     handles = [plt.Rectangle((0, 0), 1, 1, color=FAM_COL[f]) for f in used]
     fig.legend(handles, [names[f] for f in used], loc="upper center", ncol=len(used), fontsize=6.5, bbox_to_anchor=(0.5, 1.0), handlelength=1.2, columnspacing=1.2)
     fig.tight_layout(rect=(0, 0, 1, 0.965), h_pad=1.2, w_pad=1.0)
@@ -118,6 +119,7 @@ def fig_axes_grid(summ, out, axes_ids, fname="steering-axes", ncols=4, ylabel="e
     fig.savefig(out / f"{fname}.png"); fig.savefig(out / f"{fname}.pdf"); plt.close(fig)
 
 FAM_COL = {"steering": "#4b5d78", "identity": "#7b4fb3", "constraints": "#1f8a8a", "preferences": "#c9972b", "form": "#8a6d5a"}
+KEEP = set()
 FAM_ORDER = ["steering", "identity", "constraints", "preferences", "form"]
 CORE_SCRIPT = [("enclave_offered_latino_list", "majority-Hispanic area offered"), ("enclave_offered_polish_list", "Polish-heritage area offered"),
                ("commute_fail_share", "offered areas beyond commute limit"), ("over_limit_share", "offered areas the reply puts over 30 min"),
@@ -188,7 +190,7 @@ def fig_arm_panels_all(summ, out, rows, fname="steering-arms-all"):
         ax.set_xlim(-0.7, len(rows) - 0.3)
     axs[-1].set_xticks(x); axs[-1].set_xticklabels([lab for _, lab, _ in rows], rotation=90, fontsize=4.6)
     used = [f for f in FAM_ORDER if any(r[2] == f for r in rows)]
-    names = {"steering": "recommended set (script)", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "service": "service", "form": "form"}
+    names = {"steering": "recommended set", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "service": "service", "form": "form"}
     handles = [plt.Rectangle((0, 0), 1, 1, color=FAM_COL[f]) for f in used]
     fig.legend(handles, [names[f] for f in used], loc="upper center", ncol=len(used), fontsize=6.5, bbox_to_anchor=(0.5, 1.0), handlelength=1.2, columnspacing=1.2)
     fig.tight_layout(rect=(0, 0, 1, 0.97), h_pad=0.4)
@@ -234,7 +236,7 @@ def fig_cores(summ, out, judge_ids, fname="steering-cores", rows=None, row_h=0.1
         fig.add_artist(plt.Line2D([x0, x1], [ytop, ytop], color=INK2, lw=0.8))
         fig.text((x0 + x1) / 2, ytop + 0.012, name, ha="center", va="bottom", fontsize=7.5, color=INK2)
     used = [f for f in FAM_ORDER if any(r[2] == f for r in rows)]
-    names = {"steering": "recommended set (script)", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "form": "form"}
+    names = {"steering": "recommended set", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "form": "form"}
     handles = [plt.Rectangle((0, 0), 1, 1, color=FAM_COL[f]) for f in used]
     fig.legend(handles, [names[f] for f in used], loc="lower center", ncol=len(used), fontsize=6.5, bbox_to_anchor=(0.5, 0.0), handlelength=1.2, columnspacing=1.2)
     fig.savefig(out / f"{fname}.png"); fig.savefig(out / f"{fname}.pdf"); plt.close(fig)
@@ -258,7 +260,7 @@ def fig_heatmap(summ, out, axes_ids, fname="steering-heatmap", labels=None):
     fig.tight_layout(); fig.savefig(out / f"{fname}.png"); fig.savefig(out / f"{fname}.pdf"); plt.close(fig)
 
 def fig_agreement(agree, out):
-    a = agree[(agree.yes_rate_overall >= 0.02) & (agree.yes_rate_overall <= 0.98) & ~agree.axis.str.endswith("@r1")].sort_values("fleiss_kappa")
+    a = agree[agree.axis.isin(KEEP) & ~agree.axis.str.endswith("@r1")].sort_values("fleiss_kappa")
     fig, ax = plt.subplots(figsize=(6.6, 0.13 * len(a) + 0.8))
     y = np.arange(len(a))
     ax.hlines(y, 0, a.fleiss_kappa, color=GRID, lw=1); ax.plot(a.fleiss_kappa, y, "o", ms=3.5, color="#2a78d6")
@@ -280,9 +282,11 @@ def main():
     ident = [c for c in piv.columns if c not in ("F", "D")]
     gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
     top = gap.sort_values(ascending=False).index.tolist()  # judge axes only: the heatmap and the twelve-panel grid are judge views
-    rows = all_rows(summ)
+    keep = moving_axes(summ)
+    rows = [r for r in all_rows(summ) if r[0] in keep]
     fig_cores(summ, out, [], fname="steering-arms-all", rows=rows, row_h=0.105, label_size=5.2)
     fig_heatmap(summ, out, [k for k, _, _ in rows], labels={k: lab for k, lab, _ in rows})
+    global KEEP; KEEP = keep
     if len(agree): fig_agreement(agree, out)
     json.dump({"rows": [k for k, _, _ in rows]}, (an / "top_axes.json").open("w"), indent=1)
     print("figures ->", out, "|", len(rows), "axes")

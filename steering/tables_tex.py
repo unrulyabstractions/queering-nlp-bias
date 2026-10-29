@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np, pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from axes import AXES, JUDGE_AXES
+from select_axes import moving_axes
 from prompts import ARMS, ORDER
 
 HERE = Path(__file__).resolve().parent
@@ -131,8 +132,9 @@ def main():
             ks = sorted([k for k in ids if fam.get(k) == f], key=lambda k: -float(gap.get(k, 0) or 0))
             if ks: out_ += ["#" + f] + ks
         return out_
-    judge_ids = [a["id"] for a in JUDGE_AXES if a["id"] in set(summ.axis)]
-    script_ids = [a["id"] for a in AXES if a["kind"] == "script" and a["id"] in set(summ.axis)]
+    keep = moving_axes(summ)
+    judge_ids = [a["id"] for a in JUDGE_AXES if a["id"] in set(summ.axis) and a["id"] in keep]
+    script_ids = [a["id"] for a in AXES if a["kind"] == "script" and a["id"] in set(summ.axis) and a["id"] in keep]
     pct = {"hispanic_share_mean": "pct", "white_nh_share_mean": "pct", "black_nh_share_mean": "pct", "median_rent_mean": "pct"}
     ints = {k: "int" for k in ("n_neighborhoods", "l2_tokens_count", "word_count", "sentence_count", "rent_figures_count", "political_descriptors_count",
                                "exclamation_density", "identity_terms_count", "cta_lines_count", "stations_count", "streets_landmarks_count",
@@ -141,14 +143,14 @@ def main():
                                "comprehension_checks", "warmth_markers", "fk_grade")}
     kinds = {**pct, **ints}
     (out / "steering_rates.tex").write_text(rates_longtable(summ, contr, ordered(judge_ids), "tab:steering-rates",
-        f"Every judge axis per arm: ensemble yes rate, three judges averaged, ${n_per_arm}$ responses per arm, grouped by family and ordered within a family by the largest gap from the baseline. Identity fit share is a share in $[0,1]$ averaged over the judges that wrote a count.", kinds, args.run))
+        f"Judge axes whose rate ranges by at least 0.2 across the arms: ensemble yes rate, three judges averaged, ${n_per_arm}$ responses per arm, grouped by family and ordered within a family by the largest gap from the baseline. Identity fit share is a share in $[0,1]$ averaged over the judges that wrote a count.", kinds, args.run))
     (out / "steering_service.tex").write_text(rates_longtable(summ, contr, ordered(script_ids), "tab:steering-service",
-        "Every script axis per arm: shares of responses or of offered areas in $[0,1]$, mean census shares of the offered community areas in percent, mean rent in dollars, and counts, grouped by family and ordered within a family by the largest gap from the baseline.", kinds, args.run))
+        "Measured axes that move across the arms (a range of at least 0.2 for shares, of at least 20 percent of the largest value for counts and census percentages): shares of responses or of offered areas in $[0,1]$, mean census shares of the offered community areas in percent, and counts, grouped by family and ordered within a family by the largest gap from the baseline.", kinds, args.run))
     # agreement over every judge axis
     ag = agree[~agree.axis.str.endswith("@r1")].set_index("axis")
     ag_ids = [k for k in ordered(judge_ids) if k.startswith("#") or k in ag.index]
     al = [header(args.run, "Judge agreement"), "\\begin{center}\\footnotesize", "\\begin{longtable}{@{}lrrrrr@{}}",
-          f"\\caption{{Judge agreement per judge axis: Fleiss' $\\kappa$ and pairwise agreement across the three judges, and each judge's yes rate pooled over arms. Mean $\\kappa$ over all judge axes: {ag.fleiss_kappa.mean():.2f}; mean pairwise agreement: {ag.pairwise_agreement.mean():.2f}.}}\\label{{tab:steering-agreement}}\\\\",
+          f"\\caption{{Judge agreement on the judge axes of \\autoref{{tab:steering-rates}}: Fleiss' $\\kappa$ and pairwise agreement across the three judges, and each judge's yes rate pooled over arms. Mean $\\kappa$ over these axes: {ag.loc[[k for k in judge_ids if k in ag.index]].fleiss_kappa.mean():.2f}; mean pairwise agreement: {ag.loc[[k for k in judge_ids if k in ag.index]].pairwise_agreement.mean():.2f}.}}\\label{{tab:steering-agreement}}\\\\",
           "\\toprule \\textbf{axis} & $\\kappa$ & \\textbf{agree} & \\textbf{Haiku 5.5} & \\textbf{GPT-5-nano} & \\textbf{Qwen 3.7 Flash} \\\\ \\midrule \\endfirsthead",
           "\\toprule \\textbf{axis} & $\\kappa$ & \\textbf{agree} & \\textbf{Haiku 5.5} & \\textbf{GPT-5-nano} & \\textbf{Qwen 3.7 Flash} \\\\ \\midrule \\endhead",
           "\\bottomrule \\endfoot"]
@@ -163,13 +165,13 @@ def main():
     # catalogue
     cl = [header(args.run, "The candidate axes"), "\\begin{center}\\scriptsize",
           "\\begin{longtable}{@{}>{\\raggedright\\arraybackslash}p{0.21\\linewidth}l>{\\raggedright\\arraybackslash}p{0.66\\linewidth}@{}}",
-          f"\\caption{{The {len(AXES)} behavior axes. Kind: J = yes/no answered by the judge ensemble, S = computed by script from the text and the pinned tables. The judge rubrics, lexicons and tables are in the pipeline repository.}}\\label{{tab:steering-axes}}\\\\",
+          f"\\caption{{The {len(AXES)} behavior axes. Kind: J = yes/no answered by the judge ensemble, M = measured from the text and the pinned tables. The judge rubrics, lexicons and tables are in the pipeline repository.}}\\label{{tab:steering-axes}}\\\\",
           "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} \\\\ \\midrule \\endfirsthead",
           "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} \\\\ \\midrule \\endhead", "\\bottomrule \\endfoot"]
     for fam in ("steering", "identity", "constraints", "preferences", "service", "form"):
         cl.append(f"\\multicolumn{{3}}{{@{{}}l}}{{\\textbf{{{tex_escape(fam)}}}}} \\\\")
         for a in [x for x in AXES if x["family"] == fam]:
-            cl.append(f"{tex_escape(a['id'].replace('_',' '))} & {'J' if a['kind']=='judge' else 'S'} & {tex_escape(a['q'])} \\\\")
+            cl.append(f"{tex_escape(a['id'].replace('_',' '))} & {'J' if a['kind']=='judge' else 'M'} & {tex_escape(a['q'])} \\\\")
     cl += ["\\end{longtable}", "\\end{center}", ""]
     (out / "steering_axes_catalogue.tex").write_text("\n".join(cl))
     print("tables ->", out)
