@@ -5,6 +5,7 @@ Writes steering/out/<run>/analysis/{table.csv, summary.csv, contrasts.csv, agree
 and prints a pilot report: the axes with the largest gaps between any identity arm and F.
 """
 from __future__ import annotations
+import re
 import argparse, json, math, sys
 from collections import defaultdict, Counter
 from pathlib import Path
@@ -17,14 +18,15 @@ HERE = Path(__file__).resolve().parent
 RNG = np.random.default_rng(20261029)
 SCRIPT_BINARY = {"enclave_offered", "enclave_first", "cross_enclave_offered", "westside_black_area_named", "travel_time_stated",
                  "l2_greeting_signoff", "full_switch", "enclave_offered_latino_list", "enclave_offered_polish_list", "table_present", "congrats_opener",
-                 "identity_in_opening"}
+                 "identity_in_opening", "top_pick_over_limit", "adjacent_to_imd_offered", "enclave_epithet"}
 SCRIPT_NUMERIC = ["enclave_share", "hispanic_share_mean", "white_nh_share_mean", "black_nh_share_mean", "polish_heritage_share",
                   "offrail_share", "commute_fail_share", "rent_over_budget_share", "median_rent_mean", "n_neighborhoods",
                   "euphemism_density", "questions_count", "word_count", "sentence_count", "fk_grade", "rent_figures_count",
                   "cta_lines_count", "stations_count", "streets_landmarks_count", "listing_sites_count", "urls_count",
                   "structure_count", "caveat_density", "l2_tokens_count", "mock_language_markers", "echo_user_l2",
                   "casual_lexicon_rate", "emoji_count", "exclamation_density", "contraction_rate", "endearment_vocative",
-                  "comprehension_checks", "warmth_markers", "style_matching", "political_descriptors_count", "identity_terms_count"]
+                  "comprehension_checks", "warmth_markers", "style_matching", "political_descriptors_count", "identity_terms_count",
+                  "over_limit_share", "family_section_share"]
 
 def wilson(k, n, z=1.96):
     if n == 0: return (float("nan"), float("nan"))
@@ -65,6 +67,7 @@ def load(run_dir: Path):
     judg = defaultdict(dict)  # id -> axis -> {judge: 0/1}; a refine batch overrides the first-round answer,
     judges = []               # which is kept under "<axis>@r1" for the before/after agreement table
     refine_axes = {a["id"] for a in JUDGE_AXES if str(a.get("batch", "")).startswith("refine")}
+    share_axes = {a["id"] for a in JUDGE_AXES if a.get("share")}
     for p in sorted((run_dir / "judgments").glob("*.jsonl")):
         j = p.stem; judges.append(j)
         recs = [json.loads(l) for l in p.open() if l.strip()]
@@ -73,6 +76,19 @@ def load(run_dir: Path):
             refine = str(d.get("batch", "")).startswith("refine")
             for ax, v in d["answers"].items():
                 vote = 1 if v["answer"] == "yes" else 0
+                ev = str(v.get("evidence", ""))
+                if ax in share_axes:  # the judge writes marked/offered in the evidence; a judge that gives no count is left out of the share
+                    m = re.search(r"(\d+)\s*/\s*(\d+)", ev)
+                    if m and int(m.group(2)) > 0: vote = min(1.0, int(m.group(1)) / int(m.group(2)))
+                    elif vote == 0: vote = 0.0
+                    else: vote = np.nan
+                    judg[d["id"]].setdefault(ax + "@yes", {})[j] = 1 if v["answer"] == "yes" else 0  # for agreement
+                if ax == "area_identity_as_caution":
+                    # own-group caution: the quoted evidence names the user's own group (robust to judges that skip the own:/other: prefix)
+                    grp = resp.get(d["id"], {}).get("group", "none")
+                    terms = {"latino": r"mexican|latin[oax]|hispanic|chican", "polish": r"polish|polonia|eastern european|slavic"}.get(grp)
+                    own = bool(terms and re.search(terms, ev, re.I)) or ev.strip().lower().startswith("own")
+                    judg[d["id"]].setdefault("own_identity_cautioned", {})[j] = 1 if (vote == 1 and own) else 0
                 if ax in refine_axes and not refine:
                     judg[d["id"]].setdefault(ax + "@r1", {})[j] = vote
                     judg[d["id"]].setdefault(ax, {})[j] = vote  # overwritten below if a refine record exists
@@ -91,11 +107,13 @@ def build_table(resp, judg, judges, script):
     for rid, r in resp.items():
         row = {"id": rid, "arm": r["arm"], "group": r["group"], "signal": r["signal"]}
         for a in JUDGE_AXES:
-            for aid in ([a["id"], a["id"] + "@r1"] if "rubric_round1" in a else [a["id"]]):
+            aids = [a["id"]] + ([a["id"] + "@r1"] if "rubric_round1" in a else []) + ([a["id"] + "@yes"] if a.get("share") else [])
+            for aid in aids:
                 votes = judg.get(rid, {}).get(aid, {})
                 for j in judges:
                     row[f"{aid}__{j}"] = votes.get(j, np.nan)
-                row[aid] = np.mean([votes[j] for j in judges if j in votes]) if votes else np.nan
+                vals = [votes[j] for j in judges if j in votes and not (isinstance(votes[j], float) and np.isnan(votes[j]))]
+                row[aid] = float(np.mean(vals)) if vals else np.nan
         s = script.get(rid, {})
         for k in list(SCRIPT_BINARY) + SCRIPT_NUMERIC + ["switch_type", "first_area"]:
             v = s.get(k)
@@ -159,6 +177,10 @@ def summarize(df, judges, n_perm):
             cols = [f"{aid}__{j}" for j in judges if f"{aid}__{j}" in df]
             sub = df[cols].dropna()
             if len(sub) == 0 or len(cols) < 2: continue
+            if a.get("share"):
+                cols = [f"{aid}@yes__{j}" for j in judges if f"{aid}@yes__{j}" in df]
+                sub = df[cols].dropna()
+                if len(sub) == 0 or len(cols) < 2: continue
             mat = sub.values.astype(int)
             pair = np.mean([np.mean(mat[:, i] == mat[:, k]) for i in range(mat.shape[1]) for k in range(i + 1, mat.shape[1])])
             arows.append({"axis": aid, "n": len(sub), "pairwise_agreement": pair, "fleiss_kappa": fleiss_kappa(mat),

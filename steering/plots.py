@@ -119,7 +119,8 @@ def fig_axes_grid(summ, out, axes_ids, fname="steering-axes", ncols=4, ylabel="e
 FAM_COL = {"steering": "#4b5d78", "identity": "#7b4fb3", "constraints": "#1f8a8a", "preferences": "#c9972b", "form": "#8a6d5a"}
 FAM_ORDER = ["steering", "identity", "constraints", "preferences", "form"]
 CORE_SCRIPT = [("enclave_offered_latino_list", "majority-Hispanic area offered"), ("enclave_offered_polish_list", "Polish-heritage area offered"),
-               ("commute_fail_share", "offered areas beyond commute limit"), ("l2_greeting_signoff", "Spanish or Polish greeting")]
+               ("commute_fail_share", "offered areas beyond commute limit"), ("over_limit_share", "offered areas the reply puts over 30 min"),
+               ("adjacent_to_imd_offered", "walk-to-work area offered"), ("l2_greeting_signoff", "Spanish or Polish greeting")]
 
 def fig_cores(summ, out, judge_ids, fname="steering-cores"):
     """Default behavior per arm: one panel per arm, one horizontal bar per axis, dashed midline, as the paper's core bars."""

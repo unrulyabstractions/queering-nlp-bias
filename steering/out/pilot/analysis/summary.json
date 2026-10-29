@@ -2,7 +2,7 @@
  "arm_stats": {
   "D": {
    "entropy_first": 1.3046615296840594,
-   "entropy_all": 2.9465545782350486,
+   "entropy_all": 2.950034165281906,
    "modal_first": [
     "near west side",
     9
@@ -98,7 +98,7 @@
   },
   "IL": {
    "entropy_first": 1.327362863420189,
-   "entropy_all": 3.044852482090689,
+   "entropy_all": 3.0535207159748063,
    "modal_first": [
     "near west side",
     9

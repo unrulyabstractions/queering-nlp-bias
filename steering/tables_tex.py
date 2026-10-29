@@ -20,6 +20,10 @@ HEADLINE_SCRIPT = ["enclave_offered_latino_list", "enclave_offered_polish_list",
                    "black_nh_share_mean", "n_neighborhoods", "offrail_share", "commute_fail_share", "l2_tokens_count",
                    "l2_greeting_signoff", "political_descriptors_count", "identity_terms_count", "identity_in_opening", "word_count",
                    "rent_figures_count", "exclamation_density"]
+ROUND3 = ["identity_fit_share", "absence_as_con", "coethnic_ranking_stated", "final_pick_identity_justified", "identity_outweighs_constraint",
+          "coethnic_presence_fabricated", "enclave_as_errand", "family_script", "family_reassurance_is_safety", "acceptance_reassured",
+          "spec_rewritten", "verdict_given", "overrun_minimized", "own_group_immersion", "area_identity_as_caution", "own_identity_cautioned",
+          "over_limit_share", "top_pick_over_limit", "adjacent_to_imd_offered", "enclave_epithet", "family_section_share"]
 
 def tex_escape(s: str) -> str:
     return (s.replace("\\", "\\textbackslash{}").replace("&", "\\&").replace("%", "\\%").replace("$", "\\$").replace("#", "\\#")
@@ -71,7 +75,7 @@ def main():
            f"Decoding     & temperature $\\tau = {resp[0]['temperature']:.1f}$, up to ${resp[0]['max_tokens']}$ new tokens, single turn, no system prompt; ${sum(1 for r in resp if r.get('finish') == 'length')}$ of ${len(resp)}$ responses reached the cap and were kept \\\\",
            f"Arms         & {len(ORDER)} (\\autoref{{tab:steering-prompts}}); ${n_per_arm}$ samples per arm, ${len(resp)}$ responses \\\\",
            "Judges       & Claude Haiku 5.5 (\\texttt{claude-haiku-5-5}), GPT-5-nano (\\texttt{gpt-5-nano-2025-08-07}, reasoning effort low), Qwen 3.7 Flash (\\texttt{qwen/qwen3.7-flash}, reasoning disabled); each returns a JSON object constrained to the batch schema \\\\",
-           "Judge protocol & six batched calls per response: four in the first round (identity, constraints, preferences, form) and two in the second (the rewritten axes, blind and open); evidence quote then yes/no, JSON schema output \\\\",
+           "Judge protocol & eight batched calls per response: four in the first round (identity, constraints, preferences, form), two in the second (the rewritten axes, blind and open) and two in the third (the twenty axes written after reading the responses, blind and open); evidence quote then yes/no, JSON schema output \\\\",
            "Blinding     & identity, constraint and preference batches see the formal request in place of the user's message \\\\",
            "Judge-free axes & gazetteer crosswalk to the 77 community areas, one census vintage, CTA rail table, pinned lexicons \\\\",
            "Estimator    & per-arm mean of the three-judge ensemble score; bootstrap and Wilson 95\\% intervals; permutation tests against the formal arm with Holm correction \\\\",
@@ -111,6 +115,11 @@ def main():
         al.append(f"{tex_escape(ax.replace('_',' '))} & {row.fleiss_kappa:.2f} & {row.pairwise_agreement:.2f} & {row.get('yes_haiku55', float('nan')):.2f} & {row.get('yes_nano', float('nan')):.2f} & {row.get('yes_qwen', float('nan')):.2f} \\\\")
     al += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
     (out / "steering_agreement.tex").write_text("\n".join(al))
+    # third round: the twenty axes written after reading the responses, all arms
+    r3 = [a for a in ROUND3 if a in set(summ.axis)]
+    kinds3 = {"identity_fit_share": "rate", "over_limit_share": "rate", "family_section_share": "rate"}
+    (out / "steering_round3.tex").write_text(rates_table(summ, contr, r3, "tab:steering-round3",
+        f"The third-round axes per arm: ensemble yes rate for judge axes (identity fit share and the two script shares are means in $[0,1]$), three judges averaged, ${n_per_arm}$ responses per arm. These axes were written after reading the responses of this run, so they confirm rather than pre-register.", kinds3, args.run))
     # second judging round: agreement before and after the rewrite
     r2 = [a for a in JUDGE_AXES if "rubric_round1" in a]
     agi = agree.set_index("axis")
@@ -130,13 +139,14 @@ def main():
     # catalogue
     cl = [header(args.run, "The candidate axes"), "\\begin{center}\\scriptsize",
           "\\begin{longtable}{@{}>{\\raggedright\\arraybackslash}p{0.21\\linewidth}l>{\\raggedright\\arraybackslash}p{0.66\\linewidth}@{}}",
-          f"\\caption{{The {len(AXES)} candidate behavior axes. Kind: J = yes/no answered by the judge ensemble, S = computed by script from the text and the pinned tables. A dagger marks an axis whose rubric was rewritten for the second judging round or that was added after the first round. The judge rubrics, lexicons and tables are in the pipeline repository.}}\\label{{tab:steering-axes}}\\\\",
+          f"\\caption{{The {len(AXES)} candidate behavior axes. Kind: J = yes/no answered by the judge ensemble, S = computed by script from the text and the pinned tables. A dagger marks an axis whose rubric was rewritten for the second judging round or that was added after the first round; a double dagger marks the third round, written after reading the responses. The judge rubrics, lexicons and tables are in the pipeline repository.}}\\label{{tab:steering-axes}}\\\\",
           "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} \\\\ \\midrule \\endfirsthead",
           "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} \\\\ \\midrule \\endhead", "\\bottomrule \\endfoot"]
     for fam in ("steering", "identity", "constraints", "preferences", "service", "form"):
         cl.append(f"\\multicolumn{{3}}{{@{{}}l}}{{\\textbf{{{tex_escape(fam)}}}}} \\\\")
         for a in [x for x in AXES if x["family"] == fam]:
-            cl.append(f"{tex_escape(a['id'].replace('_',' '))}{'$^{\\dagger}$' if a.get('round') == 2 else ''} & {'J' if a['kind']=='judge' else 'S'} & {tex_escape(a['q'])} \\\\")
+            mark = '$^{\\dagger}$' if a.get('round') == 2 else ('$^{\\ddagger}$' if a.get('round') == 3 else '')
+            cl.append(f"{tex_escape(a['id'].replace('_',' '))}{mark} & {'J' if a['kind']=='judge' else 'S'} & {tex_escape(a['q'])} \\\\")
     cl += ["\\end{longtable}", "\\end{center}", ""]
     (out / "steering_axes_catalogue.tex").write_text("\n".join(cl))
     print("tables ->", out, "| headline axes:", top)
