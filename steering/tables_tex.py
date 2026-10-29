@@ -162,16 +162,25 @@ def main():
         al.append(f"{tex_escape(ax.replace('_',' '))} & {f2(row.fleiss_kappa)} & {f2(row.pairwise_agreement)} & {f2(row.get('yes_haiku55', float('nan')))} & {f2(row.get('yes_nano', float('nan')))} & {f2(row.get('yes_qwen', float('nan')))} \\\\")
     al += ["\\end{longtable}", "\\end{center}", ""]
     (out / "steering_agreement.tex").write_text("\n".join(al))
-    # catalogue
+    # catalogue, with the largest difference between two arms and which arms
+    pv = summ.pivot(index="axis", columns="arm", values="mean")
+    def maxdiff(ax):
+        if ax not in pv.index: return "--", "--"
+        r = pv.loc[ax].reindex(ORDER).dropna()
+        if len(r) < 2: return "--", "--"
+        hi, lo = r.idxmax(), r.idxmin(); d = r[hi] - r[lo]
+        unit = r.between(-1e-9, 1 + 1e-9).all()
+        return (f"{d:.2f}" if unit else (f"{d:.0f}" if abs(d) >= 10 else f"{d:.1f}")), f"{hi}--{lo}"
     cl = [header(args.run, "The candidate axes"), "\\begin{center}\\scriptsize",
-          "\\begin{longtable}{@{}>{\\raggedright\\arraybackslash}p{0.21\\linewidth}l>{\\raggedright\\arraybackslash}p{0.66\\linewidth}@{}}",
-          f"\\caption{{The {len(AXES)} behavior axes. Kind: J = yes/no answered by the judge ensemble, M = measured from the text and the pinned tables. The judge rubrics, lexicons and tables are in the pipeline repository.}}\\label{{tab:steering-axes}}\\\\",
-          "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} \\\\ \\midrule \\endfirsthead",
-          "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} \\\\ \\midrule \\endhead", "\\bottomrule \\endfoot"]
+          "\\begin{longtable}{@{}>{\\raggedright\\arraybackslash}p{0.19\\linewidth}l>{\\raggedright\\arraybackslash}p{0.55\\linewidth}rl@{}}",
+          f"\\caption{{The {len(AXES)} behavior axes. Kind: J = yes/no answered by the judge ensemble, M = measured from the text and the pinned tables. $\\Delta$: the largest difference between two arms' mean scores, and the two arms (higher first; arm codes as in \\autoref{{tab:steering-prompts}}). The judge rubrics, lexicons and tables are in the pipeline repository.}}\\label{{tab:steering-axes}}\\\\",
+          "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} & $\\Delta$ & \\textbf{arms} \\\\ \\midrule \\endfirsthead",
+          "\\toprule \\textbf{axis} & \\textbf{kind} & \\textbf{question} & $\\Delta$ & \\textbf{arms} \\\\ \\midrule \\endhead", "\\bottomrule \\endfoot"]
     for fam in ("steering", "identity", "constraints", "preferences", "service", "form"):
-        cl.append(f"\\multicolumn{{3}}{{@{{}}l}}{{\\textbf{{{tex_escape(fam)}}}}} \\\\")
+        cl.append(f"\\multicolumn{{5}}{{@{{}}l}}{{\\textbf{{{tex_escape(fam)}}}}} \\\\")
         for a in [x for x in AXES if x["family"] == fam]:
-            cl.append(f"{tex_escape(a['id'].replace('_',' '))} & {'J' if a['kind']=='judge' else 'M'} & {tex_escape(a['q'])} \\\\")
+            d, arms = maxdiff(a["id"])
+            cl.append(f"{tex_escape(a['id'].replace('_',' '))} & {'J' if a['kind']=='judge' else 'M'} & {tex_escape(a['q'])} & {d} & {arms} \\\\")
     cl += ["\\end{longtable}", "\\end{center}", ""]
     (out / "steering_axes_catalogue.tex").write_text("\n".join(cl))
     print("tables ->", out)
