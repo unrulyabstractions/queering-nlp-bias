@@ -126,6 +126,34 @@ def fig_cores(summ, out, judge_ids, fname="steering-cores"):
     fig.legend(handles, [names[f] for f in used], loc="lower center", ncol=len(used), fontsize=6.5, bbox_to_anchor=(0.5, 0.0), handlelength=1.2, columnspacing=1.2)
     fig.savefig(out / f"{fname}.png"); fig.savefig(out / f"{fname}.pdf"); plt.close(fig)
 
+ARM_TITLE = {"F": "formal, no identity", "D": "formal, \u201cI am a Democrat\u201d", "EL": "Mexican-American, explicit", "IL": "Mexican-American, implicit",
+             "HL": "Mexican-American, heavy", "EP": "Polish-American, explicit", "IP": "Polish-American, implicit", "HP": "Polish-American, heavy"}
+
+def fig_core_panels(summ, out, judge_ids):
+    """One standalone figure per arm: vertical bars over the headline axes, so each user group reads on its own."""
+    fam = {a["id"]: a["family"] for a in AXES}
+    rows = [(k, lab, "steering") for k, lab in CORE_SCRIPT]
+    for f in FAM_ORDER[1:]:
+        rows += [(k, AX_NAME.get(k, k), f) for k in judge_ids if fam.get(k) == f]
+    x = np.arange(len(rows))
+    for arm in ORDER:
+        d = summ[summ.arm == arm].set_index("axis")
+        vals = np.array([d["mean"].get(k, np.nan) for k, _, _ in rows], dtype=float)
+        lo = np.array([d["lo"].get(k, np.nan) for k, _, _ in rows], dtype=float); hi = np.array([d["hi"].get(k, np.nan) for k, _, _ in rows], dtype=float)
+        fig, ax = plt.subplots(figsize=(3.1, 2.9))  # 0.48 of the text width, so fonts print at their nominal size
+        ax.bar(x, vals, width=0.68, color=[FAM_COL[f] for _, _, f in rows], linewidth=0)
+        ok = ~np.isnan(lo)
+        ax.errorbar(x[ok], vals[ok], yerr=np.vstack([(vals - lo)[ok].clip(0), (hi - vals)[ok].clip(0)]), fmt="none", ecolor=INK2, elinewidth=0.6, capsize=1.2)
+        ax.axhline(0.5, color=INK2, lw=0.6, ls=(0, (3, 3)))
+        ax.set_ylim(0, 1.0); ax.set_yticks([0, 0.5, 1]); ax.set_yticklabels(["0", ".5", "1"], fontsize=6)
+        ax.set_xticks(x); ax.set_xticklabels([lab for _, lab, _ in rows], rotation=45, ha="right", fontsize=5.8, rotation_mode="anchor")
+        ax.set_title(ARM_TITLE[arm], fontsize=8, color=INK, loc="left", pad=4)
+        ax.grid(axis="x", visible=False); ax.grid(axis="y", visible=False)
+        for sp in ("left", "bottom"): ax.spines[sp].set_color(GRID)
+        ax.tick_params(axis="x", length=2, color=GRID)
+        fig.tight_layout()
+        fig.savefig(out / f"steering-core-{arm}.png"); fig.savefig(out / f"steering-core-{arm}.pdf"); plt.close(fig)
+
 def fig_heatmap(summ, out, axes_ids, fname="steering-heatmap"):
     piv = summ[summ.axis.isin(axes_ids)].pivot(index="axis", columns="arm", values="mean").reindex(axes_ids)[ORDER]
     piv = piv[piv.max(axis=1) >= 0.05]; axes_ids = list(piv.index)
@@ -165,7 +193,7 @@ def main():
     gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
     top = gap.sort_values(ascending=False).index.tolist()
     fig_headline(summ, out); fig_enclave(summ, out)
-    fig_axes_grid(summ, out, top[: args.top]); fig_heatmap(summ, out, top); fig_cores(summ, out, top[:16])
+    fig_axes_grid(summ, out, top[: args.top]); fig_heatmap(summ, out, top); fig_cores(summ, out, top[:16]); fig_core_panels(summ, out, top[:16])
     if len(agree): fig_agreement(agree, out)
     json.dump({"top_axes": top[: args.top], "gap": gap.sort_values(ascending=False).round(3).to_dict()}, (an / "top_axes.json").open("w"), indent=1)
     print("figures ->", out, "| top axes:", top[: args.top])
