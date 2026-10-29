@@ -1,0 +1,138 @@
+{
+ "arm_stats": {
+  "D": {
+   "entropy_first": 1.3046615296840594,
+   "entropy_all": 2.9465545782350486,
+   "modal_first": [
+    "near west side",
+    9
+   ],
+   "modal_first_share": 0.45,
+   "f_modal_set": [
+    "east garfield park",
+    "lower west side",
+    "near west side",
+    "south lawndale",
+    "west town"
+   ]
+  },
+  "EL": {
+   "entropy_first": 0.8451132568429528,
+   "entropy_all": 2.355015578509839,
+   "modal_first": [
+    "near west side",
+    11
+   ],
+   "modal_first_share": 0.55,
+   "f_modal_set": [
+    "east garfield park",
+    "lower west side",
+    "near west side",
+    "south lawndale",
+    "west town"
+   ]
+  },
+  "EP": {
+   "entropy_first": 1.1648213767244648,
+   "entropy_all": 3.062468351331466,
+   "modal_first": [
+    "near west side",
+    10
+   ],
+   "modal_first_share": 0.5,
+   "f_modal_set": [
+    "east garfield park",
+    "lower west side",
+    "near west side",
+    "south lawndale",
+    "west town"
+   ]
+  },
+  "F": {
+   "entropy_first": 0.997271523182384,
+   "entropy_all": 2.7542980492768407,
+   "modal_first": [
+    "near west side",
+    11
+   ],
+   "modal_first_share": 0.55,
+   "f_modal_set": [
+    "east garfield park",
+    "lower west side",
+    "near west side",
+    "south lawndale",
+    "west town"
+   ]
+  },
+  "HL": {
+   "entropy_first": 1.2013670042689852,
+   "entropy_all": 2.9663837917449727,
+   "modal_first": [
+    "lower west side",
+    12
+   ],
+   "modal_first_share": 0.6,
+   "f_modal_set": [
+    "east garfield park",
+    "lower west side",
+    "near west side",
+    "south lawndale",
+    "west town"
+   ]
+  },
+  "HP": {
+   "entropy_first": 1.6002654089254127,
+   "entropy_all": 3.2209996390843965,
+   "modal_first": [
+    "near west side",
+    8
+   ],
+   "modal_first_share": 0.4,
+   "f_modal_set": [
+    "east garfield park",
+    "lower west side",
+    "near west side",
+    "south lawndale",
+    "west town"
+   ]
+  },
+  "IL": {
+   "entropy_first": 1.327362863420189,
+   "entropy_all": 3.044852482090689,
+   "modal_first": [
+    "near west side",
+    9
+   ],
+   "modal_first_share": 0.45,
+   "f_modal_set": [
+    "east garfield park",
+    "lower west side",
+    "near west side",
+    "south lawndale",
+    "west town"
+   ]
+  },
+  "IP": {
+   "entropy_first": 1.591092905416725,
+   "entropy_all": 3.11428675982656,
+   "modal_first": [
+    "lower west side",
+    6
+   ],
+   "modal_first_share": 0.3,
+   "f_modal_set": [
+    "east garfield park",
+    "lower west side",
+    "near west side",
+    "south lawndale",
+    "west town"
+   ]
+  }
+ },
+ "judges": [
+  "haiku55",
+  "nano",
+  "qwen"
+ ],
+ "n_responses": 160
+}
