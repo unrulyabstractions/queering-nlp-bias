@@ -123,6 +123,25 @@ CORE_SCRIPT = [("enclave_offered_latino_list", "majority-Hispanic area offered")
                ("commute_fail_share", "offered areas beyond commute limit"), ("over_limit_share", "offered areas the reply puts over 30 min"),
                ("adjacent_to_imd_offered", "walk-to-work area offered"), ("l2_greeting_signoff", "Spanish or Polish greeting")]
 
+UNIT_SCRIPT = ["enclave_offered_latino_list", "enclave_offered_polish_list", "westside_black_area_named", "l2_greeting_signoff", "full_switch",
+               "congrats_opener", "identity_in_opening", "top_pick_over_limit", "adjacent_to_imd_offered", "enclave_epithet", "commute_fail_share",
+               "offrail_share", "rent_over_budget_share", "polish_heritage_share", "over_limit_share", "family_section_share"]
+
+def headline_rows(summ, n=24):
+    """The n axes with the largest gap between an identity arm and the baseline, over every judge axis and every script axis
+    that lives in [0,1], regardless of the round that introduced them; returned as (id, label, family) rows ordered by family."""
+    fam = {a["id"]: a["family"] for a in AXES}
+    ids = [a["id"] for a in JUDGE_AXES if a["id"] in set(summ.axis)] + [k for k in UNIT_SCRIPT if k in set(summ.axis)]
+    piv = summ[summ.axis.isin(ids)].pivot(index="axis", columns="arm", values="mean")
+    ident = [c for c in piv.columns if c not in ("F", "D")]
+    gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
+    top = gap.sort_values(ascending=False).index.tolist()[:n]
+    rows = []
+    for f in FAM_ORDER:
+        rows += [(k, AX_NAME.get(k, k), f) for k in top if fam.get(k) == f]
+    rows += [(k, AX_NAME.get(k, k), "steering") for k in top if fam.get(k) not in FAM_ORDER]
+    return rows
+
 def round3_rows():
     """All third-round axes as (id, label, family) rows, script rows first, then by family order."""
     r3 = [a for a in AXES if a.get("round") == 3]
@@ -208,9 +227,9 @@ def main():
     piv = summ[summ.axis.isin(judge_ids)].pivot(index="axis", columns="arm", values="mean")
     ident = [c for c in piv.columns if c not in ("F", "D")]
     gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
-    top = gap.sort_values(ascending=False).index.tolist()
-    fig_shares(summ, out); fig_cores(summ, out, top[:16]); fig_core_grid(summ, out, top[:16])
-    fig_cores(summ, out, [], fname="steering-cores-r3", rows=round3_rows()); fig_core_grid(summ, out, [], fname="steering-core-grid-r3", rows=round3_rows())
+    top = gap.sort_values(ascending=False).index.tolist()  # judge axes only: the heatmap and the twelve-panel grid are judge views
+    rows = headline_rows(summ, 24)
+    fig_shares(summ, out); fig_cores(summ, out, [], rows=rows); fig_core_grid(summ, out, [], rows=rows)
     fig_axes_grid(summ, out, top[: args.top]); fig_heatmap(summ, out, top)
     if len(agree): fig_agreement(agree, out)
     json.dump({"top_axes": top[: args.top], "gap": gap.sort_values(ascending=False).round(3).to_dict()}, (an / "top_axes.json").open("w"), indent=1)

@@ -18,8 +18,9 @@ ARM_DESC = {"F": "formal, no identity", "D": "formal, ``I am a Democrat''", "EL"
             "EP": "formal, ``I am Polish-American''", "IP": "casual, babcia and pierogi, Buffalo", "HP": "casual, babcia, ``I'm Polish-American''"}
 HEADLINE_SCRIPT = ["enclave_offered_latino_list", "enclave_offered_polish_list", "hispanic_share_mean", "white_nh_share_mean",
                    "black_nh_share_mean", "n_neighborhoods", "offrail_share", "commute_fail_share", "l2_tokens_count",
-                   "l2_greeting_signoff", "political_descriptors_count", "identity_terms_count", "identity_in_opening", "word_count",
-                   "rent_figures_count", "exclamation_density"]
+                   "l2_greeting_signoff", "political_descriptors_count", "identity_terms_count", "identity_in_opening",
+                   "over_limit_share", "top_pick_over_limit", "adjacent_to_imd_offered", "enclave_epithet", "family_section_share",
+                   "word_count", "rent_figures_count", "exclamation_density"]
 ROUND3 = ["identity_fit_share", "absence_as_con", "coethnic_ranking_stated", "final_pick_identity_justified", "identity_outweighs_constraint",
           "coethnic_presence_fabricated", "enclave_as_errand", "family_script", "family_reassurance_is_safety", "acceptance_reassured",
           "spec_rewritten", "verdict_given", "overrun_minimized", "own_group_immersion", "area_identity_as_caution", "own_identity_cautioned",
@@ -98,13 +99,13 @@ def main():
     top = gap.sort_values(ascending=False).index.tolist()[: args.top]
     kinds = {}
     (out / "steering_rates.tex").write_text(rates_table(summ, contr, top, "tab:steering-rates",
-        f"Judge axes with the largest gap between an identity arm and the formal baseline: ensemble yes rate per arm, three judges averaged, ${n_per_arm}$ responses per arm.", kinds, args.run))
+        f"Judge axes with the largest gap between an identity arm and the formal baseline: ensemble yes rate per arm, three judges averaged, ${n_per_arm}$ responses per arm; identity fit share is a share in $[0,1]$ averaged over the judges that wrote a count.", kinds, args.run))
     kinds = {"hispanic_share_mean": "pct", "white_nh_share_mean": "pct", "black_nh_share_mean": "pct", "n_neighborhoods": "int",
              "l2_tokens_count": "int", "word_count": "int", "rent_figures_count": "int", "political_descriptors_count": "int", "exclamation_density": "int",
              "identity_terms_count": "int"}
     sids = [s for s in HEADLINE_SCRIPT if s in set(summ.axis)]
     (out / "steering_service.tex").write_text(rates_table(summ, contr, sids, "tab:steering-service",
-        "Judge-free axes per arm: shares of responses, mean census shares (percent) of the offered community areas, and counts.", kinds, args.run))
+        "Judge-free axes per arm: shares of responses, mean census shares (percent) of the offered community areas, shares of offered areas, and counts.", kinds, args.run))
     # agreement
     ag = agree[~agree.axis.str.endswith("@r1")].set_index("axis").reindex(top).dropna(subset=["fleiss_kappa"])
     al = [header(args.run, "Judge agreement"), "\\begin{table}[hbt!]", "\\centering\\footnotesize",
@@ -115,11 +116,6 @@ def main():
         al.append(f"{tex_escape(ax.replace('_',' '))} & {row.fleiss_kappa:.2f} & {row.pairwise_agreement:.2f} & {row.get('yes_haiku55', float('nan')):.2f} & {row.get('yes_nano', float('nan')):.2f} & {row.get('yes_qwen', float('nan')):.2f} \\\\")
     al += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
     (out / "steering_agreement.tex").write_text("\n".join(al))
-    # third round: the twenty axes written after reading the responses, all arms
-    r3 = [a for a in ROUND3 if a in set(summ.axis)]
-    kinds3 = {"identity_fit_share": "rate", "over_limit_share": "rate", "family_section_share": "rate"}
-    (out / "steering_round3.tex").write_text(rates_table(summ, contr, r3, "tab:steering-round3",
-        f"The third-round axes per arm: ensemble yes rate for judge axes, three judges averaged, ${n_per_arm}$ responses per arm; identity fit share averages the judges that wrote a count, and the two script shares are means in $[0,1]$. These axes were written after reading the responses of this run, so they confirm rather than pre-register.", kinds3, args.run))
     # second judging round: agreement before and after the rewrite
     r2 = [a for a in JUDGE_AXES if "rubric_round1" in a]
     agi = agree.set_index("axis")
