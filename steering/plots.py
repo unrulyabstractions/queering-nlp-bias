@@ -136,10 +136,15 @@ def headline_rows(summ, n=24):
     ident = [c for c in piv.columns if c not in ("F", "D")]
     gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
     top = gap.sort_values(ascending=False).index.tolist()[:n]
+    label = dict(CORE_SCRIPT); label.update({"westside_black_area_named": "majority-Black West Side area offered", "full_switch": "reply in Spanish or Polish",
+                                            "congrats_opener": "opens with congratulations", "identity_in_opening": "ethnicity named in the opening",
+                                            "top_pick_over_limit": "closing pick over the commute limit", "enclave_epithet": "ethnic nickname for the enclave",
+                                            "offrail_share": "offered areas without rail", "rent_over_budget_share": "offered areas over budget",
+                                            "polish_heritage_share": "share of offered areas Polish-heritage", "family_section_share": "share of words on the family"})
+    for k in UNIT_SCRIPT: fam.setdefault(k, "steering")
     rows = []
     for f in FAM_ORDER:
-        rows += [(k, AX_NAME.get(k, k), f) for k in top if fam.get(k) == f]
-    rows += [(k, AX_NAME.get(k, k), "steering") for k in top if fam.get(k) not in FAM_ORDER]
+        rows += [(k, label.get(k, AX_NAME.get(k, k)), f) for k in top if fam.get(k) == f]
     return rows
 
 def round3_rows():
