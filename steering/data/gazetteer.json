@@ -1,0 +1,1452 @@
+{
+ "_meta": {
+  "targets": "exact names from community_areas.csv (77 CMAP community-area names plus 12 suburbs)",
+  "note": "neighborhood boundaries are informal; where a neighborhood straddles community areas every area it substantially covers is listed, primary first",
+  "built": "2026-10-29"
+ },
+ "entries": {
+  "Pilsen": {
+   "community_areas": [
+    "Lower West Side"
+   ],
+   "aliases": [
+    "pilsen"
+   ]
+  },
+  "Little Village": {
+   "community_areas": [
+    "South Lawndale"
+   ],
+   "aliases": [
+    "lil village",
+    "little village"
+   ]
+  },
+  "La Villita": {
+   "community_areas": [
+    "South Lawndale"
+   ],
+   "aliases": [
+    "la villita",
+    "villita"
+   ]
+  },
+  "Heart of Chicago": {
+   "community_areas": [
+    "Lower West Side"
+   ],
+   "aliases": [
+    "heart of chicago"
+   ]
+  },
+  "Little Italy": {
+   "community_areas": [
+    "Near West Side"
+   ],
+   "aliases": [
+    "little italy",
+    "little italy chicago",
+    "taylor street"
+   ]
+  },
+  "University Village": {
+   "community_areas": [
+    "Near West Side"
+   ],
+   "aliases": [
+    "uic area",
+    "university village",
+    "university village chicago"
+   ]
+  },
+  "Tri-Taylor": {
+   "community_areas": [
+    "Near West Side"
+   ],
+   "aliases": [
+    "tri taylor",
+    "tri-taylor"
+   ]
+  },
+  "Illinois Medical District": {
+   "community_areas": [
+    "Near West Side"
+   ],
+   "aliases": [
+    "illinois medical district",
+    "imd"
+   ]
+  },
+  "Medical District": {
+   "community_areas": [
+    "Near West Side"
+   ],
+   "aliases": [
+    "med district",
+    "medical district",
+    "the medical district"
+   ]
+  },
+  "West Loop": {
+   "community_areas": [
+    "Near West Side"
+   ],
+   "aliases": [
+    "the west loop",
+    "west loop",
+    "west loop gate"
+   ]
+  },
+  "Greektown": {
+   "community_areas": [
+    "Near West Side"
+   ],
+   "aliases": [
+    "greek town",
+    "greektown"
+   ]
+  },
+  "Fulton Market": {
+   "community_areas": [
+    "Near West Side"
+   ],
+   "aliases": [
+    "fulton market",
+    "fulton market district",
+    "fulton river district"
+   ]
+  },
+  "South Loop": {
+   "community_areas": [
+    "Near South Side",
+    "The Loop"
+   ],
+   "aliases": [
+    "south loop",
+    "the south loop"
+   ]
+  },
+  "Printers Row": {
+   "community_areas": [
+    "The Loop"
+   ],
+   "aliases": [
+    "printer's row",
+    "printers row"
+   ]
+  },
+  "Bronzeville": {
+   "community_areas": [
+    "Douglas",
+    "Grand Boulevard"
+   ],
+   "aliases": [
+    "bronzeville"
+   ]
+  },
+  "Bridgeport": {
+   "community_areas": [
+    "Bridgeport"
+   ],
+   "aliases": [
+    "bridgeport"
+   ]
+  },
+  "Chinatown": {
+   "community_areas": [
+    "Armour Square"
+   ],
+   "aliases": [
+    "china town",
+    "chinatown"
+   ]
+  },
+  "McKinley Park": {
+   "community_areas": [
+    "McKinley Park"
+   ],
+   "aliases": [
+    "mckinley",
+    "mckinley park"
+   ]
+  },
+  "Brighton Park": {
+   "community_areas": [
+    "Brighton Park"
+   ],
+   "aliases": [
+    "brighton",
+    "brighton park"
+   ]
+  },
+  "Gage Park": {
+   "community_areas": [
+    "Gage Park"
+   ],
+   "aliases": [
+    "gage park"
+   ]
+  },
+  "Back of the Yards": {
+   "community_areas": [
+    "New City"
+   ],
+   "aliases": [
+    "back of the yards",
+    "boty",
+    "the yards"
+   ]
+  },
+  "Archer Heights": {
+   "community_areas": [
+    "Archer Heights"
+   ],
+   "aliases": [
+    "archer heights"
+   ]
+  },
+  "Garfield Ridge": {
+   "community_areas": [
+    "Garfield Ridge"
+   ],
+   "aliases": [
+    "garfield ridge"
+   ]
+  },
+  "Hyde Park": {
+   "community_areas": [
+    "Hyde Park"
+   ],
+   "aliases": [
+    "hyde park",
+    "hydepark"
+   ]
+  },
+  "Kenwood": {
+   "community_areas": [
+    "Kenwood"
+   ],
+   "aliases": [
+    "kenwood"
+   ]
+  },
+  "Woodlawn": {
+   "community_areas": [
+    "Woodlawn"
+   ],
+   "aliases": [
+    "woodlawn"
+   ]
+  },
+  "Wicker Park": {
+   "community_areas": [
+    "West Town"
+   ],
+   "aliases": [
+    "wicker",
+    "wicker park"
+   ]
+  },
+  "Bucktown": {
+   "community_areas": [
+    "Logan Square"
+   ],
+   "aliases": [
+    "bucktown"
+   ]
+  },
+  "Ukrainian Village": {
+   "community_areas": [
+    "West Town"
+   ],
+   "aliases": [
+    "ukie village",
+    "ukrainian village"
+   ]
+  },
+  "East Village": {
+   "community_areas": [
+    "West Town"
+   ],
+   "aliases": [
+    "east village"
+   ]
+  },
+  "Noble Square": {
+   "community_areas": [
+    "West Town"
+   ],
+   "aliases": [
+    "noble square"
+   ]
+  },
+  "West Town": {
+   "community_areas": [
+    "West Town"
+   ],
+   "aliases": [
+    "west town"
+   ]
+  },
+  "Humboldt Park": {
+   "community_areas": [
+    "Humboldt Park",
+    "West Town"
+   ],
+   "aliases": [
+    "humboldt",
+    "humboldt park"
+   ]
+  },
+  "Logan Square": {
+   "community_areas": [
+    "Logan Square"
+   ],
+   "aliases": [
+    "logan",
+    "logan square"
+   ]
+  },
+  "Avondale": {
+   "community_areas": [
+    "Avondale"
+   ],
+   "aliases": [
+    "avondale"
+   ]
+  },
+  "Irving Park": {
+   "community_areas": [
+    "Irving Park"
+   ],
+   "aliases": [
+    "irving park"
+   ]
+  },
+  "Albany Park": {
+   "community_areas": [
+    "Albany Park"
+   ],
+   "aliases": [
+    "albany park"
+   ]
+  },
+  "Lincoln Square": {
+   "community_areas": [
+    "Lincoln Square"
+   ],
+   "aliases": [
+    "lincoln sq",
+    "lincoln square"
+   ]
+  },
+  "Ravenswood": {
+   "community_areas": [
+    "Lincoln Square"
+   ],
+   "aliases": [
+    "ravenswood",
+    "ravenswood gardens",
+    "ravenswood manor"
+   ]
+  },
+  "North Center": {
+   "community_areas": [
+    "North Center"
+   ],
+   "aliases": [
+    "north center"
+   ]
+  },
+  "Roscoe Village": {
+   "community_areas": [
+    "North Center"
+   ],
+   "aliases": [
+    "roscoe village"
+   ]
+  },
+  "Lakeview": {
+   "community_areas": [
+    "Lake View"
+   ],
+   "aliases": [
+    "central lakeview",
+    "lakeview"
+   ]
+  },
+  "Lake View": {
+   "community_areas": [
+    "Lake View"
+   ],
+   "aliases": [
+    "lake view"
+   ]
+  },
+  "Wrigleyville": {
+   "community_areas": [
+    "Lake View"
+   ],
+   "aliases": [
+    "wrigley",
+    "wrigleyville"
+   ]
+  },
+  "Boystown": {
+   "community_areas": [
+    "Lake View"
+   ],
+   "aliases": [
+    "boys town",
+    "boystown"
+   ]
+  },
+  "Northalsted": {
+   "community_areas": [
+    "Lake View"
+   ],
+   "aliases": [
+    "north halsted",
+    "northalsted"
+   ]
+  },
+  "Lincoln Park": {
+   "community_areas": [
+    "Lincoln Park"
+   ],
+   "aliases": [
+    "lincoln park",
+    "lincoln pk"
+   ]
+  },
+  "Old Town": {
+   "community_areas": [
+    "Near North Side",
+    "Lincoln Park"
+   ],
+   "aliases": [
+    "old town",
+    "old town triangle"
+   ]
+  },
+  "River North": {
+   "community_areas": [
+    "Near North Side"
+   ],
+   "aliases": [
+    "river north",
+    "rivernorth"
+   ]
+  },
+  "Gold Coast": {
+   "community_areas": [
+    "Near North Side"
+   ],
+   "aliases": [
+    "gold coast",
+    "the gold coast"
+   ]
+  },
+  "Streeterville": {
+   "community_areas": [
+    "Near North Side"
+   ],
+   "aliases": [
+    "streeterville"
+   ]
+  },
+  "Uptown": {
+   "community_areas": [
+    "Uptown"
+   ],
+   "aliases": [
+    "uptown",
+    "uptown chicago"
+   ]
+  },
+  "Edgewater": {
+   "community_areas": [
+    "Edgewater"
+   ],
+   "aliases": [
+    "edgewater",
+    "edgewater beach",
+    "edgewater glen"
+   ]
+  },
+  "Andersonville": {
+   "community_areas": [
+    "Edgewater"
+   ],
+   "aliases": [
+    "andersonville"
+   ]
+  },
+  "Rogers Park": {
+   "community_areas": [
+    "Rogers Park"
+   ],
+   "aliases": [
+    "east rogers park",
+    "rogers park"
+   ]
+  },
+  "Portage Park": {
+   "community_areas": [
+    "Portage Park"
+   ],
+   "aliases": [
+    "portage park"
+   ]
+  },
+  "Jefferson Park": {
+   "community_areas": [
+    "Jefferson Park"
+   ],
+   "aliases": [
+    "jeff park",
+    "jefferson park"
+   ]
+  },
+  "Norwood Park": {
+   "community_areas": [
+    "Norwood Park"
+   ],
+   "aliases": [
+    "norwood park"
+   ]
+  },
+  "Dunning": {
+   "community_areas": [
+    "Dunning"
+   ],
+   "aliases": [
+    "dunning"
+   ]
+  },
+  "Belmont Cragin": {
+   "community_areas": [
+    "Belmont Cragin"
+   ],
+   "aliases": [
+    "belmont cragin",
+    "belmont-cragin"
+   ]
+  },
+  "Hermosa": {
+   "community_areas": [
+    "Hermosa"
+   ],
+   "aliases": [
+    "hermosa"
+   ]
+  },
+  "Polish Village": {
+   "community_areas": [
+    "Avondale"
+   ],
+   "aliases": [
+    "avondale polish village",
+    "polish village",
+    "waclawowo",
+    "wacławowo"
+   ]
+  },
+  "Jackowo": {
+   "community_areas": [
+    "Avondale"
+   ],
+   "aliases": [
+    "jackowo",
+    "jackowo-waclawowo"
+   ]
+  },
+  "Polish Downtown": {
+   "community_areas": [
+    "West Town"
+   ],
+   "aliases": [
+    "polish downtown",
+    "polish patch",
+    "polish triangle",
+    "polonia triangle"
+   ]
+  },
+  "Montclare": {
+   "community_areas": [
+    "Montclare"
+   ],
+   "aliases": [
+    "montclare"
+   ]
+  },
+  "Galewood": {
+   "community_areas": [
+    "Austin"
+   ],
+   "aliases": [
+    "galewood"
+   ]
+  },
+  "Austin": {
+   "community_areas": [
+    "Austin"
+   ],
+   "aliases": [
+    "austin"
+   ]
+  },
+  "Garfield Park": {
+   "community_areas": [
+    "East Garfield Park",
+    "West Garfield Park"
+   ],
+   "aliases": [
+    "garfield",
+    "garfield park"
+   ]
+  },
+  "East Garfield Park": {
+   "community_areas": [
+    "East Garfield Park"
+   ],
+   "aliases": [
+    "east garfield park"
+   ]
+  },
+  "West Garfield Park": {
+   "community_areas": [
+    "West Garfield Park"
+   ],
+   "aliases": [
+    "west garfield park"
+   ]
+  },
+  "North Lawndale": {
+   "community_areas": [
+    "North Lawndale"
+   ],
+   "aliases": [
+    "n lawndale",
+    "north lawndale"
+   ]
+  },
+  "Lawndale": {
+   "community_areas": [
+    "North Lawndale",
+    "South Lawndale"
+   ],
+   "aliases": [
+    "greater lawndale",
+    "lawndale",
+    "lawndale area"
+   ]
+  },
+  "South Shore": {
+   "community_areas": [
+    "South Shore"
+   ],
+   "aliases": [
+    "south shore"
+   ]
+  },
+  "Chatham": {
+   "community_areas": [
+    "Chatham"
+   ],
+   "aliases": [
+    "chatham"
+   ]
+  },
+  "Beverly": {
+   "community_areas": [
+    "Beverly"
+   ],
+   "aliases": [
+    "beverly"
+   ]
+  },
+  "Mount Greenwood": {
+   "community_areas": [
+    "Mount Greenwood"
+   ],
+   "aliases": [
+    "mount greenwood",
+    "mt greenwood",
+    "mt. greenwood"
+   ]
+  },
+  "Morgan Park": {
+   "community_areas": [
+    "Morgan Park"
+   ],
+   "aliases": [
+    "morgan park"
+   ]
+  },
+  "Pullman": {
+   "community_areas": [
+    "Pullman"
+   ],
+   "aliases": [
+    "historic pullman",
+    "pullman"
+   ]
+  },
+  "The Loop": {
+   "community_areas": [
+    "The Loop"
+   ],
+   "aliases": [
+    "chicago loop",
+    "downtown loop",
+    "loop",
+    "the loop"
+   ]
+  },
+  "Downtown": {
+   "community_areas": [
+    "The Loop",
+    "Near North Side",
+    "Near South Side"
+   ],
+   "aliases": [
+    "central business district",
+    "downtown",
+    "downtown chicago"
+   ]
+  },
+  "Near West Side": {
+   "community_areas": [
+    "Near West Side"
+   ],
+   "aliases": [
+    "near west side"
+   ]
+  },
+  "Near North Side": {
+   "community_areas": [
+    "Near North Side"
+   ],
+   "aliases": [
+    "near north side"
+   ]
+  },
+  "Near South Side": {
+   "community_areas": [
+    "Near South Side"
+   ],
+   "aliases": [
+    "near south side"
+   ]
+  },
+  "Lower West Side": {
+   "community_areas": [
+    "Lower West Side"
+   ],
+   "aliases": [
+    "lower west side"
+   ]
+  },
+  "South Lawndale": {
+   "community_areas": [
+    "South Lawndale"
+   ],
+   "aliases": [
+    "south lawndale"
+   ]
+  },
+  "West Ridge": {
+   "community_areas": [
+    "West Ridge"
+   ],
+   "aliases": [
+    "west ridge"
+   ]
+  },
+  "West Rogers Park": {
+   "community_areas": [
+    "West Ridge"
+   ],
+   "aliases": [
+    "west rogers park"
+   ]
+  },
+  "Lincoln Yards": {
+   "community_areas": [
+    "Lincoln Park"
+   ],
+   "aliases": [
+    "lincoln yards"
+   ]
+  },
+  "Sheridan Park": {
+   "community_areas": [
+    "Uptown"
+   ],
+   "aliases": [
+    "sheridan park"
+   ]
+  },
+  "Buena Park": {
+   "community_areas": [
+    "Uptown"
+   ],
+   "aliases": [
+    "buena park"
+   ]
+  },
+  "Lakeview East": {
+   "community_areas": [
+    "Lake View"
+   ],
+   "aliases": [
+    "lakeview east"
+   ]
+  },
+  "West Lakeview": {
+   "community_areas": [
+    "Lake View"
+   ],
+   "aliases": [
+    "west lakeview"
+   ]
+  },
+  "Wrightwood Neighbors": {
+   "community_areas": [
+    "Lincoln Park"
+   ],
+   "aliases": [
+    "wrightwood neighbors"
+   ]
+  },
+  "Ranch Triangle": {
+   "community_areas": [
+    "Lincoln Park"
+   ],
+   "aliases": [
+    "ranch triangle"
+   ]
+  },
+  "DePaul": {
+   "community_areas": [
+    "Lincoln Park"
+   ],
+   "aliases": [
+    "depaul"
+   ]
+  },
+  "Pulaski Park": {
+   "community_areas": [
+    "West Town"
+   ],
+   "aliases": [
+    "pulaski park"
+   ]
+  },
+  "Smith Park": {
+   "community_areas": [
+    "West Town"
+   ],
+   "aliases": [
+    "smith park"
+   ]
+  },
+  "River West": {
+   "community_areas": [
+    "West Town",
+    "Near North Side"
+   ],
+   "aliases": [
+    "river west"
+   ]
+  },
+  "Palmer Square": {
+   "community_areas": [
+    "Logan Square"
+   ],
+   "aliases": [
+    "palmer square"
+   ]
+  },
+  "Kosciuszko Park": {
+   "community_areas": [
+    "Logan Square",
+    "Avondale"
+   ],
+   "aliases": [
+    "kosciuszko park"
+   ]
+  },
+  "Mayfair": {
+   "community_areas": [
+    "Albany Park"
+   ],
+   "aliases": [
+    "mayfair"
+   ]
+  },
+  "North Mayfair": {
+   "community_areas": [
+    "Albany Park",
+    "North Park"
+   ],
+   "aliases": [
+    "north mayfair"
+   ]
+  },
+  "Old Irving Park": {
+   "community_areas": [
+    "Irving Park"
+   ],
+   "aliases": [
+    "old irving park"
+   ]
+  },
+  "Independence Park": {
+   "community_areas": [
+    "Irving Park"
+   ],
+   "aliases": [
+    "independence park"
+   ]
+  },
+  "Kilbourn Park": {
+   "community_areas": [
+    "Irving Park"
+   ],
+   "aliases": [
+    "kilbourn park"
+   ]
+  },
+  "Six Corners": {
+   "community_areas": [
+    "Portage Park"
+   ],
+   "aliases": [
+    "six corners"
+   ]
+  },
+  "Gladstone Park": {
+   "community_areas": [
+    "Jefferson Park"
+   ],
+   "aliases": [
+    "gladstone park"
+   ]
+  },
+  "Edison Park": {
+   "community_areas": [
+    "Edison Park"
+   ],
+   "aliases": [
+    "edison park"
+   ]
+  },
+  "Forest Glen": {
+   "community_areas": [
+    "Forest Glen"
+   ],
+   "aliases": [
+    "forest glen"
+   ]
+  },
+  "Sauganash": {
+   "community_areas": [
+    "Forest Glen"
+   ],
+   "aliases": [
+    "sauganash"
+   ]
+  },
+  "Edgebrook": {
+   "community_areas": [
+    "Forest Glen"
+   ],
+   "aliases": [
+    "edgebrook"
+   ]
+  },
+  "North Park": {
+   "community_areas": [
+    "North Park"
+   ],
+   "aliases": [
+    "north park"
+   ]
+  },
+  "Hollywood Park": {
+   "community_areas": [
+    "North Park"
+   ],
+   "aliases": [
+    "hollywood park"
+   ]
+  },
+  "Schorsch Village": {
+   "community_areas": [
+    "Dunning"
+   ],
+   "aliases": [
+    "schorsch village"
+   ]
+  },
+  "Belmont Heights": {
+   "community_areas": [
+    "Dunning"
+   ],
+   "aliases": [
+    "belmont heights"
+   ]
+  },
+  "Cragin": {
+   "community_areas": [
+    "Belmont Cragin"
+   ],
+   "aliases": [
+    "cragin"
+   ]
+  },
+  "Belmont Central": {
+   "community_areas": [
+    "Belmont Cragin"
+   ],
+   "aliases": [
+    "belmont central"
+   ]
+  },
+  "Marshall Square": {
+   "community_areas": [
+    "South Lawndale"
+   ],
+   "aliases": [
+    "marshall square"
+   ]
+  },
+  "Douglas Park": {
+   "community_areas": [
+    "North Lawndale"
+   ],
+   "aliases": [
+    "douglas park"
+   ]
+  },
+  "Homan Square": {
+   "community_areas": [
+    "North Lawndale"
+   ],
+   "aliases": [
+    "homan square"
+   ]
+  },
+  "Prairie District": {
+   "community_areas": [
+    "Near South Side"
+   ],
+   "aliases": [
+    "prairie district"
+   ]
+  },
+  "Motor Row": {
+   "community_areas": [
+    "Near South Side"
+   ],
+   "aliases": [
+    "motor row"
+   ]
+  },
+  "Dearborn Park": {
+   "community_areas": [
+    "Near South Side",
+    "The Loop"
+   ],
+   "aliases": [
+    "dearborn park"
+   ]
+  },
+  "Museum Campus": {
+   "community_areas": [
+    "Near South Side"
+   ],
+   "aliases": [
+    "museum campus"
+   ]
+  },
+  "Oakland": {
+   "community_areas": [
+    "Oakland"
+   ],
+   "aliases": [
+    "oakland"
+   ]
+  },
+  "Douglas": {
+   "community_areas": [
+    "Douglas"
+   ],
+   "aliases": [
+    "douglas"
+   ]
+  },
+  "Grand Boulevard": {
+   "community_areas": [
+    "Grand Boulevard"
+   ],
+   "aliases": [
+    "grand boulevard"
+   ]
+  },
+  "Washington Park": {
+   "community_areas": [
+    "Washington Park"
+   ],
+   "aliases": [
+    "washington park"
+   ]
+  },
+  "Armour Square": {
+   "community_areas": [
+    "Armour Square"
+   ],
+   "aliases": [
+    "armour square"
+   ]
+  },
+  "Fuller Park": {
+   "community_areas": [
+    "Fuller Park"
+   ],
+   "aliases": [
+    "fuller park"
+   ]
+  },
+  "Canaryville": {
+   "community_areas": [
+    "New City"
+   ],
+   "aliases": [
+    "canaryville"
+   ]
+  },
+  "New City": {
+   "community_areas": [
+    "New City"
+   ],
+   "aliases": [
+    "new city"
+   ]
+  },
+  "West Elsdon": {
+   "community_areas": [
+    "West Elsdon"
+   ],
+   "aliases": [
+    "west elsdon"
+   ]
+  },
+  "West Lawn": {
+   "community_areas": [
+    "West Lawn"
+   ],
+   "aliases": [
+    "west lawn"
+   ]
+  },
+  "Chicago Lawn": {
+   "community_areas": [
+    "Chicago Lawn"
+   ],
+   "aliases": [
+    "chicago lawn"
+   ]
+  },
+  "Marquette Park": {
+   "community_areas": [
+    "Chicago Lawn"
+   ],
+   "aliases": [
+    "marquette park"
+   ]
+  },
+  "Clearing": {
+   "community_areas": [
+    "Clearing"
+   ],
+   "aliases": [
+    "clearing"
+   ]
+  },
+  "Ashburn": {
+   "community_areas": [
+    "Ashburn"
+   ],
+   "aliases": [
+    "ashburn"
+   ]
+  },
+  "Auburn Gresham": {
+   "community_areas": [
+    "Auburn Gresham"
+   ],
+   "aliases": [
+    "auburn gresham"
+   ]
+  },
+  "Englewood": {
+   "community_areas": [
+    "Englewood"
+   ],
+   "aliases": [
+    "englewood"
+   ]
+  },
+  "West Englewood": {
+   "community_areas": [
+    "West Englewood"
+   ],
+   "aliases": [
+    "west englewood"
+   ]
+  },
+  "Greater Grand Crossing": {
+   "community_areas": [
+    "Greater Grand Crossing"
+   ],
+   "aliases": [
+    "greater grand crossing"
+   ]
+  },
+  "Grand Crossing": {
+   "community_areas": [
+    "Greater Grand Crossing"
+   ],
+   "aliases": [
+    "grand crossing"
+   ]
+  },
+  "Avalon Park": {
+   "community_areas": [
+    "Avalon Park"
+   ],
+   "aliases": [
+    "avalon park"
+   ]
+  },
+  "South Chicago": {
+   "community_areas": [
+    "South Chicago"
+   ],
+   "aliases": [
+    "south chicago"
+   ]
+  },
+  "Burnside": {
+   "community_areas": [
+    "Burnside"
+   ],
+   "aliases": [
+    "burnside"
+   ]
+  },
+  "Calumet Heights": {
+   "community_areas": [
+    "Calumet Heights"
+   ],
+   "aliases": [
+    "calumet heights"
+   ]
+  },
+  "Pill Hill": {
+   "community_areas": [
+    "Calumet Heights"
+   ],
+   "aliases": [
+    "pill hill"
+   ]
+  },
+  "Roseland": {
+   "community_areas": [
+    "Roseland"
+   ],
+   "aliases": [
+    "roseland"
+   ]
+  },
+  "South Deering": {
+   "community_areas": [
+    "South Deering"
+   ],
+   "aliases": [
+    "south deering"
+   ]
+  },
+  "East Side": {
+   "community_areas": [
+    "East Side"
+   ],
+   "aliases": [
+    "east side"
+   ]
+  },
+  "West Pullman": {
+   "community_areas": [
+    "West Pullman"
+   ],
+   "aliases": [
+    "west pullman"
+   ]
+  },
+  "Riverdale": {
+   "community_areas": [
+    "Riverdale"
+   ],
+   "aliases": [
+    "riverdale"
+   ]
+  },
+  "Hegewisch": {
+   "community_areas": [
+    "Hegewisch"
+   ],
+   "aliases": [
+    "hegewisch"
+   ]
+  },
+  "Washington Heights": {
+   "community_areas": [
+    "Washington Heights"
+   ],
+   "aliases": [
+    "washington heights"
+   ]
+  },
+  "O'Hare": {
+   "community_areas": [
+    "O'Hare"
+   ],
+   "aliases": [
+    "o hare",
+    "o'hare",
+    "ohare"
+   ]
+  },
+  "Jackson Park Highlands": {
+   "community_areas": [
+    "South Shore"
+   ],
+   "aliases": [
+    "jackson park highlands"
+   ]
+  },
+  "Oak Park": {
+   "community_areas": [
+    "Oak Park"
+   ],
+   "aliases": [
+    "oak park",
+    "oak park illinois",
+    "oak park, il"
+   ]
+  },
+  "Forest Park": {
+   "community_areas": [
+    "Forest Park"
+   ],
+   "aliases": [
+    "forest park",
+    "forest park, il"
+   ]
+  },
+  "Berwyn": {
+   "community_areas": [
+    "Berwyn"
+   ],
+   "aliases": [
+    "berwyn",
+    "berwyn, il"
+   ]
+  },
+  "Cicero": {
+   "community_areas": [
+    "Cicero"
+   ],
+   "aliases": [
+    "cicero",
+    "cicero, il",
+    "town of cicero"
+   ]
+  },
+  "Evanston": {
+   "community_areas": [
+    "Evanston"
+   ],
+   "aliases": [
+    "evanston",
+    "evanston, il"
+   ]
+  },
+  "Maywood": {
+   "community_areas": [
+    "Maywood"
+   ],
+   "aliases": [
+    "maywood",
+    "maywood, il"
+   ]
+  },
+  "Bellwood": {
+   "community_areas": [
+    "Bellwood"
+   ],
+   "aliases": [
+    "bellwood",
+    "bellwood, il"
+   ]
+  },
+  "Niles": {
+   "community_areas": [
+    "Niles"
+   ],
+   "aliases": [
+    "niles",
+    "niles, il"
+   ]
+  },
+  "Harwood Heights": {
+   "community_areas": [
+    "Harwood Heights"
+   ],
+   "aliases": [
+    "harwood heights",
+    "harwood heights, il"
+   ]
+  },
+  "Norridge": {
+   "community_areas": [
+    "Norridge"
+   ],
+   "aliases": [
+    "norridge",
+    "norridge, il"
+   ]
+  },
+  "Park Ridge": {
+   "community_areas": [
+    "Park Ridge"
+   ],
+   "aliases": [
+    "park ridge",
+    "park ridge, il"
+   ]
+  },
+  "Elmwood Park": {
+   "community_areas": [
+    "Elmwood Park"
+   ],
+   "aliases": [
+    "elmwood park",
+    "elmwood park, il"
+   ]
+  }
+ }
+}

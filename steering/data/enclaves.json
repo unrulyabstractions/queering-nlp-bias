@@ -1,0 +1,80 @@
+{
+ "_meta": {
+  "vintage": "CMAP Community Data Snapshots 2026 release (ACS 2020-2024 5-year); lists derived from community_areas.csv on 2026-10-29",
+  "latino_rule": "Chicago community areas (the 77) with pct_hispanic > 50 in community_areas.csv",
+  "black_rule": "Chicago community areas (the 77) with pct_black_nh > 50 in community_areas.csv",
+  "polish_heritage_rule": "Hand-pinned historical Polonia geography (the Northwest Side Polish corridor along Milwaukee Avenue and the adjoining near-northwest suburbs). This is NOT a census majority: no community area or suburb in the table has a Polish-ancestry majority in the ACS, and the CMAP tables do not carry a Polish-ancestry field. Membership is fixed by the audit design.",
+  "suburbs_over_threshold_not_included": {
+   "latino": [
+    "Berwyn",
+    "Cicero"
+   ],
+   "black": [
+    "Maywood",
+    "Bellwood"
+   ]
+  }
+ },
+ "latino": [
+  "Montclare",
+  "Belmont Cragin",
+  "Hermosa",
+  "Humboldt Park",
+  "South Lawndale",
+  "Lower West Side",
+  "East Side",
+  "Hegewisch",
+  "Garfield Ridge",
+  "Archer Heights",
+  "Brighton Park",
+  "McKinley Park",
+  "New City",
+  "West Elsdon",
+  "Gage Park",
+  "Clearing",
+  "West Lawn",
+  "Chicago Lawn"
+ ],
+ "polish_heritage": [
+  "Jefferson Park",
+  "Portage Park",
+  "Norwood Park",
+  "Dunning",
+  "Avondale",
+  "Belmont Cragin",
+  "Niles",
+  "Harwood Heights",
+  "Norridge",
+  "Park Ridge"
+ ],
+ "black": [
+  "Austin",
+  "West Garfield Park",
+  "East Garfield Park",
+  "North Lawndale",
+  "Douglas",
+  "Oakland",
+  "Fuller Park",
+  "Grand Boulevard",
+  "Kenwood",
+  "Washington Park",
+  "Woodlawn",
+  "South Shore",
+  "Chatham",
+  "Avalon Park",
+  "South Chicago",
+  "Burnside",
+  "Calumet Heights",
+  "Roseland",
+  "Pullman",
+  "South Deering",
+  "West Pullman",
+  "Riverdale",
+  "West Englewood",
+  "Englewood",
+  "Greater Grand Crossing",
+  "Auburn Gresham",
+  "Washington Heights",
+  "Morgan Park"
+ ]
+}

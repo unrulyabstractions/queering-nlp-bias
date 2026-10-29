@@ -1,0 +1,145 @@
+map_id,station,descriptive_name,lines,lat,lon,area,community_area_number,municipality,is_main_station,rail_minutes_to_imd_median,rail_minutes_to_imd_min,n_departures_0700_0859,route_of_fastest_journey
+40870,Francisco,Francisco (Brown Line),BRN,41.966046,-87.701644,Albany Park,14,Chicago city,0,49.0,44.5,27,Brn:Francisco>Washington/Wells -> Pink:Washington/Wells>Polk
+41180,Kedzie,Kedzie (Brown Line),BRN,41.965996,-87.708821,Albany Park,14,Chicago city,0,50.5,46.0,27,Brn:Kedzie (Brown)>Washington/Wells -> Pink:Washington/Wells>Polk
+41290,Kimball,Kimball (Brown Line),BRN,41.967901,-87.713065,Albany Park,14,Chicago city,1,52.0,48.0,26,Brn:Kimball>Washington/Wells -> Pink:Washington/Wells>Polk
+41000,Cermak-Chinatown,Cermak-Chinatown (Red Line),RED,41.853206,-87.630968,Armour Square,34,Chicago city,1,20.0,18.0,23,Red:Cermak-Chinatown>Jackson (Red) -> walk:Jackson (Red)>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+40190,Sox-35th,Sox-35th (Red Line),RED,41.831191,-87.630636,Armour Square,34,Chicago city,0,23.5,21.5,23,Red:Sox-35th>Jackson (Red) -> walk:Jackson (Red)>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+41260,Austin,Austin (Green Line),G,41.887293,-87.774135,Austin,25,Chicago city,0,25.5,25.5,14,G:Austin (Green)>Ashland (Green/Pink) -> Pink:Ashland (Green/Pink)>Polk
+40280,Central,Central (Green Line),G,41.887389,-87.76565,Austin,25,Chicago city,1,23.5,23.5,14,G:Central (Green)>Ashland (Green/Pink) -> Pink:Ashland (Green/Pink)>Polk
+40970,Cicero,Cicero (Blue Line),BLUE,41.871574,-87.745154,Austin,25,Chicago city,0,14.0,14.0,16,Blue:Cicero (Blue)>Illinois Medical District
+40480,Cicero,Cicero (Green Line),G,41.886519,-87.744698,Austin,25,Chicago city,0,19.0,18.0,15,G:Cicero (Green)>Ashland (Green/Pink) -> Pink:Ashland (Green/Pink)>Polk
+40700,Laramie,Laramie (Green Line),G,41.887163,-87.754986,Austin,25,Chicago city,0,21.5,21.5,14,G:Laramie>Ashland (Green/Pink) -> Pink:Ashland (Green/Pink)>Polk
+40060,Belmont,Belmont (Blue Line),BLUE,41.938132,-87.712359,Avondale,21,Chicago city,1,30.5,29.5,28,Blue:Belmont (Blue)>Illinois Medical District
+41130,Halsted,Halsted (Orange Line),O,41.84678,-87.648088,Bridgeport,60,Chicago city,1,23.2,22.0,16,Org:Halsted (Orange)>Harold Washington Library-State/Van Buren -> walk:Harold Washington Library-State/Van Buren>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+41150,Kedzie,Kedzie (Orange Line),O,41.804236,-87.704406,Brighton Park,58,Chicago city,1,33.5,33.0,15,Org:Kedzie (Orange)>Harold Washington Library-State/Van Buren -> walk:Harold Washington Library-State/Van Buren>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+40240,79th,79th (Red Line),RED,41.750419,-87.625112,Chatham,44,Chicago city,1,35.5,33.5,24,Red:79th>Jackson (Red) -> walk:Jackson (Red)>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+41430,87th,87th (Red Line),RED,41.735372,-87.624717,Chatham,44,Chicago city,0,38.0,36.0,23,Red:87th>Jackson (Red) -> walk:Jackson (Red)>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+40580,54th/Cermak,54th/Cermak (Pink Line),Pnk,41.85177331,-87.75669201,Cicero,,Cicero town,1,16.5,16.5,13,Pink:54th/Cermak>Polk
+40420,Cicero,Cicero (Pink Line),Pnk,41.85182,-87.745336,Cicero,,Cicero town,0,14.5,14.5,14,Pink:Cicero (Pink)>Polk
+41120,35th-Bronzeville-IIT,35th-Bronzeville-IIT (Green Line),G,41.831677,-87.625826,Douglas,35,Chicago city,1,27.0,27.0,14,G:35th-Bronzeville-IIT>Clinton (Green/Pink) -> Pink:Clinton (Green/Pink)>Polk
+41360,California,California (Green Line),G,41.88422,-87.696234,East Garfield Park,27,Chicago city,0,12.0,11.0,14,G:California (Green)>Ashland (Green/Pink) -> Pink:Ashland (Green/Pink)>Polk
+41670,Conservatory,Conservatory (Green Line),G,41.884904,-87.716523,East Garfield Park,27,Chicago city,0,15.0,14.0,14,G:Conservatory-Central Park Drive>Ashland (Green/Pink) -> Pink:Ashland (Green/Pink)>Polk
+41070,Kedzie,Kedzie (Green Line),G,41.884321,-87.706155,East Garfield Park,27,Chicago city,0,13.0,12.0,14,G:Kedzie (Green)>Ashland (Green/Pink) -> Pink:Ashland (Green/Pink)>Polk
+40250,Kedzie-Homan,Kedzie-Homan (Blue Line),BLUE,41.874341,-87.70604,East Garfield Park,27,Chicago city,1,8.0,8.0,17,Blue:Kedzie-Homan>Illinois Medical District
+40340,Berwyn,Berwyn (Red Line),RED,41.977984,-87.658668,Edgewater,77,Chicago city,0,43.0,40.0,27,Red:Berwyn>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+41380,Bryn Mawr,Bryn Mawr (Red Line),RED,41.983504,-87.65884,Edgewater,77,Chicago city,1,44.5,41.5,28,Red:Bryn Mawr>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40760,Granville,Granville (Red Line),RED,41.993664,-87.659202,Edgewater,77,Chicago city,0,47.0,44.0,28,Red:Granville>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40880,Thorndale,Thorndale (Red Line),RED,41.990259,-87.659076,Edgewater,77,Chicago city,0,46.0,43.0,28,Red:Thorndale>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40910,63rd,63rd (Red Line),RED,41.780536,-87.630952,Englewood,68,Chicago city,1,31.0,29.0,24,Red:63rd>Jackson (Red) -> walk:Jackson (Red)>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+40940,Halsted,Halsted (Green Line),G,41.778943,-87.644244,Englewood,68,Chicago city,0,42.5,41.5,7,G:Halsted (Green)>Clinton (Green/Pink) -> Pink:Clinton (Green/Pink)>Polk
+41250,Central,Central (Purple Line),P,42.063987,-87.685617,Evanston,,Evanston city,0,54.5,53.5,15,P:Central (Purple)>Clark/Lake -> Blue:Clark/Lake>Illinois Medical District
+40050,Davis,Davis (Purple Line),P,42.04771,-87.683543,Evanston,,Evanston city,1,51.0,50.0,15,P:Davis>Clark/Lake -> Blue:Clark/Lake>Illinois Medical District
+40690,Dempster,Dempster (Purple Line),P,42.041655,-87.681602,Evanston,,Evanston city,0,49.5,48.5,16,P:Dempster>Clark/Lake -> Blue:Clark/Lake>Illinois Medical District
+40520,Foster,Foster (Purple Line),P,42.05416,-87.68356,Evanston,,Evanston city,0,52.5,51.5,15,P:Foster>Clark/Lake -> Blue:Clark/Lake>Illinois Medical District
+40270,Main,Main (Purple Line),P,42.033456,-87.679538,Evanston,,Evanston city,0,49.0,48.0,16,P:Main>Clark/Lake -> Blue:Clark/Lake>Illinois Medical District
+40400,Noyes,Noyes (Purple Line),P,42.058282,-87.683337,Evanston,,Evanston city,0,53.5,52.5,15,P:Noyes>Clark/Lake -> Blue:Clark/Lake>Illinois Medical District
+40840,South Boulevard,South Boulevard (Purple Line),P,42.027612,-87.678329,Evanston,,Evanston city,0,47.5,46.5,16,P:South Boulevard>Clark/Lake -> Blue:Clark/Lake>Illinois Medical District
+40390,Forest Park,Forest Park (Blue Line),BLUE,41.874257,-87.817318,Forest Park,,Forest Park village,1,28.5,28.5,16,Blue:Forest Park>Illinois Medical District
+40980,Harlem,Harlem (Blue Line - Forest Park Branch),BLUE,41.87349,-87.806961,Forest Park,,Forest Park village,0,25.5,25.5,17,Blue:Harlem (Blue - Forest Park Branch)>Illinois Medical District
+41230,47th,47th (Red Line),RED,41.810318,-87.63094,Fuller Park,37,Chicago city,1,26.5,24.5,23,Red:47th (Red)>Jackson (Red) -> walk:Jackson (Red)>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+41170,Garfield,Garfield (Red Line),RED,41.79542,-87.631157,Fuller Park,37,Chicago city,0,28.5,26.5,23,Red:Garfield (Red)>Jackson (Red) -> walk:Jackson (Red)>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+40310,Western,Western (Orange Line),O,41.804546,-87.684019,Gage Park,63,Chicago city,1,32.0,31.0,16,Org:Western (Orange)>Harold Washington Library-State/Van Buren -> walk:Harold Washington Library-State/Van Buren>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+40930,Midway,Midway (Orange Line),O,41.78661,-87.737875,Garfield Ridge,56,Chicago city,1,39.0,38.0,16,Org:Midway>Harold Washington Library-State/Van Buren -> walk:Harold Washington Library-State/Van Buren>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+41270,43rd,43rd (Green Line),G,41.816462,-87.619021,Grand Boulevard,38,Chicago city,0,31.5,31.5,14,G:43rd>Clinton (Green/Pink) -> Pink:Clinton (Green/Pink)>Polk
+41080,47th,47th (Green Line),G,41.809209,-87.618826,Grand Boulevard,38,Chicago city,1,33.0,33.0,14,G:47th (Green)>Clinton (Green/Pink) -> Pink:Clinton (Green/Pink)>Polk
+40130,51st,51st (Green Line),G,41.80209,-87.618487,Grand Boulevard,38,Chicago city,0,34.5,34.5,14,G:51st>Clinton (Green/Pink) -> Pink:Clinton (Green/Pink)>Polk
+40300,Indiana,Indiana (Green Line),G,41.821732,-87.621371,Grand Boulevard,38,Chicago city,0,30.0,30.0,14,G:Indiana>Clinton (Green/Pink) -> Pink:Clinton (Green/Pink)>Polk
+40990,69th,69th (Red Line),RED,41.768367,-87.625724,Greater Grand Crossing,69,Chicago city,1,33.0,31.0,23,Red:69th>Jackson (Red) -> walk:Jackson (Red)>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+41240,Addison,Addison (Blue Line),BLUE,41.94738,-87.71906,Irving Park,16,Chicago city,0,32.0,31.0,27,Blue:Addison (Blue)>Illinois Medical District
+40550,Irving Park,Irving Park (Blue Line),BLUE,41.952925,-87.729229,Irving Park,16,Chicago city,1,34.0,33.0,27,Blue:Irving Park (Blue)>Illinois Medical District
+41330,Montrose,Montrose (Blue Line),BLUE,41.961539,-87.743574,Irving Park,16,Chicago city,0,36.0,35.0,27,Blue:Montrose (Blue)>Illinois Medical District
+41280,Jefferson Park,Jefferson Park (Blue Line),BLUE,41.970634,-87.760892,Jefferson Park,11,Chicago city,1,38.0,37.0,27,Blue:Jefferson Park Transit Center>Illinois Medical District
+41420,Addison,Addison (Red Line),RED,41.947428,-87.653626,Lake View,6,Chicago city,0,35.0,32.0,28,Red:Addison (Red)>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+41320,Belmont,"Belmont (Red, Brown & Purple lines)",BRN|P|RED,41.939751,-87.65338,Lake View,6,Chicago city,1,33.0,30.0,47,Red:Belmont (Red/Brown/Purple)>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40530,Diversey,Diversey (Brown & Purple lines),BRN|P,41.932732,-87.653131,Lake View,6,Chicago city,0,31.0,27.5,35,Brn:Diversey (Brown/Purple)>Washington/Wells -> Pink:Washington/Wells>Polk
+41310,Paulina,Paulina (Brown Line),BRN,41.943623,-87.670907,Lake View,6,Chicago city,0,38.0,33.5,27,Brn:Paulina>Washington/Wells -> Pink:Washington/Wells>Polk
+40080,Sheridan,Sheridan (Red Line),RED,41.953775,-87.654929,Lake View,6,Chicago city,0,37.0,34.0,27,Red:Sheridan>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40360,Southport,Southport (Brown Line),BRN,41.943744,-87.663619,Lake View,6,Chicago city,0,36.5,32.5,26,Brn:Southport>Washington/Wells -> Pink:Washington/Wells>Polk
+41210,Wellington,Wellington (Brown & Purple lines),BRN|P,41.936033,-87.653266,Lake View,6,Chicago city,0,32.5,29.0,36,Brn:Wellington (Brown/Purple)>Washington/Wells -> Pink:Washington/Wells>Polk
+40660,Armitage,Armitage (Brown & Purple lines),BRN|P,41.918217,-87.652644,Lincoln Park,7,Chicago city,0,27.2,23.5,36,Brn:Armitage (Brown/Purple)>Washington/Wells -> Pink:Washington/Wells>Polk
+41220,Fullerton,"Fullerton (Red, Brown & Purple lines)",BRN|P|RED,41.925051,-87.652866,Lincoln Park,7,Chicago city,1,28.5,25.5,43,Brn:Fullerton>Washington/Wells -> Pink:Washington/Wells>Polk
+40090,Damen,Damen (Brown Line),BRN,41.966286,-87.678639,Lincoln Square,4,Chicago city,0,43.5,40.0,27,Brn:Damen (Brown)>Washington/Wells -> Pink:Washington/Wells>Polk
+41500,Montrose,Montrose (Brown Line),BRN,41.961756,-87.675047,Lincoln Square,4,Chicago city,0,42.0,38.5,27,Brn:Montrose (Brown)>Washington/Wells -> Pink:Washington/Wells>Polk
+41010,Rockwell,Rockwell (Brown Line),BRN,41.966115,-87.6941,Lincoln Square,4,Chicago city,0,47.0,43.0,26,Brn:Rockwell>Washington/Wells -> Pink:Washington/Wells>Polk
+41480,Western,Western (Brown Line),BRN,41.966163,-87.688502,Lincoln Square,4,Chicago city,1,45.0,41.5,27,Brn:Western (Brown)>Washington/Wells -> Pink:Washington/Wells>Polk
+40570,California,California (Blue Line),BLUE,41.921939,-87.69689,Logan Square,22,Chicago city,0,26.0,25.0,27,Blue:California (Blue)>Illinois Medical District
+41020,Logan Square,Logan Square (Blue Line),BLUE,41.929728,-87.708541,Logan Square,22,Chicago city,1,28.0,27.0,27,Blue:Logan Square>Illinois Medical District
+40670,Western,Western (Blue Line - O'Hare Branch),BLUE,41.916157,-87.687364,Logan Square,22,Chicago city,0,24.0,23.0,27,Blue:Western (Blue - O'Hare Branch)>Illinois Medical District
+40830,18th,18th (Pink Line),Pnk,41.857908,-87.669147,Lower West Side,31,Chicago city,1,2.0,2.0,14,Pink:18th>Polk
+41060,Ashland,Ashland (Orange Line),O,41.839234,-87.665317,Lower West Side,31,Chicago city,0,25.2,24.0,16,Org:Ashland (Orange)>Harold Washington Library-State/Van Buren -> walk:Harold Washington Library-State/Van Buren>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+40210,Damen,Damen (Pink Line),Pnk,41.854517,-87.675975,Lower West Side,31,Chicago city,0,4.5,4.5,14,Pink:Damen (Pink)>Polk
+40740,Western,Western (Pink Line),Pnk,41.854225,-87.685129,Lower West Side,31,Chicago city,0,5.5,5.5,14,Pink:Western (Pink)>Polk
+40120,35th/Archer,35th/Archer (Orange Line),O,41.829353,-87.680622,McKinley Park,59,Chicago city,1,27.0,26.5,15,Org:35th/Archer>Harold Washington Library-State/Van Buren -> walk:Harold Washington Library-State/Van Buren>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+41450,Chicago,Chicago (Red Line),RED,41.896671,-87.628176,Near North Side,8,Chicago city,1,20.5,18.0,27,Red:Chicago (Red)>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40710,Chicago,Chicago (Brown & Purple lines),BRN|P,41.89681,-87.635924,Near North Side,8,Chicago city,0,20.5,16.0,35,Brn:Chicago (Brown/Purple)>Washington/Wells -> Pink:Washington/Wells>Polk
+40630,Clark/Division,Clark/Division (Red Line),RED,41.90392,-87.631412,Near North Side,8,Chicago city,0,23.0,20.5,27,Red:Clark/Division>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40330,Grand,Grand (Red Line),RED,41.891665,-87.628021,Near North Side,8,Chicago city,0,19.0,16.5,26,Red:Grand (Red)>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40460,Merchandise Mart,Merchandise Mart (Brown & Purple lines),BRN|P,41.888969,-87.633924,Near North Side,8,Chicago city,0,18.0,13.5,32,Brn:Merchandise Mart (Brown/Purple)>Washington/Wells -> Pink:Washington/Wells>Polk
+40650,North/Clybourn,North/Clybourn (Red Line),RED,41.910655,-87.649177,Near North Side,8,Chicago city,0,26.0,23.5,27,Red:North/Clybourn>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40800,Sedgwick,Sedgwick (Brown & Purple lines),BRN|P,41.910409,-87.639302,Near North Side,8,Chicago city,0,24.2,20.0,34,Brn:Sedgwick (Brown/Purple)>Washington/Wells -> Pink:Washington/Wells>Polk
+41690,Cermak-McCormick Place,Cermak-McCormick Place (Green Line),G,41.853115,-87.626402,Near South Side,33,Chicago city,0,23.5,23.5,14,G:Cermak-McCormick Place>Clinton (Green/Pink) -> Pink:Clinton (Green/Pink)>Polk
+41400,Roosevelt,"Roosevelt (Red, Orange & Green lines)",G|O|RED,41.867368,-87.627402,Near South Side,33,Chicago city,1,16.5,14.5,42,Red:Roosevelt>Jackson (Red) -> walk:Jackson (Red)>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+40170,Ashland,Ashland (Green & Pink lines),G|Pnk,41.885269,-87.666969,Near West Side,28,Chicago city,0,3.0,3.0,14,Pink:Ashland (Green/Pink)>Polk
+41160,Clinton,Clinton (Green & Pink lines),G|Pnk,41.885678,-87.641782,Near West Side,28,Chicago city,0,6.5,6.5,14,Pink:Clinton (Green/Pink)>Polk
+40430,Clinton,Clinton (Blue Line),BLUE,41.875539,-87.640984,Near West Side,28,Chicago city,0,7.5,7.5,26,Blue:Clinton (Blue)>Illinois Medical District
+41710,Damen,Damen (Green Line),G,41.88497405,-87.67689149,Near West Side,28,Chicago city,0,9.0,6.5,14,G:Damen (Green)>Ashland (Green/Pink) -> Pink:Ashland (Green/Pink)>Polk
+40810,Illinois Medical District,Illinois Medical District (Blue Line),BLUE,41.875706,-87.673932,Near West Side,28,Chicago city,1,0,0,0,
+41510,Morgan,Morgan (Green & Pink lines),G|Pnk,41.885586,-87.652193,Near West Side,28,Chicago city,0,5.5,5.5,14,Pink:Morgan (Green/Pink)>Polk
+41030,Polk,Polk (Pink Line),Pnk,41.871551,-87.66953,Near West Side,28,Chicago city,0,0,0,0,
+40470,Racine,Racine (Blue Line),BLUE,41.87592,-87.659458,Near West Side,28,Chicago city,0,3.0,3.0,25,Blue:Racine>Illinois Medical District
+40350,UIC-Halsted,UIC-Halsted (Blue Line),BLUE,41.875474,-87.649707,Near West Side,28,Chicago city,0,5.5,5.5,25,Blue:UIC-Halsted>Illinois Medical District
+40220,Western,Western (Blue Line - Forest Park Branch),BLUE,41.875478,-87.688436,Near West Side,28,Chicago city,0,3.5,3.5,17,Blue:Western (Blue - Forest Park Branch)>Illinois Medical District
+41440,Addison,Addison (Brown Line),BRN,41.947028,-87.674642,North Center,5,Chicago city,0,40.5,36.0,27,Brn:Addison (Brown)>Washington/Wells -> Pink:Washington/Wells>Polk
+41460,Irving Park,Irving Park (Brown Line),BRN,41.954521,-87.674868,North Center,5,Chicago city,1,41.5,37.0,27,Brn:Irving Park (Brown)>Washington/Wells -> Pink:Washington/Wells>Polk
+40780,Central Park,Central Park (Pink Line),Pnk,41.853839,-87.714842,North Lawndale,29,Chicago city,1,9.5,9.5,13,Pink:Central Park>Polk
+41040,Kedzie,Kedzie (Pink Line),Pnk,41.853964,-87.705408,North Lawndale,29,Chicago city,0,8.5,8.5,13,Pink:Kedzie (Pink)>Polk
+40600,Kostner,Kostner (Pink Line),Pnk,41.853751,-87.733258,North Lawndale,29,Chicago city,0,12.5,12.5,14,Pink:Kostner>Polk
+40150,Pulaski,Pulaski (Pink Line),Pnk,41.853732,-87.724311,North Lawndale,29,Chicago city,0,11.0,11.0,14,Pink:Pulaski (Pink)>Polk
+40750,Harlem,Harlem (Blue Line - O'Hare Branch),BLUE,41.98227,-87.8089,Norwood Park,10,Chicago city,1,43.0,42.0,28,Blue:Harlem (Blue - O'Hare Branch)>Illinois Medical District
+40230,Cumberland,Cumberland (Blue Line),BLUE,41.984246,-87.838028,O'Hare,76,Chicago city,1,47.0,46.0,27,Blue:Cumberland>Illinois Medical District
+40890,O'Hare,O'Hare (Blue Line),BLUE,41.97766526,-87.90422307,O'Hare,76,Chicago city,0,54.0,53.0,23,Blue:O'Hare>Illinois Medical District
+40010,Austin,Austin (Blue Line),BLUE,41.870851,-87.776812,Oak Park,,Oak Park village,0,19.0,19.0,16,Blue:Austin (Blue)>Illinois Medical District
+40020,Harlem/Lake,Harlem/Lake (Green Line),G,41.886848,-87.803176,Oak Park,,Oak Park village,0,31.5,31.5,14,G:Harlem/Lake>Ashland (Green/Pink) -> Pink:Ashland (Green/Pink)>Polk
+41350,Oak Park,Oak Park (Green Line),G,41.886988,-87.793783,Oak Park,,Oak Park village,1,29.5,29.5,14,G:Oak Park (Green)>Ashland (Green/Pink) -> Pink:Ashland (Green/Pink)>Polk
+40180,Oak Park,Oak Park (Blue Line),BLUE,41.872108,-87.791602,Oak Park,,Oak Park village,0,22.5,22.5,17,Blue:Oak Park (Blue)>Illinois Medical District
+40610,Ridgeland,Ridgeland (Green Line),G,41.887159,-87.783661,Oak Park,,Oak Park village,0,27.5,27.5,15,G:Ridgeland>Ashland (Green/Pink) -> Pink:Ashland (Green/Pink)>Polk
+40900,Howard,"Howard (Red, Purple & Yellow lines)",P|RED|Y,42.019063,-87.672892,Rogers Park,1,Chicago city,0,45.0,44.0,15,P:Howard>Clark/Lake -> Blue:Clark/Lake>Illinois Medical District
+41190,Jarvis,Jarvis (Red Line),RED,42.015876,-87.669092,Rogers Park,1,Chicago city,0,52.0,49.0,28,Red:Jarvis>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+41300,Loyola,Loyola (Red Line),RED,42.001073,-87.661061,Rogers Park,1,Chicago city,0,49.0,46.0,27,Red:Loyola>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40100,Morse,Morse (Red Line),RED,42.008362,-87.665909,Rogers Park,1,Chicago city,1,51.0,48.0,28,Red:Morse>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40450,95th/Dan Ryan,95th/Dan Ryan (Red Line),RED,41.722377,-87.624342,Roseland,49,Chicago city,1,40.0,38.0,24,Red:95th/Dan Ryan>Jackson (Red) -> walk:Jackson (Red)>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+40820,Rosemont,Rosemont (Blue Line),BLUE,41.983507,-87.859388,Rosemont village,,Rosemont village,0,49.0,48.0,27,Blue:Rosemont>Illinois Medical District
+40140,Dempster-Skokie,Dempster-Skokie  (Yellow Line),Y,42.038951,-87.751919,Skokie village,,Skokie village,0,,,0,
+41680,Oakton-Skokie,Oakton-Skokie (Yellow Line),Y,42.02624348,-87.74722084,Skokie village,,Skokie village,0,,,0,
+40440,California,California (Pink Line),Pnk,41.854109,-87.694774,South Lawndale,30,Chicago city,1,7.0,7.0,13,Pink:California (Pink)>Polk
+40680,Adams/Wabash,"Adams/Wabash (Brown, Green, Orange, Pink & Purple lines)",BRN|G|O|P|Pnk,41.879507,-87.626037,The Loop,32,Chicago city,0,16.5,15.5,33,P:Adams/Wabash>Harold Washington Library-State/Van Buren -> walk:Harold Washington Library-State/Van Buren>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+40380,Clark/Lake,"Clark/Lake (Blue, Brown, Green, Orange, Purple & Pink lines)",BLUE|BRN|G|O|P|Pnk,41.885737,-87.630886,The Loop,32,Chicago city,1,13.5,12.5,36,G:Clark/Lake>Clinton (Green/Pink) -> Pink:Clinton (Green/Pink)>Polk
+40850,Harold Washington Library-State/Van Buren,"Harold Washington Library-State/Van Buren (Brown, Orange, Purple & Pink lines)",BRN|O|P|Pnk,41.876862,-87.628196,The Loop,32,Chicago city,0,14.5,14.5,18,Pink:Harold Washington Library-State/Van Buren>Polk
+41490,Harrison,Harrison (Red Line),RED,41.874039,-87.627479,The Loop,32,Chicago city,0,16.0,14.0,23,Red:Harrison>Jackson (Red) -> walk:Jackson (Red)>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+40070,Jackson,Jackson (Blue Line),BLUE,41.878183,-87.629296,The Loop,32,Chicago city,0,10.0,10.0,25,Blue:Jackson (Blue)>Illinois Medical District
+40560,Jackson,Jackson (Red Line),RED,41.878153,-87.627596,The Loop,32,Chicago city,0,20.0,18.0,23,Red:Jackson (Red)>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+41340,LaSalle,LaSalle (Blue Line),BLUE,41.875568,-87.631722,The Loop,32,Chicago city,0,8.5,8.5,25,Blue:LaSalle>Illinois Medical District
+40160,LaSalle/Van Buren,"LaSalle/Van Buren (Brown, Orange, Purple & Pink lines)",BRN|O|P|Pnk,41.8768,-87.631739,The Loop,32,Chicago city,0,14.0,13.5,32,Pink:LaSalle/Van Buren>Polk
+41660,Lake,Lake (Red Line),RED,41.884809,-87.627813,The Loop,32,Chicago city,0,18.0,16.0,26,Red:Lake (Subway)>Jackson (Red) -> walk:Jackson (Red)>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+41090,Monroe,Monroe (Red Line),RED,41.880745,-87.627696,The Loop,32,Chicago city,0,17.8,14.5,46,Red:Monroe (Red)>Jackson (Red) -> walk:Jackson (Red)>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+40790,Monroe,Monroe (Blue Line),BLUE,41.880703,-87.629378,The Loop,32,Chicago city,0,11.0,11.0,26,Blue:Monroe (Blue)>Illinois Medical District
+40040,Quincy/Wells,"Quincy/Wells (Brown, Orange, Purple & Pink lines)",BRN|O|P|Pnk,41.878723,-87.63374,The Loop,32,Chicago city,0,12.0,12.0,24,Pink:Quincy>Polk
+40260,State/Lake,"State/Lake (Brown, Green, Orange, Pink & Purple lines)",BRN|G|O|P|Pnk,41.88574,-87.627835,The Loop,32,Chicago city,0,,,,
+40370,Washington,Washington (Blue Line),BLUE,41.883164,-87.62944,The Loop,32,Chicago city,0,12.0,12.0,26,Blue:Washington>Illinois Medical District
+41700,Washington/Wabash,"Washington/Wabash (Brown, Green, Orange, Purple & Pink lines)",BRN|G|O|P|Pnk,41.88322,-87.626189,The Loop,32,Chicago city,0,17.8,15.5,42,G:Washington/Wabash>Clinton (Green/Pink) -> Pink:Clinton (Green/Pink)>Polk
+40730,Washington/Wells,"Washington/Wells (Brown, Orange, Purple & Pink lines)",BRN|O|P|Pnk,41.882695,-87.63378,The Loop,32,Chicago city,0,10.0,10.0,15,Pink:Washington/Wells>Polk
+41200,Argyle,Argyle (Red Line),RED,41.973453,-87.65853,Uptown,3,Chicago city,0,42.0,39.0,28,Red:Argyle>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40770,Lawrence,Lawrence (Red Line),RED,41.969139,-87.658493,Uptown,3,Chicago city,0,41.0,38.0,28,Red:Lawrence>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40540,Wilson,Wilson (Red & Purple lines),P|RED,41.964273,-87.657588,Uptown,3,Chicago city,1,39.5,36.5,38,Red:Wilson>Lake (Subway) -> walk:Lake (Subway)>Washington -> Blue:Washington>Illinois Medical District
+40510,Garfield,Garfield (Green Line),G,41.795172,-87.618327,Washington Park,40,Chicago city,1,36.0,36.0,14,G:Garfield (Green)>Clinton (Green/Pink) -> Pink:Clinton (Green/Pink)>Polk
+40960,Pulaski,Pulaski (Orange Line),O,41.799756,-87.724493,West Elsdon,62,Chicago city,1,36.0,35.5,15,Org:Pulaski (Orange)>Harold Washington Library-State/Van Buren -> walk:Harold Washington Library-State/Van Buren>Jackson (Blue) -> Blue:Jackson (Blue)>Illinois Medical District
+40290,Ashland/63rd,Ashland/63rd (Green Line),G,41.77886,-87.663766,West Englewood,67,Chicago city,1,46.5,45.5,7,G:Ashland/63rd>Clinton (Green/Pink) -> Pink:Clinton (Green/Pink)>Polk
+40030,Pulaski,Pulaski (Green Line),G,41.885412,-87.725404,West Garfield Park,26,Chicago city,0,17.0,16.0,14,G:Pulaski (Green)>Ashland (Green/Pink) -> Pink:Ashland (Green/Pink)>Polk
+40920,Pulaski,Pulaski (Blue Line),BLUE,41.873797,-87.725663,West Garfield Park,26,Chicago city,1,10.5,10.5,17,Blue:Pulaski (Blue)>Illinois Medical District
+41410,Chicago,Chicago (Blue Line),BLUE,41.896075,-87.655214,West Town,24,Chicago city,0,18.0,17.5,26,Blue:Chicago (Blue)>Illinois Medical District
+40590,Damen,Damen (Blue Line),BLUE,41.909744,-87.677437,West Town,24,Chicago city,1,22.0,21.0,27,Blue:Damen (Blue)>Illinois Medical District
+40320,Division,Division (Blue Line),BLUE,41.903355,-87.666496,West Town,24,Chicago city,0,20.0,19.5,27,Blue:Division>Illinois Medical District
+40490,Grand,Grand (Blue Line),BLUE,41.891189,-87.647578,West Town,24,Chicago city,0,16.0,16.0,26,Blue:Grand (Blue)>Illinois Medical District
+41050,Linden,Linden (Purple Line),P,42.073153,-87.69073,Wilmette village,,Wilmette village,0,57.0,56.0,16,P:Linden>Clark/Lake -> Blue:Clark/Lake>Illinois Medical District
+40720,Cottage Grove,Cottage Grove (Green Line),G,41.780309,-87.605857,Woodlawn,42,Chicago city,1,41.5,41.5,7,G:Cottage Grove>Clinton (Green/Pink) -> Pink:Clinton (Green/Pink)>Polk
+41140,King Drive,King Drive (Green Line),G,41.78013,-87.615546,Woodlawn,42,Chicago city,0,39.5,39.5,7,G:King Drive>Clinton (Green/Pink) -> Pink:Clinton (Green/Pink)>Polk
