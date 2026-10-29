@@ -126,7 +126,7 @@ def main():
     fig_headline(summ, out); fig_enclave(summ, out)
     fig_axes_grid(summ, out, top[: args.top]); fig_heatmap(summ, out, top)
     if len(agree): fig_agreement(agree, out)
-    json.dump({"top_axes": top[: args.top], "gap": gap.sort_values(ascending=False).round(3).to_dict()}, (out / "top_axes.json").open("w"), indent=1)
+    json.dump({"top_axes": top[: args.top], "gap": gap.sort_values(ascending=False).round(3).to_dict()}, (an / "top_axes.json").open("w"), indent=1)
     print("figures ->", out, "| top axes:", top[: args.top])
 
 if __name__ == "__main__":
