@@ -85,6 +85,47 @@ def fig_axes_grid(summ, out, axes_ids, fname="steering-axes", ncols=4, ylabel="e
     fig.tight_layout(rect=(0, 0.04, 1, 1))
     fig.savefig(out / f"{fname}.png"); fig.savefig(out / f"{fname}.pdf"); plt.close(fig)
 
+FAM_COL = {"steering": "#4b5d78", "identity": "#7b4fb3", "constraints": "#1f8a8a", "preferences": "#c9972b", "form": "#8a6d5a"}
+FAM_ORDER = ["steering", "identity", "constraints", "preferences", "form"]
+CORE_SCRIPT = [("enclave_offered_latino_list", "majority-Hispanic area offered"), ("enclave_offered_polish_list", "Polish-heritage area offered"),
+               ("commute_fail_share", "offered areas beyond commute limit"), ("l2_greeting_signoff", "Spanish or Polish greeting")]
+
+def fig_cores(summ, out, judge_ids, fname="steering-cores"):
+    """Default behavior per arm: one panel per arm, one horizontal bar per axis, dashed midline, as the paper's core bars."""
+    fam = {a["id"]: a["family"] for a in AXES}
+    rows = [(k, lab, "steering") for k, lab in CORE_SCRIPT]
+    for f in FAM_ORDER[1:]:
+        rows += [(k, AX_NAME.get(k, k), f) for k in judge_ids if fam.get(k) == f]
+    n = len(rows)
+    fig, axs = plt.subplots(1, len(ORDER), figsize=(6.8, 0.17 * n + 1.1), sharey=True)
+    y = np.arange(n)[::-1]
+    for ax, arm in zip(axs, ORDER):
+        d = summ[summ.arm == arm].set_index("axis")
+        vals = np.array([d["mean"].get(k, np.nan) for k, _, _ in rows], dtype=float)
+        lo = np.array([d["lo"].get(k, np.nan) for k, _, _ in rows], dtype=float); hi = np.array([d["hi"].get(k, np.nan) for k, _, _ in rows], dtype=float)
+        ax.barh(y, vals, height=0.62, color=[FAM_COL[f] for _, _, f in rows], linewidth=0)
+        ok = ~np.isnan(lo)
+        ax.errorbar(vals[ok], y[ok], xerr=np.vstack([(vals - lo)[ok].clip(0), (hi - vals)[ok].clip(0)]), fmt="none", ecolor=INK2, elinewidth=0.5, capsize=0)
+        ax.axvline(0.5, color=INK2, lw=0.6, ls=(0, (3, 3)))
+        ax.set_xlim(0, 1); ax.set_xticks([0, 0.5, 1]); ax.set_xticklabels(["0", ".5", "1"], fontsize=5.5)
+        ax.set_title(ARM_LABEL[arm], fontsize=7.5, color=INK, loc="center", pad=3)
+        ax.grid(axis="y", visible=False); ax.grid(axis="x", visible=False)
+        for sp in ("left", "bottom"): ax.spines[sp].set_color(GRID)
+        ax.tick_params(axis="y", length=0)
+    axs[0].set_yticks(y); axs[0].set_yticklabels([lab for _, lab, _ in rows], fontsize=6)
+    fig.tight_layout(rect=(0, 0.05, 1, 0.93)); fig.subplots_adjust(wspace=0.18)
+    # group labels above the panels, in figure coordinates
+    spans = {"baseline": (0, 1), "Latino": (2, 4), "Polish-American": (5, 7)}
+    for name, (a, b) in spans.items():
+        x0 = axs[a].get_position().x0; x1 = axs[b].get_position().x1; ytop = axs[a].get_position().y1 + 0.055
+        fig.add_artist(plt.Line2D([x0, x1], [ytop, ytop], color=INK2, lw=0.8))
+        fig.text((x0 + x1) / 2, ytop + 0.012, name, ha="center", va="bottom", fontsize=7.5, color=INK2)
+    used = [f for f in FAM_ORDER if any(r[2] == f for r in rows)]
+    names = {"steering": "recommended set (script)", "identity": "identity", "constraints": "constraints", "preferences": "preferences", "form": "form"}
+    handles = [plt.Rectangle((0, 0), 1, 1, color=FAM_COL[f]) for f in used]
+    fig.legend(handles, [names[f] for f in used], loc="lower center", ncol=len(used), fontsize=6.5, bbox_to_anchor=(0.5, 0.0), handlelength=1.2, columnspacing=1.2)
+    fig.savefig(out / f"{fname}.png"); fig.savefig(out / f"{fname}.pdf"); plt.close(fig)
+
 def fig_heatmap(summ, out, axes_ids, fname="steering-heatmap"):
     piv = summ[summ.axis.isin(axes_ids)].pivot(index="axis", columns="arm", values="mean").reindex(axes_ids)[ORDER]
     piv = piv[piv.max(axis=1) >= 0.05]; axes_ids = list(piv.index)
@@ -124,7 +165,7 @@ def main():
     gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
     top = gap.sort_values(ascending=False).index.tolist()
     fig_headline(summ, out); fig_enclave(summ, out)
-    fig_axes_grid(summ, out, top[: args.top]); fig_heatmap(summ, out, top)
+    fig_axes_grid(summ, out, top[: args.top]); fig_heatmap(summ, out, top); fig_cores(summ, out, top[:16])
     if len(agree): fig_agreement(agree, out)
     json.dump({"top_axes": top[: args.top], "gap": gap.sort_values(ascending=False).round(3).to_dict()}, (an / "top_axes.json").open("w"), indent=1)
     print("figures ->", out, "| top axes:", top[: args.top])
