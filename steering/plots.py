@@ -20,7 +20,7 @@ HERE = Path(__file__).resolve().parent
 COL = {"none": "#1baf7a", "latino": "#2a78d6", "polish": "#eb6834"}
 INK, INK2, GRID = "#0b0b0b", "#52514e", "#e6e5e1"
 SEQ = LinearSegmentedColormap.from_list("seqblue", ["#f4f8fd", "#cde2fb", "#86b6ef", "#3987e5", "#1c5cab", "#0d366b"])
-ARM_LABEL = {"F": "formal", "D": "Democrat", "EL": "explicit", "IL": "implicit", "HL": "both", "EP": "explicit", "IP": "implicit", "HP": "both"}
+ARM_LABEL = {"F": "formal", "D": "Democrat", "EL": "explicit", "IL": "implicit", "HL": "heavy", "EP": "explicit", "IP": "implicit", "HP": "heavy"}
 AX_NAME = {a["id"]: a["id"].replace("_", " ") for a in AXES}
 
 plt.rcParams.update({"font.size": 8, "axes.edgecolor": GRID, "axes.labelcolor": INK, "xtick.color": INK2, "ytick.color": INK2,
@@ -29,15 +29,15 @@ plt.rcParams.update({"font.size": 8, "axes.edgecolor": GRID, "axes.labelcolor": 
 
 def arm_color(arm): return COL[ARMS[arm]["group"]]
 
-def group_brackets(ax, y=-0.34):
+def group_brackets(ax, y=-0.40, short=False):
     """Label the three groups under the x axis."""
-    spans = {"baseline": (0, 1), "Latino": (2, 4), "Polish-American": (5, 7)}
+    spans = {"baseline": (0, 1), "Latino": (2, 4), ("Polish" if short else "Polish-American"): (5, 7)}
     for name, (a, b) in spans.items():
         ax.annotate("", xy=(a - 0.4, y), xytext=(b + 0.4, y), xycoords=("data", "axes fraction"),
                     arrowprops=dict(arrowstyle="-", color=INK2, lw=0.8))
         ax.text((a + b) / 2, y - 0.04, name, ha="center", va="top", fontsize=7.5, color=INK2, transform=ax.get_xaxis_transform())
 
-def bars(ax, summ, axis, ylabel=None, fmt="{:.2f}", ylim=None, title=None, labels=True):
+def bars(ax, summ, axis, ylabel=None, fmt="{:.2f}", ylim=None, title=None, labels=True, label_size=6):
     d = summ[summ.axis == axis].set_index("arm").reindex(ORDER)
     x = np.arange(len(ORDER))
     ax.bar(x, d["mean"], width=0.62, color=[arm_color(a) for a in ORDER], linewidth=0)
@@ -46,7 +46,7 @@ def bars(ax, summ, axis, ylabel=None, fmt="{:.2f}", ylim=None, title=None, label
     ax.set_xticks(x); ax.set_xticklabels([ARM_LABEL[a] for a in ORDER], rotation=45, ha="right", fontsize=6.5)
     if labels:
         for xi, v, h in zip(x, d["mean"], d["hi"]):
-            if not np.isnan(v): ax.text(xi, (h if not np.isnan(h) else v), fmt.format(v), ha="center", va="bottom", fontsize=6, color=INK)
+            if not np.isnan(v): ax.text(xi, (h if not np.isnan(h) else v), (fmt(v) if callable(fmt) else fmt.format(v)), ha="center", va="bottom", fontsize=label_size, color=INK)
     if ylabel: ax.set_ylabel(ylabel)
     if ylim: ax.set_ylim(*ylim)
     if title: ax.set_title(title, fontsize=8.5, color=INK, loc="left")
@@ -54,19 +54,20 @@ def bars(ax, summ, axis, ylabel=None, fmt="{:.2f}", ylim=None, title=None, label
 
 def fig_headline(summ, out):
     fig, axs = plt.subplots(1, 2, figsize=(6.6, 2.4), sharey=False)
-    bars(axs[0], summ, "hispanic_share_mean", ylabel="mean share of offered areas (%)", fmt="{:.0f}", title="Hispanic share")
+    bars(axs[0], summ, "hispanic_share_mean", ylabel="share of offered areas (%)", fmt="{:.0f}", title="Hispanic share")
     bars(axs[1], summ, "white_nh_share_mean", ylabel=None, fmt="{:.0f}", title="White non-Hispanic share")
     for ax in axs: group_brackets(ax)
-    fig.tight_layout(); fig.subplots_adjust(bottom=0.36)
+    fig.tight_layout(); fig.subplots_adjust(bottom=0.40)
     fig.savefig(out / "steering-headline.png"); fig.savefig(out / "steering-headline.pdf"); plt.close(fig)
 
 def fig_enclave(summ, out):
-    fig, axs = plt.subplots(1, 3, figsize=(6.6, 2.4))
-    bars(axs[0], summ, "enclave_offered_latino_list", ylabel="share of responses", fmt="{:.2f}", ylim=(0, 1.18), title="majority-Hispanic area offered")
-    bars(axs[1], summ, "enclave_offered_polish_list", ylabel=None, fmt="{:.2f}", ylim=(0, 1.18), title="Polish-heritage area offered")
-    bars(axs[2], summ, "l2_greeting_signoff", ylabel=None, fmt="{:.2f}", ylim=(0, 1.18), title="Spanish or Polish greeting")
-    for ax in axs: group_brackets(ax)
-    fig.tight_layout(); fig.subplots_adjust(bottom=0.36)
+    fig, axs = plt.subplots(1, 3, figsize=(6.6, 2.5))
+    short = lambda v: "0" if v < 0.005 else ("1.0" if v > 0.995 else f"{v:.2f}"[1:])  # .17, 1.0, 0: short labels so neighbours do not touch
+    bars(axs[0], summ, "enclave_offered_latino_list", ylabel="share of responses", fmt=short, ylim=(0, 1.18), title="majority-Hispanic area offered", label_size=5.5)
+    bars(axs[1], summ, "enclave_offered_polish_list", ylabel=None, fmt=short, ylim=(0, 1.18), title="Polish-heritage area offered", label_size=5.5)
+    bars(axs[2], summ, "l2_greeting_signoff", ylabel=None, fmt=short, ylim=(0, 1.18), title="Spanish or Polish greeting", label_size=5.5)
+    for ax in axs: group_brackets(ax, short=True)
+    fig.tight_layout(); fig.subplots_adjust(bottom=0.40, wspace=0.32)
     fig.savefig(out / "steering-enclave.png"); fig.savefig(out / "steering-enclave.pdf"); plt.close(fig)
 
 def fig_axes_grid(summ, out, axes_ids, fname="steering-axes", ncols=4, ylabel="ensemble yes rate"):
@@ -108,7 +109,7 @@ def fig_agreement(agree, out):
     ax.set_yticks(y); ax.set_yticklabels([AX_NAME.get(x, x) for x in a.axis], fontsize=6.5)
     ax.set_xlabel("Fleiss kappa (circles) and pairwise agreement (squares) across the three judges"); ax.set_xlim(-0.2, 1.02)
     ax.legend(handles=[plt.Line2D([], [], marker="o", color="#2a78d6", ls=""), plt.Line2D([], [], marker="s", color="#eb6834", ls="")],
-              labels=["Fleiss kappa", "pairwise agreement"], loc="lower right", fontsize=7)
+              labels=["Fleiss kappa", "pairwise agreement"], loc="upper left", fontsize=7)
     fig.tight_layout(); fig.savefig(out / "steering-agreement.png"); fig.savefig(out / "steering-agreement.pdf"); plt.close(fig)
 
 def main():
