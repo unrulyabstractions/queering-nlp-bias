@@ -174,6 +174,28 @@ def main():
     expl = ("Each column is the difference of mean scores between two groups of arms: Lat = the three Mexican-American arms pooled, "
             "Pol = the three Polish-American arms pooled, F = formal, E and I = explicit and implicit arms of one group. "
             "Every score is in $[0,1]$; differences of at least 0.2 in bold.")
+    # one table per comparison: axes whose difference in that comparison is at least 0.2, by difference
+    kind_of = {a["id"]: ("J" if a["kind"] == "judge" else "M") for a in AXES}
+    GROUP_NAMES = {"lat_pol": ("Latino", "Polish"), "lat_f": ("Latino", "formal"), "pol_f": ("Polish", "formal"),
+                   "lat_ei": ("explicit", "implicit"), "pol_ei": ("explicit", "implicit")}
+    CAPTION = {"lat_pol": "the three Mexican-American arms pooled and the three Polish-American arms pooled",
+               "lat_f": "the three Mexican-American arms pooled and the formal baseline",
+               "pol_f": "the three Polish-American arms pooled and the formal baseline",
+               "lat_ei": "the explicit and the implicit Mexican-American arms",
+               "pol_ei": "the explicit and the implicit Polish-American arms"}
+    for k in ORDER5:
+        g = comp[(comp.comparison == k) & (comp["diff"].abs() >= 0.2)].sort_values("diff", ascending=False)
+        a_, b_ = GROUP_NAMES[k]
+        tl = [header(args.run, f"Comparison {k}"), "\\begin{table}[h!]", "\\centering\\footnotesize",
+              f"\\caption{{Axes whose mean score differs by at least 0.2 between {CAPTION[k]}. Kind: J = judge, M = measured. Every score is in $[0,1]$. $^{{*}}$: permutation test, Holm-adjusted across axes within the comparison, $p<0.05$.}}",
+              f"\\label{{tab:steering-cmp-{k.replace('_','-')}}}", "\\begin{tabular}{llrrr}", "\\toprule",
+              f"\\textbf{{axis}} & \\textbf{{kind}} & \\textbf{{{a_}}} & \\textbf{{{b_}}} & \\textbf{{difference}} \\\\", "\\midrule"]
+        for _, r in g.iterrows():
+            star = "$^{*}$" if r.p_holm < 0.05 else ""
+            dv = f"{r['diff']:+.2f}".replace("+", "$+$").replace("-", "$-$")
+            tl.append(f"{tex_escape(r.axis.replace('_', ' '))} & {kind_of.get(r.axis, 'M')} & {r.mean_a:.2f} & {r.mean_b:.2f} & {dv}{star} \\\\")
+        tl += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
+        (out / f"steering_cmp_{k}.tex").write_text("\n".join(tl))
     (out / "steering_rates.tex").write_text(comparison_longtable(comp, ordered(judge_ids), "tab:steering-rates",
         "Judge axes with a difference of at least 0.2 in one of the five group comparisons. " + expl, args.run))
     (out / "steering_service.tex").write_text(comparison_longtable(comp, ordered(script_ids), "tab:steering-service",
@@ -182,7 +204,7 @@ def main():
     ag = agree[~agree.axis.str.endswith("@r1")].set_index("axis")
     ag_ids = [k for k in ordered(judge_ids) if k.startswith("#") or k in ag.index]
     al = [header(args.run, "Judge agreement"), "\\begin{center}\\footnotesize", "\\begin{longtable}{@{}lrrrrr@{}}",
-          f"\\caption{{Judge agreement on the judge axes of \\autoref{{tab:steering-rates}}: Fleiss' $\\kappa$ and pairwise agreement across the three judges, and each judge's yes rate pooled over arms. Mean $\\kappa$ over these axes: {ag.loc[[k for k in judge_ids if k in ag.index]].fleiss_kappa.mean():.2f}; mean pairwise agreement: {ag.loc[[k for k in judge_ids if k in ag.index]].pairwise_agreement.mean():.2f}.}}\\label{{tab:steering-agreement}}\\\\",
+          f"\\caption{{Judge agreement on every judge axis that moves: Fleiss' $\\kappa$ and pairwise agreement across the three judges, and each judge's yes rate pooled over arms. Mean $\\kappa$ over these axes: {ag.loc[[k for k in judge_ids if k in ag.index]].fleiss_kappa.mean():.2f}; mean pairwise agreement: {ag.loc[[k for k in judge_ids if k in ag.index]].pairwise_agreement.mean():.2f}.}}\\label{{tab:steering-agreement}}\\\\",
           "\\toprule \\textbf{axis} & $\\kappa$ & \\textbf{agree} & \\textbf{Haiku 5.5} & \\textbf{GPT-5-nano} & \\textbf{Qwen 3.7 Flash} \\\\ \\midrule \\endfirsthead",
           "\\toprule \\textbf{axis} & $\\kappa$ & \\textbf{agree} & \\textbf{Haiku 5.5} & \\textbf{GPT-5-nano} & \\textbf{Qwen 3.7 Flash} \\\\ \\midrule \\endhead",
           "\\bottomrule \\endfoot"]
