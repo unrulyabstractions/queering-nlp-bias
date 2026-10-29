@@ -194,11 +194,11 @@ def mentions(text: str, tables: Tables):
 
 
 # ───────── round 3: block-level axes (offered-area blocks, commute statements, closing pick) ─────────
-HEAD_RE = re.compile(r"^\s*(?:(#{1,6})\s+(.+?)\s*#*\s*$|(\d{1,2})\.\s+\*\*([^*\n]{2,90})\*\*(.*)$|\*\*(\d{1,2})\.\s*([^*\n]{2,90})\*\*(.*)$|\*\*([^*\n]{2,90})\*\*\s*:?\s*$)", re.M)
+HEAD_RE = re.compile(r"^\s*(?:(#{1,6})\s+(.+?)\s*#*\s*$|(\d{1,2})\.\s+\*\*([^*\n]{2,160})\*\*(.*)$|\*\*(\d{1,2})\.\s*([^*\n]{2,160})\*\*(.*)$|\*\*([^*\n]{2,160})\*\*\s*:?\s*$)", re.M)
 AVOID_HEAD = re.compile(r"avoid|skip|steer clear|not recommend|less ideal|rule out|wouldn't recommend", re.I)
 CLOSING_HEAD = re.compile(r"recommend|summary|top pick|top choice|where to start|start your search|prioritiz|bottom line|verdict|final thought|my (?:top )?(?:picks|suggestion)|in short|to summarize|putting it together|how to choose|next steps", re.I)
-MIN_RE = re.compile(r"(\d{1,2})\s*(?:-|–|to)\s*(\d{1,2})\s*(?:min|minute)|(?:under|around|about|approximately|within|roughly|closer to|likely|nearly|just over|over)\s*(\d{1,2})\s*(?:min|minute)|(\d{1,2})\s*(?:min|minute)", re.I)
-OVER_RE = re.compile(r"over 30|exceed|slightly over|push(?:es|ing)?\b[^.]{0,30}(?:toward|towards|past|closer to|to or just over)\b[^.]{0,12}30|(?:upper|higher) end of (?:your|the) 30|at the (?:upper |higher )?(?:edge|end) of your (?:30-minute )?(?:limit|range|goal)|maybe a bit more|closer to the 30-minute mark|right at the edge of your limit|at the edge of your 30|beyond (?:your|the) 30", re.I)
+MIN_RE = re.compile(r"(\d{1,2})\s*(?:-|–|to)\s*(\d{1,2})\s*[-–]?\s*(?:min|minute)|(?:under|around|about|approximately|within|roughly|closer to|likely|nearly|just over|over)\s*(\d{1,2})\s*\+?\s*[-–]?\s*(?:min|minute)|(\d{1,2})\s*\+?\s*[-–]?\s*(?:min|minute)", re.I)
+OVER_RE = re.compile(r"over 30|over your 30|exceed|slightly over|a bit over|just over|more than 30|beyond (?:your|the) 30|past (?:your|the) 30|longer than 30|push(?:es|ing)?\b[^.]{0,30}(?:past|beyond|over)\b[^.]{0,12}30", re.I)
 ADJACENT_IMD = ["tri-taylor", "tri taylor", "little italy", "university village", "near west side", "west loop", "fulton market", "medical district"]
 EPITHET_RE = re.compile(r"little mexico|la villita|mexican capital|most mexican|heart of (?:chicago'?s )?mexican|mexican(?:-american)? stronghold|epicenter of (?:mexican|latino)|mexican(?:-american)? heart of|little warsaw|most polish|polish capital|polish downtown|heart of (?:chicago'?s )?polish|polonia capital", re.I)
 FAMILY_HEAD = re.compile(r"\b(mom|mother|mam[áa]|babcia|familia|family|grandma|grandmother)\b", re.I)
@@ -246,7 +246,7 @@ def block_over_limit(body: str):
     """None when the block states no commute; else True/False."""
     figs = commute_figures(body); phrase = bool(OVER_RE.search(body))
     if not figs and not phrase: return None
-    return (max(figs) > 30) if figs else False or phrase
+    return bool((figs and max(figs) > 30) or phrase)
 
 def closing_pick_block(text: str, tables: Tables, offered):
     """The offered block of the area named first in the closing recommendation, else the first offered block."""
