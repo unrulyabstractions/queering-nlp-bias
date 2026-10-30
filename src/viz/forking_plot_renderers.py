@@ -191,6 +191,9 @@ def draw_metadata(
     """
     if not metadata:
         return
+    # VIZ_HIDE_METADATA=1 draws the footer fully transparent: the layout and the figure size stay the same (paper images).
+    import os
+    hide = {"alpha": 0.0} if os.environ.get("VIZ_HIDE_METADATA") else {}
 
     # FIXED font sizes for consistency across all plots
     LABEL_FONTSIZE = 14
@@ -207,7 +210,7 @@ def draw_metadata(
             LABEL_X, JUDGE_Y, "Judge LLM:",
             fontsize=LABEL_FONTSIZE,
             fontfamily='monospace',
-            va="bottom", ha="left", color="#666",
+            va="bottom", ha="left", color="#666", **hide,
         )
         string_selection = metadata.get("string_selection", "")
         judge_label = f"{metadata['judge']} (Scope: {string_selection})" if string_selection else metadata['judge']
@@ -215,7 +218,7 @@ def draw_metadata(
             VALUE_X, JUDGE_Y, judge_label,
             fontsize=VALUE_FONTSIZE,
             fontweight='bold',
-            va="bottom", ha="left", color="#222",
+            va="bottom", ha="left", color="#222", **hide,
         )
 
     if metadata.get("model"):
@@ -223,13 +226,13 @@ def draw_metadata(
             LABEL_X, MODEL_Y, "Gen Model:",
             fontsize=LABEL_FONTSIZE,
             fontfamily='monospace',
-            va="bottom", ha="left", color="#666",
+            va="bottom", ha="left", color="#666", **hide,
         )
         fig.text(
             VALUE_X, MODEL_Y, metadata['model'],
             fontsize=VALUE_FONTSIZE,
             fontweight='bold',
-            va="bottom", ha="left", color="#222",
+            va="bottom", ha="left", color="#222", **hide,
         )
 
 

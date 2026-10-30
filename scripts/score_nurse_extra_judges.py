@@ -10,10 +10,12 @@ import argparse, asyncio, copy, datetime, json, os, sys, time
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.scoring.methods.categorical_method import build_categorical_cot_prompt, parse_categorical_response
+from src.common.text import strip_thinking_blocks
+TEXT_MODE = "prefill+generated"  # trajectories: arm prefill + generated text, as the pipeline's default NonThinkingContinuation; greedy: entry.text, as score_trajectories.py
 
 ROOT = Path(__file__).parent.parent / "out" / "nurse_sub"
 JUDGES = {
-    "haiku55": {"provider": "anthropic", "model": "claude-haiku-5-5", "label": "anthropic/claude-haiku-5-5"},
+    "haiku55": {"provider": "anthropic", "model": "claude-haiku-5-5", "label": "anthropic/claude-haiku-5-5", "max_tokens": 4096},  # its thinking can use up 1024 tokens before any text
     "qwen": {"provider": "openrouter", "model": "qwen/qwen3.7-flash", "label": "openrouter/qwen/qwen3.7-flash",
              "extra_body": {"reasoning": {"enabled": False}}},
     "deepseek": {"provider": "openrouter", "model": "deepseek/deepseek-v3.2", "label": "openrouter/deepseek/deepseek-v3.2",
@@ -23,7 +25,7 @@ MAX_TOKENS = 1024  # the original runs' categorical.max_tokens with use_cot
 
 async def ask(spec, client, prompt):
     if spec["provider"] == "anthropic":
-        r = await client.messages.create(model=spec["model"], max_tokens=MAX_TOKENS,  # this model takes no temperature
+        r = await client.messages.create(model=spec["model"], max_tokens=spec.get("max_tokens", MAX_TOKENS),  # this model takes no temperature
                                          messages=[{"role": "user", "content": prompt}])
         return "".join(b.text for b in r.content if b.type == "text"), (r.usage.input_tokens, r.usage.output_tokens)
     r = await client.chat.completions.create(model=spec["model"], max_tokens=MAX_TOKENS, temperature=0,
@@ -44,7 +46,10 @@ async def main():
     done = {}
     if calls_path.exists():
         for l in calls_path.open():
-            d = json.loads(l); done[(d["kind"], d["i"], d["q"])] = d
+            d = json.loads(l)
+            if d["kind"] == "traj" and base["results"][d["i"]]["arm"] != "root" and d.get("text_mode") != TEXT_MODE: continue
+            if d["verdict"] is None and not d.get("raw"): continue  # empty reply (token cap reached): ask again
+            done[(d["kind"], d["i"], d["q"])] = d
     tasks = [("traj", i, q) for i in range(len(base["results"])) for q in range(len(questions))]
     tasks += [("greedy", i, q) for i in range(len(greedy_base["arms"])) for q in range(len(questions))]
     todo = [t for t in tasks if t not in done]
@@ -52,7 +57,10 @@ async def main():
     sem = asyncio.Semaphore(a.concurrency); lock = asyncio.Lock(); t0 = time.time(); n = 0
     async def one(kind, i, q):
         nonlocal n
-        text = base["results"][i]["text"] if kind == "traj" else greedy_base["arms"][i]["text"]
+        if kind == "traj":
+            r = base["results"][i]; text = strip_thinking_blocks(base["arm_texts"][r["arm"]] + r["text"])
+        else:
+            text = greedy_base["arms"][i]["text"]
         prompt = build_categorical_cot_prompt(text, questions[q])
         async with sem:
             for attempt in range(6):
@@ -63,7 +71,7 @@ async def main():
                     await asyncio.sleep(wait)
             else:
                 print(f"  {kind}{i}/q{q}: FAILED", flush=True); return
-        rec = {"kind": kind, "i": i, "q": q, "raw": raw, "verdict": parse_categorical_response(raw), "usage": usage}
+        rec = {"kind": kind, "i": i, "q": q, "raw": raw, "verdict": parse_categorical_response(raw), "usage": usage, "text_mode": TEXT_MODE}
         async with lock:
             with calls_path.open("a") as f: f.write(json.dumps(rec, ensure_ascii=False) + "\n")
             done[(kind, i, q)] = rec; n += 1

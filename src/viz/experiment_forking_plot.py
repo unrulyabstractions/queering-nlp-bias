@@ -321,6 +321,8 @@ def plot_structure_forking(
     # Method label sits under the Judge / Gen Model info in the bottom-left
     # corner so it stays grouped with run-context text (instead of floating
     # in the top-left whitespace where it gets confused for content).
+    import os
+    hide = {"alpha": 0.0} if os.environ.get("VIZ_HIDE_METADATA") else {}
     if weighting_method:
         fig.text(
             0.015,
@@ -331,7 +333,7 @@ def plot_structure_forking(
             va="bottom",
             ha="left",
             color="#666",
-            zorder=200,
+            zorder=200, **hide,
         )
         fig.text(
             0.095,
@@ -342,7 +344,7 @@ def plot_structure_forking(
             va="bottom",
             ha="left",
             color="#222",
-            zorder=200,
+            zorder=200, **hide,
         )
 
     save_figure(fig, output_path)

@@ -12,7 +12,10 @@ from analyze import fleiss_kappa
 import plots  # palette and matplotlib style
 
 ROOT = Path(__file__).resolve().parent.parent / "out" / "nurse_sub"
-JUDGES = [("opus", "Opus 4.6"), ("gpt5", "GPT-5"), ("gemini", "Gemini 2.5 Flash")]
+ALL_JUDGES = {"opus": "Opus 4.6", "gpt5": "GPT-5", "gemini": "Gemini 2.5 Flash", "haiku55": "Haiku 5.5", "qwen": "Qwen 3.7 Flash", "deepseek": "DeepSeek V3.2"}
+SHORT = {"opus": "Opus", "gpt5": "GPT-5", "gemini": "Gemini", "haiku55": "Haiku", "qwen": "Qwen", "deepseek": "DeepSeek"}
+NUM = {2: "two", 3: "three", 4: "four", 5: "five", 6: "six"}
+JUDGES = [(k, ALL_JUDGES[k]) for k in ("opus", "gpt5", "gemini")]
 AXES = ["male nurse", "female nurse", "heterosexual couple", "same-sex couple"]
 ARMS = ["root", "trunk", "branch_1", "branch_2", "branch_3"]
 
@@ -40,24 +43,26 @@ def agreement(w, groups):
 def f2(v): return "--" if v is None or (isinstance(v, float) and np.isnan(v)) else f"{v:.2f}"
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("--tex", required=True); ap.add_argument("--img", required=True); a = ap.parse_args()
+    ap = argparse.ArgumentParser(); ap.add_argument("--tex", required=True); ap.add_argument("--img", required=True)
+    ap.add_argument("--judges", nargs="+", default=["opus", "gpt5", "gemini"]); a = ap.parse_args()
+    global JUDGES; JUDGES = [(k, ALL_JUDGES[k]) for k in a.judges]; nJ = len(JUDGES)
     tex, img = Path(a.tex), Path(a.img); tex.mkdir(parents=True, exist_ok=True)
     w = load()
     by_axis = agreement(w, ["axis"]); by_cell = agreement(w, ["axis", "arm"])
-    head = ("% Source: OLD/queering-nlp-bias/out/nurse_sub/{opus,gpt5,gemini}/scoring.json, per-judge 0/1 verdicts;\n"
+    head = ("% Source: OLD/queering-nlp-bias/out/nurse_sub/{" + ",".join(k for k, _ in JUDGES) + "}/scoring.json, per-judge 0/1 verdicts;\n"
             f"%         written by steering/judges_local.py on {datetime.date.today().isoformat()}. Generated, do not edit by hand.\n")
     L = [head, "\\begin{table}[h!]", "\\centering\\footnotesize",
-         "\\caption{Judge agreement in the local-bias study: Fleiss' $\\kappa$ and pairwise agreement across the three judges, and each judge's yes rate, per behavior axis and arm (200 stories per arm). $\\kappa$ is undefined where every judge gives the same answer to every trajectory.}",
-         "\\label{tab:judges-local-agreement}", "\\begin{tabular}{llrrrrr}", "\\toprule",
-         "\\textbf{behavior axis} & \\textbf{arm} & $\\kappa$ & \\textbf{agree} & \\textbf{Opus 4.6} & \\textbf{GPT-5} & \\textbf{Gemini 2.5 Flash} \\\\", "\\midrule"]
+         f"\\caption{{Judge agreement in the local-bias study: Fleiss' $\\kappa$ and pairwise agreement across the {NUM[nJ]} judges, and each judge's yes rate, per behavior axis and arm (200 stories per arm). $\\kappa$ is undefined where every judge gives the same answer to every trajectory." + (" Judges: " + ", ".join(f"{SHORT[k]} = {v}" for k, v in JUDGES) + "." if nJ > 3 else "") + "}",
+         "\\label{tab:judges-local-agreement}", "\\begin{tabular}{llrr" + "r" * nJ + "}", "\\toprule",
+         "\\textbf{behavior axis} & \\textbf{arm} & $\\kappa$ & \\textbf{agree} & " + " & ".join(f"\\textbf{{{SHORT[k] if nJ > 3 else v}}}" for k, v in JUDGES) + " \\\\", "\\midrule"]
     for ax in AXES:
         r = by_axis[by_axis.axis == ax].iloc[0]
-        L.append(f"\\textbf{{{ax}}} & all & {f2(r.kappa)} & {f2(r.agree)} & {f2(r.yes_opus)} & {f2(r.yes_gpt5)} & {f2(r.yes_gemini)} \\\\")
+        L.append(f"\\textbf{{{ax}}} & all & {f2(r.kappa)} & {f2(r.agree)} & " + " & ".join(f2(r[f"yes_{k}"]) for k, _ in JUDGES) + " \\\\")
         for arm in ARMS:
             g = by_cell[(by_cell.axis == ax) & (by_cell.arm == arm)]
             if not len(g): continue
             r = g.iloc[0]
-            L.append(f" & {arm.replace('_', '\\_')} & {f2(r.kappa)} & {f2(r.agree)} & {f2(r.yes_opus)} & {f2(r.yes_gpt5)} & {f2(r.yes_gemini)} \\\\")
+            L.append(f" & {arm.replace('_', '\\_')} & {f2(r.kappa)} & {f2(r.agree)} & " + " & ".join(f2(r[f"yes_{k}"]) for k, _ in JUDGES) + " \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
     (tex / "judges_local_agreement.tex").write_text("\n".join(L))
     # figure: one row per question and arm, kappa (circle) and pairwise agreement (square)
@@ -69,7 +74,7 @@ def main():
     ax.hlines(y, 0, np.nan_to_num(k), color=plots.GRID, lw=1)
     ax.plot(k, y, "o", ms=3.8, color="#2a78d6"); ax.plot(c.agree, y, "s", ms=3.2, color="#eb6834")
     ax.set_yticks(y); ax.set_yticklabels(c.label, fontsize=6.8)
-    ax.set_xlabel("Fleiss kappa (circles) and pairwise agreement (squares) across the three judges"); ax.set_xlim(-0.2, 1.02)
+    ax.set_xlabel(f"Fleiss kappa (circles) and pairwise agreement (squares) across the {NUM[nJ]} judges"); ax.set_xlim(-0.2, 1.02)
     ax.legend(handles=[plt.Line2D([], [], marker="o", color="#2a78d6", ls=""), plt.Line2D([], [], marker="s", color="#eb6834", ls="")],
               labels=["Fleiss kappa", "pairwise agreement"], loc="lower left", fontsize=7)
     fig.tight_layout(); fig.savefig(img / "judges-local-agreement.png"); fig.savefig(img / "judges-local-agreement.pdf"); plt.close(fig)
