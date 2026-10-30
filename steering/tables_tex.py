@@ -161,7 +161,7 @@ def main():
             ks = sorted([k for k in ids if fam.get(k) == f], key=lambda k: -float(gap.get(k, 0) or 0))
             if ks: out_ += ["#" + f] + ks
         return out_
-    comp = comparisons(HERE / "out" / args.run / "analysis"); keep = moving_axes(comp)
+    comp = comparisons(HERE / "out" / args.run / "analysis"); keep = moving_axes(comp, analysis_dir=HERE / "out" / args.run / "analysis")
     judge_ids = [a["id"] for a in JUDGE_AXES if a["id"] in set(summ.axis) and a["id"] in keep]
     script_ids = [a["id"] for a in AXES if a["kind"] == "script" and a["id"] in set(summ.axis) and a["id"] in keep]
     pct = {"hispanic_share_mean": "pct", "white_nh_share_mean": "pct", "black_nh_share_mean": "pct", "median_rent_mean": "pct"}
@@ -184,10 +184,10 @@ def main():
                "lat_ei": "the explicit and the implicit Mexican-American arms",
                "pol_ei": "the explicit and the implicit Polish-American arms"}
     for k in ORDER5:
-        g = comp[(comp.comparison == k) & (comp["diff"].abs() >= 0.2)].sort_values("diff", ascending=False)
+        g = comp[(comp.comparison == k) & (comp["diff"].abs() >= 0.2) & comp.axis.isin(keep)].sort_values("diff", ascending=False)
         a_, b_ = GROUP_NAMES[k]
         tl = [header(args.run, f"Comparison {k}"), "\\begin{table}[h!]", "\\centering\\footnotesize",
-              f"\\caption{{Axes whose mean score differs by at least 0.2 between {CAPTION[k]}. Kind: J = judge, M = measured. Every score is in $[0,1]$. $^{{*}}$: permutation test, Holm-adjusted across axes within the comparison, $p<0.05$.}}",
+              f"\\caption{{Axes whose mean score differs by at least 0.2 between {CAPTION[k]}. Kind: J = judge, M = measured; judge axes with Fleiss' $\\kappa < 0.5$ are left out. Every score is in $[0,1]$. $^{{*}}$: permutation test, Holm-adjusted across axes within the comparison, $p<0.05$.}}",
               f"\\label{{tab:steering-cmp-{k.replace('_','-')}}}", "\\begin{tabular}{llrrr}", "\\toprule",
               f"\\textbf{{axis}} & \\textbf{{kind}} & \\textbf{{{a_}}} & \\textbf{{{b_}}} & \\textbf{{difference}} \\\\", "\\midrule"]
         for _, r in g.iterrows():
@@ -201,10 +201,11 @@ def main():
     (out / "steering_service.tex").write_text(comparison_longtable(comp, ordered(script_ids), "tab:steering-service",
         "Measured axes with a difference of at least 0.2 in one of the five group comparisons. " + expl, args.run))
     # agreement over every judge axis
-    ag = agree[~agree.axis.str.endswith("@r1")].set_index("axis")
-    ag_ids = [k for k in ordered(judge_ids) if k.startswith("#") or k in ag.index]
+    ag = agree[~agree.axis.str.contains("@")].set_index("axis")
+    all_judge = [a["id"] for a in JUDGE_AXES if a["id"] in ag.index]
+    ag_ids = [k for k in ordered(all_judge) if k.startswith("#") or k in ag.index]
     al = [header(args.run, "Judge agreement"), "\\begin{center}\\footnotesize", "\\begin{longtable}{@{}lrrrrr@{}}",
-          f"\\caption{{Judge agreement on every judge axis that moves: Fleiss' $\\kappa$ and pairwise agreement across the three judges, and each judge's yes rate pooled over arms. Mean $\\kappa$ over these axes: {ag.loc[[k for k in judge_ids if k in ag.index]].fleiss_kappa.mean():.2f}; mean pairwise agreement: {ag.loc[[k for k in judge_ids if k in ag.index]].pairwise_agreement.mean():.2f}.}}\\label{{tab:steering-agreement}}\\\\",
+          f"\\caption{{Judge agreement on every judge axis: Fleiss' $\\kappa$ and pairwise agreement across the three judges, and each judge's yes rate pooled over arms. Axes with $\\kappa < 0.5$ (marked $^{{\\dagger}}$) are not used in the results. Mean $\\kappa$: {ag.loc[all_judge].fleiss_kappa.mean():.2f}; mean pairwise agreement: {ag.loc[all_judge].pairwise_agreement.mean():.2f}.}}\\label{{tab:steering-agreement}}\\\\",
           "\\toprule \\textbf{axis} & $\\kappa$ & \\textbf{agree} & \\textbf{Haiku 5.5} & \\textbf{Qwen 3.7 Flash} & \\textbf{DeepSeek V3.2} \\\\ \\midrule \\endfirsthead",
           "\\toprule \\textbf{axis} & $\\kappa$ & \\textbf{agree} & \\textbf{Haiku 5.5} & \\textbf{Qwen 3.7 Flash} & \\textbf{DeepSeek V3.2} \\\\ \\midrule \\endhead",
           "\\bottomrule \\endfoot"]
@@ -213,7 +214,8 @@ def main():
             al.append(f"\\multicolumn{{6}}{{@{{}}l}}{{\\textbf{{{tex_escape(ax[1:])}}}}} \\\\"); continue
         row = ag.loc[ax]
         f2 = lambda v: "--" if (v is None or (isinstance(v, float) and np.isnan(v))) else f"{v:.2f}"
-        al.append(f"{tex_escape(ax.replace('_',' '))} & {f2(row.fleiss_kappa)} & {f2(row.pairwise_agreement)} & {f2(row.get('yes_haiku55', float('nan')))} & {f2(row.get('yes_qwen', float('nan')))} & {f2(row.get('yes_deepseek', float('nan')))} \\\\")
+        dag = "$^{\\dagger}$" if (isinstance(row.fleiss_kappa, float) and (np.isnan(row.fleiss_kappa) or row.fleiss_kappa < 0.5)) else ""
+        al.append(f"{tex_escape(ax.replace('_',' '))}{dag} & {f2(row.fleiss_kappa)} & {f2(row.pairwise_agreement)} & {f2(row.get('yes_haiku55', float('nan')))} & {f2(row.get('yes_qwen', float('nan')))} & {f2(row.get('yes_deepseek', float('nan')))} \\\\")
     al += ["\\end{longtable}", "\\end{center}", ""]
     (out / "steering_agreement.tex").write_text("\n".join(al))
     # catalogue, with the largest difference between two arms and which arms

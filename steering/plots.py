@@ -265,7 +265,7 @@ def fig_comparisons(an, out, labels):
         bs = rng.choice(x, size=(1000, len(x)), replace=True).mean(axis=1)
         return x.mean(), np.percentile(bs, 2.5), np.percentile(bs, 97.5)
     for k, ((na, ga), (nb, gb)) in CMP_GROUPS.items():
-        g = comp[(comp.comparison == k) & (comp["diff"].abs() >= 0.2)].copy()
+        g = comp[(comp.comparison == k) & (comp["diff"].abs() >= 0.2) & comp.axis.isin(moving_axes(comp, analysis_dir=an))].copy()
         g["fam"] = g.axis.map(lambda a: fam.get(a, "steering"))
         g["fo"] = g.fam.map(lambda f: FAM_ORDER.index(f) if f in FAM_ORDER else 0)
         g = g.sort_values(["fo", "diff"], ascending=[True, False])
@@ -309,13 +309,15 @@ def fig_heatmap(summ, out, axes_ids, fname="steering-heatmap", labels=None):
     fig.tight_layout(); fig.savefig(out / f"{fname}.png"); fig.savefig(out / f"{fname}.pdf"); plt.close(fig)
 
 def fig_agreement(agree, out):
-    a = agree[agree.axis.isin(KEEP) & ~agree.axis.str.endswith("@r1")].sort_values("fleiss_kappa")
-    fig, ax = plt.subplots(figsize=(6.6, 0.13 * len(a) + 0.8))
+    a = agree[~agree.axis.str.contains("@")].dropna(subset=["fleiss_kappa"]).sort_values("fleiss_kappa")
+    fig, ax = plt.subplots(figsize=(6.6, 0.11 * len(a) + 0.9))
     y = np.arange(len(a))
     ax.hlines(y, 0, a.fleiss_kappa, color=GRID, lw=1); ax.plot(a.fleiss_kappa, y, "o", ms=3.5, color="#2a78d6")
     ax.plot(a.pairwise_agreement, y, "s", ms=3, color="#eb6834")
     ax.set_yticks(y); ax.set_yticklabels([AX_NAME.get(x, x) for x in a.axis], fontsize=6.5)
     ax.set_xlabel("Fleiss kappa (circles) and pairwise agreement (squares) across the three judges"); ax.set_xlim(-0.2, 1.02)
+    ax.axvline(0.5, color="#b5536b", lw=1.0, ls=(0, (4, 2)))
+    ax.text(0.505, len(a) - 0.6, "kappa = 0.5", color="#b5536b", fontsize=6.5, ha="left", va="top")
     ax.legend(handles=[plt.Line2D([], [], marker="o", color="#2a78d6", ls=""), plt.Line2D([], [], marker="s", color="#eb6834", ls="")],
               labels=["Fleiss kappa", "pairwise agreement"], loc="upper left", fontsize=7)
     fig.tight_layout(); fig.savefig(out / "steering-agreement.png"); fig.savefig(out / "steering-agreement.pdf"); plt.close(fig)
@@ -331,7 +333,7 @@ def main():
     ident = [c for c in piv.columns if c not in ("F", "D")]
     gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
     top = gap.sort_values(ascending=False).index.tolist()  # judge axes only: the heatmap and the twelve-panel grid are judge views
-    keep = moving_axes(comparisons(an))
+    keep = moving_axes(comparisons(an), analysis_dir=an)
     rows = [r for r in all_rows(summ) if r[0] in keep]
     fig_cores(summ, out, [], fname="steering-arms-all", rows=rows, row_h=0.105, label_size=5.2)
     fig_comparisons(an, out, {k: lab for k, lab, _ in all_rows(summ)})

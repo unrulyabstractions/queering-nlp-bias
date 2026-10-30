@@ -47,9 +47,9 @@ def main():
     head = ("% Source: OLD/queering-nlp-bias/out/nurse_sub/{opus,gpt5,gemini}/scoring.json, per-judge 0/1 verdicts;\n"
             f"%         written by steering/judges_local.py on {datetime.date.today().isoformat()}. Generated, do not edit by hand.\n")
     L = [head, "\\begin{table}[h!]", "\\centering\\footnotesize",
-         "\\caption{Judge agreement in the local-bias study: Fleiss' $\\kappa$ and pairwise agreement across the three judges, and each judge's yes rate, per structure question and arm (200 trajectories per arm). $\\kappa$ is undefined where every judge gives the same answer to every trajectory.}",
+         "\\caption{Judge agreement in the local-bias study: Fleiss' $\\kappa$ and pairwise agreement across the three judges, and each judge's yes rate, per behavior axis and arm (200 stories per arm). $\\kappa$ is undefined where every judge gives the same answer to every trajectory.}",
          "\\label{tab:judges-local-agreement}", "\\begin{tabular}{llrrrrr}", "\\toprule",
-         "\\textbf{question} & \\textbf{arm} & $\\kappa$ & \\textbf{agree} & \\textbf{Opus 4.6} & \\textbf{GPT-5} & \\textbf{Gemini 2.5 Flash} \\\\", "\\midrule"]
+         "\\textbf{behavior axis} & \\textbf{arm} & $\\kappa$ & \\textbf{agree} & \\textbf{Opus 4.6} & \\textbf{GPT-5} & \\textbf{Gemini 2.5 Flash} \\\\", "\\midrule"]
     for ax in AXES:
         r = by_axis[by_axis.axis == ax].iloc[0]
         L.append(f"\\textbf{{{ax}}} & all & {f2(r.kappa)} & {f2(r.agree)} & {f2(r.yes_opus)} & {f2(r.yes_gpt5)} & {f2(r.yes_gemini)} \\\\")

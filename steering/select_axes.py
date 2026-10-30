@@ -13,9 +13,23 @@ ORDER5 = ["lat_pol", "lat_f", "pol_f", "lat_ei", "pol_ei"]
 def comparisons(analysis_dir: Path) -> pd.DataFrame:
     return pd.read_csv(Path(analysis_dir) / "comparisons.csv")
 
-def moving_axes(comp: pd.DataFrame, threshold: float = THRESHOLD) -> set[str]:
+KAPPA_MIN = 0.5
+
+def reliable_axes(analysis_dir: Path, kappa_min: float = KAPPA_MIN) -> set[str] | None:
+    """Judge axes whose Fleiss kappa is below kappa_min are unreliable; returns the set of unreliable judge axes."""
+    p = Path(analysis_dir) / "agreement.csv"
+    if not p.exists(): return None
+    a = pd.read_csv(p); a = a[~a.axis.str.contains("@")]
+    return set(a.axis[a.fleiss_kappa.isna() | (a.fleiss_kappa < kappa_min)])
+
+def moving_axes(comp: pd.DataFrame, threshold: float = THRESHOLD, analysis_dir: Path | None = None) -> set[str]:
+    """Axes that differ by at least `threshold` in one of the five comparisons; judge axes must also reach KAPPA_MIN."""
     w = comp.pivot(index="axis", columns="comparison", values="diff")
-    return set(w.index[w.abs().max(axis=1) >= threshold])
+    keep = set(w.index[w.abs().max(axis=1) >= threshold])
+    if analysis_dir is not None:
+        bad = reliable_axes(analysis_dir)
+        if bad: keep -= bad
+    return keep
 
 def largest(comp: pd.DataFrame, axis: str):
     """(|difference|, comparison key) of the largest of the five comparisons for one axis, or (nan, None)."""
