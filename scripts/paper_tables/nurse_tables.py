@@ -77,8 +77,8 @@ def main():
     fem.sort(key=lambda i: (-(i["scores"][1] - i["scores"][0]), i["traj_idx"]))
     total = len(fem); fem = fem[: a.female]
     cap = (r"Trajectories from \texttt{branch\_1} (prefill \texttt{``his partner''}) where the ensemble nonetheless reads the nurse as female, "
-           rf"the {len(fem)} with the largest margin. The female-nurse default overrides the explicit male marker: bias stronger than markedness. "
-           rf"Each score column shows the judges' verdicts in order ({order}); \verdictyes\ = yes, \verdictno\ = no. Cell shading reflects the ensemble mean.")
+           + (rf"all {len(fem)} of them, ordered by margin. " if len(fem) == total else rf"the {len(fem)} with the largest margin. ") + rf"The female-nurse default overrides the explicit male marker: bias stronger than markedness. "
+           + rf"Each score column shows the judges' verdicts in order ({order}); \verdictyes\ = yes, \verdictno\ = no. Cell shading reflects the ensemble mean.")
     (PAPER / "female_in_his.tex").write_text("\n".join(head) + table("tab:bias-stronger-markedness", cap, [row(p, J, prefills.get("branch_1", "")) for p in fem], a.width))
     print(f"samples: {a.per_arm} per arm; female-in-his: {len(fem)} of {total} matches")
 

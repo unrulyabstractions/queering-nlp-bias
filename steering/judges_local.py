@@ -40,7 +40,7 @@ def agreement(w, groups):
                     **{f"yes_{k}": m[:, i].mean() for i, (k, _) in enumerate(JUDGES)}})
     return pd.DataFrame(out)
 
-def f2(v): return "--" if v is None or (isinstance(v, float) and np.isnan(v)) else f"{v:.2f}"
+def f2(v): return "--" if v is None or (isinstance(v, float) and np.isnan(v)) else f"{v:.2f}".replace("-0.00", "0.00")
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--tex", required=True); ap.add_argument("--img", required=True)

@@ -15,7 +15,7 @@ Usage: uv run python scripts/paper_tables/nurse_judge_tables.py --judges opus gp
            --ensemble all --out ~/work/papers/homo/appendix/generated
 """
 from __future__ import annotations
-import argparse, datetime, json, math
+import argparse, datetime, json, math, re
 from pathlib import Path
 import numpy as np
 
@@ -216,6 +216,7 @@ def main():
         t = t.replace("\\", "\\textbackslash{}")
         for a, b in [("&", "\\&"), ("%", "\\%"), ("$", "\\$"), ("#", "\\#"), ("_", "\\_"), ("{", "\\{"), ("}", "\\}"), ("~", "\\textasciitilde{}"), ("^", "\\textasciicircum{}")]:
             t = t.replace(a, b)
+        t = re.sub(r'"([^"\n]*)"', r"``\1''", t)  # TeX quotes for the story's straight double quotes
         return "\n\n".join(" ".join(par.split()) for par in t.strip().split("\n\n"))
     head = {"root": "\\textbf{Root} (no continuation prefix):", "trunk": "\\textbf{Trunk} (\\texttt{``At the altar, the nurse and''}):",
             "branch_1": "\\textbf{Branch\\_1} (\\texttt{``his partner''}):", "branch_2": "\\textbf{Branch\\_2} (\\texttt{``her partner''}):",

@@ -39,8 +39,14 @@ def main():
     lines = [y for y in range(m.shape[0]) if near[y] > 150]
     assert len(lines) == 2, lines
     y2 = 175 + (lines[1] - lines[0])
-    for name, (x, y) in {"mc_avg": (0, 175), "mc_greedy": (815, 175), "mc_mode": (0, y2), "mc_median": (815, y2)}.items():
-        p = m[y:y + 500, x:x + 815].copy()
+    # The two panel columns are separated only by the blank columns 842-843: crop at that gap so no panel carries a
+    # sliver of its neighbour, and pad the right panels to the same width so all four scale to the same height.
+    ink = (m[150:1290].astype(int).min(2) < 235).sum(0)
+    gap = next(x for x in range(760, 950) if ink[x] == 0)
+    W = gap
+    for name, (x, y) in {"mc_avg": (0, 175), "mc_greedy": (gap + 1, 175), "mc_mode": (0, y2), "mc_median": (gap + 1, y2)}.items():
+        p = m[y:y + 500, x:min(x + W, m.shape[1])].copy()
+        if p.shape[1] < W: p = np.concatenate([p, np.full((p.shape[0], W - p.shape[1], 3), 255, dtype=p.dtype)], axis=1)
         if x == 0: white(p, 0, 40, 60, 420)
         save(p, out, name)
     print("nurse images ->", out)
