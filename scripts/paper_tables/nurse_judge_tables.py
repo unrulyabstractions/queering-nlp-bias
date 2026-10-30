@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse, datetime, json, math, re
 from pathlib import Path
 import numpy as np
+from nurse_samples_lib import hu
 
 ROOT = Path(__file__).resolve().parents[2] / "out" / "nurse_sub"
 LABEL = {"opus": "Opus 4.6", "gpt5": "GPT-5", "gemini": "Gemini 2.5 Flash",
@@ -34,15 +35,9 @@ def header(srcs, what):
             f"% Written {datetime.date.today().isoformat()} by scripts/paper_tables/nurse_judge_tables.py. {what}. Generated, do not edit by hand.\n")
 
 def score_matrix(ens_dir):
-    """n x 4 ensemble scores per arm: the 200 sampled trajectories plus the greedy decode (None read as 0, as the estimator does)."""
-    sc = load(ens_dir / "scoring.json"); gr = load(ens_dir / "greedy.json")
-    out = {}
-    for k, arm in enumerate(ARMS):
-        rows = [[0.0 if v is None else float(v) for v in r["method_scores"]["categorical"]] for r in sc["results"] if r["arm"] == arm]
-        g = next(a for a in gr["arms"] if a["name"] == arm)
-        rows.append([0.0 if v is None else float(v) for v in g["structure_scores"]])
-        out[arm] = np.array(rows)
-    return out
+    """n x 4 ensemble scores per arm: the 200 sampled trajectories (None read as 0, as the estimator does)."""
+    sc = load(ens_dir / "scoring.json")
+    return {arm: np.array([[0.0 if v is None else float(v) for v in r["method_scores"]["categorical"]] for r in sc["results"] if r["arm"] == arm]) for arm in ARMS}
 
 def dev(B, c): return np.linalg.norm(B - c, axis=1) / math.sqrt(B.shape[1])
 
@@ -64,17 +59,17 @@ def main():
                                "deviance_var": round(float(dev(S[arm], core[arm]).var()), 6)}
     hi = {0: "malecolor", 1: "femalecolor", 2: "hetcolor", 3: "sscolor"}
     dmax, dmin = max(edev, key=edev.get), min(edev, key=edev.get); ssmax = max(ARMS, key=lambda r: core[r][3])
-    L = [header(f"out/nurse_sub/{a.ensemble}/{{scoring,greedy}}.json (ensemble of {jsrc}), n = 201 per arm", "Ensemble default behavior and expected deviance"),
+    L = [header(f"out/nurse_sub/{a.ensemble}/scoring.json (ensemble of {jsrc}), n = 200 sampled trajectories per arm", "Ensemble default behavior and expected deviance"),
          "\\begin{table}[hbt!]", "\\centering", "\\small",
-         "\\caption{Estimated system barycenters and expected deviance by arm ($n = 201$ per arm). Deviance is dimension-normalized (\\autoref{eq:deviance}).}",
+         "\\caption{Estimated system barycenters and expected deviance by arm ($n = 200$ per arm). Deviance is dimension-normalized (\\autoref{eq:deviance}).}",
          "\\label{tab:case-study-cores}", "{\\setlength{\\fboxsep}{1pt}%", "\\def\\hival#1#2{\\fcolorbox{#1}{white}{#2}}%",
          "\\begin{tabular}{lccccc}", "\\toprule",
          "\\textbf{Arm} & $\\mathbb{E}[\\xdev]$ & $\\alpha_{\\text{male}}$ & $\\alpha_{\\text{female}}$ & $\\alpha_{\\text{hetero}}$ & $\\alpha_{\\text{same-sex}}$ \\\\", "\\midrule"]
     for arm in ARMS:
-        d = f"{edev[arm]:.3f}"; d = f"\\textbf{{{d}}}" if arm in (dmax, dmin) else d
+        d = hu(edev[arm]); d = f"\\textbf{{{d}}}" if arm in (dmax, dmin) else d
         cells = []
         for i, v in enumerate(core[arm]):
-            c = f"{v:.3f}"
+            c = hu(v)
             if v >= 0.5: c = f"\\hival{{{hi[i]}}}{{{c}}}"
             elif i == 3 and arm == ssmax: c = f"\\textbf{{{c}}}"
             cells.append(c)
@@ -95,9 +90,9 @@ def main():
         for r, j in enumerate(J):
             c = JE[j][arm]["uniform"]["core"]
             first = esc(arm) if r == 0 else ("{\\scriptsize" + tag[arm] + "}" if r == 1 and arm in tag else "")
-            L.append(f"{first} & {LABEL[j]} & " + " & ".join(f"{v:.3f}" for v in c) + " \\\\")
+            L.append(f"{first} & {LABEL[j]} & " + " & ".join(hu(v) for v in c) + " \\\\")
             values["arms"][arm].setdefault("per_judge", {})[j] = [round(float(v), 6) for v in c]
-        L.append(" & \\textit{Ensemble} & " + " & ".join(f"{v:.3f}" for v in core[arm]) + " \\\\")
+        L.append(" & \\textit{Ensemble} & " + " & ".join(hu(v) for v in core[arm]) + " \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
     (out / "nurse" / "judge_calibration.tex").write_text("\n".join(L))
     # commitment: mean of min(v, 1 - v) over every arm's uniform core (lower = more committed)
@@ -166,7 +161,7 @@ def main():
         e = ens_sc[i]["method_scores"]["categorical"][q]
         txt = " ".join(ens_sc[i]["text"].split())[:230].rsplit(" ", 1)[0]
         L.append(f"{esc(ens_sc[i]['arm'])} \\#{i} & {AX[q]} & " + "\\,".join("--" if v is None else str(v) for v in vs)
-                 + f" $\\to$ {e:.2f} & {{\\scriptsize\\itshape {esc(txt)}\\ldots}} \\\\")
+                 + f" $\\to$ {hu(e, 2)} & {{\\scriptsize\\itshape {esc(txt)}\\ldots}} \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
     (out / "nurse" / "judge_splits.tex").write_text("\n".join(L))
 
@@ -183,19 +178,19 @@ def main():
         agree = top(u) == top(md) == top(mo); gre = top(u) == top(g)
         row = [np.abs(u - md).max(), np.abs(u - mo).max(), np.abs(u - g).max()]
         values["statistics"][arm] = {"median": md.tolist(), "mode": mo.tolist(), "greedy": g.tolist(), "gaps": [round(float(x), 4) for x in row]}
-        L.append(f"{esc(arm)} & " + " & ".join(f"{x:.2f}" for x in row) + f" & {'yes' if agree else 'no'} & {'yes' if gre else 'no'} \\\\")
+        L.append(f"{esc(arm)} & " + " & ".join(hu(x, 2) for x in row) + f" & {'yes' if agree else 'no'} & {'yes' if gre else 'no'} \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
     (out / "stats" / "default_statistics.tex").write_text("\n".join(L))
 
     # ---- xeno reweight
     betas = [0, 2, 4, 8, 16]
-    L = [header(f"out/nurse_sub/{a.ensemble}/scoring.json (ensemble judge scores, 200 sampled trajectories per arm) and out/nurse_sub/{a.ensemble}/greedy.json (the greedy trajectory per arm), n = 201 per arm", "Reorienting by reweighting"),
+    L = [header(f"out/nurse_sub/{a.ensemble}/scoring.json (ensemble judge scores, n = 200 sampled trajectories per arm)", "Reorienting by reweighting"),
          "% Method: P_beta(y|x_p) propto P_0(y|x_p) exp(beta * dev(y|x_p)), P_0 uniform over the n sampled trajectories, so every reoriented",
          "%   quantity is the self-normalized weighted mean with w_k = exp(beta dev_k) / sum_j exp(beta dev_j), dev_k = ||B(y_k) - <B>(x_p)||_2 / sqrt(dim B).",
          "%   zbar_i = weighted mean score on axis i; E[d], Var[d] = normalized deviance from the row's own reoriented default behavior, under P_beta;",
          "%   E[r] = weighted mean of dev_k (the stray reward); H, e^H = entropy of the normalized reoriented default behavior (nats); ESS/n = 1 / (n sum_k w_k^2).",
          "\\providecommand{\\zbar}{\\bar{z}}", "\\begin{table*}[hbt!]", "\\centering\\small",
-         "\\caption{Reorienting the nurse distribution by reweighting the sampled\ntrajectories ($n = 201$ per arm, no new generations). Each row is the\nreoriented distribution $P_{\\beta} \\propto P_0 e^{\\beta \\xdev}$ read off the\nsame sample. $\\beta = 0$ is the unintervened estimate and reproduces\n\\autoref{tab:case-study-cores}. $\\mathbb{E}[\\xdev]$ and\n$\\operatorname{Var}[\\xdev]$ are measured from each row's own reoriented default\nbehavior; $\\mathbb{E}[\\xenoreward_{\\chi}]$ is the stray reward, measured from\nthe unintervened default behavior. Deviance and the stray reward are on the\ndimension-normalized scale of \\autoref{eq:deviance}. ESS$/n$ is the fraction of the sample the\nreweighted estimate uses.}",
+         "\\caption{Reorienting the nurse distribution by reweighting the sampled\ntrajectories ($n = 200$ per arm, no new generations). Each row is the\nreoriented distribution $P_{\\beta} \\propto P_0 e^{\\beta \\xdev}$ read off the\nsame sample. $\\beta = 0$ is the unintervened estimate and reproduces\n\\autoref{tab:case-study-cores}. $\\mathbb{E}[\\xdev]$ and\n$\\operatorname{Var}[\\xdev]$ are measured from each row's own reoriented default\nbehavior; $\\mathbb{E}[\\xenoreward_{\\chi}]$ is the stray reward, measured from\nthe unintervened default behavior. Deviance and the stray reward are on the\ndimension-normalized scale of \\autoref{eq:deviance}. ESS$/n$ is the fraction of the sample the\nreweighted estimate uses.}",
          "\\label{tab:xeno-reweight}", "\\fitcol{%", "\\begin{tabular}{ll rrrr rrr rr r}", "\\toprule",
          "\\textbf{Arm} & $\\beta$ & $\\zbar_{\\text{male}}$ & $\\zbar_{\\text{female}}$ & $\\zbar_{\\text{hetero}}$ & $\\zbar_{\\text{same-sex}}$ & $\\mathbb{E}[\\xdev]$ & $\\operatorname{Var}[\\xdev]$ & $\\mathbb{E}[\\xenoreward_{\\chi}]$ & $H$ & $e^{H}$ & ESS$/n$ \\\\"]
     values["xeno"] = {}
@@ -206,7 +201,7 @@ def main():
             z = w @ B; d = dev(B, z); Ed = w @ d; Vd = w @ (d - Ed) ** 2; Er = w @ r
             p = z / z.sum(); H = -sum(x * math.log(x) for x in p if x > 0); ess = 1 / (nn * (w ** 2).sum())
             values["xeno"].setdefault(arm, {})[b] = [round(float(x), 6) for x in (*z, Ed, Vd, Er, H, math.exp(H), ess)]
-            L.append((f"{esc(arm)}" if bi == 0 else "") + f" & {b} & " + " & ".join(f"{x:.3f}" for x in (*z, Ed, Vd, Er, H, math.exp(H), ess)) + " \\\\")
+            L.append((f"{esc(arm)}" if bi == 0 else "") + f" & {b} & " + " & ".join(hu(x) for x in (*z, Ed, Vd, Er, H, math.exp(H), ess)) + " \\\\")
     L += ["\\bottomrule", "\\end{tabular}}", "\\end{table*}", ""]
     (out / "xeno" / "xeno_reweight.tex").write_text("\n".join(L))
 

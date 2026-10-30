@@ -88,6 +88,7 @@ def _compute_weighted_estimate(
     log_probs: list[float],
     n_tokens: list[int],
     ref_cores: dict[str, list[float] | None],
+    core_trajs: list[TrajectoryScoringData] | None = None,
 ) -> WeightedEstimate:
     """Compute estimate for one estimation method.
 
@@ -95,12 +96,16 @@ def _compute_weighted_estimate(
     (deviance, orientation). If the method registers an optional `core_fn`,
     the core is taken from it directly; otherwise the core is derived from
     the weights via `generalized_system_core(q=1, r=1)`.
+
+    `core_trajs` overrides the trajectories handed to `core_fn`: the `greedy`
+    method takes its core from the greedy decode while its spread metrics stay
+    over the samples in `trajs`.
     """
     params = get_default_params(method_name)
     weights = get_method(method_name)(log_probs, n_tokens, params)
     core_fn = get_core_fn(method_name)
     if core_fn is not None:
-        core = core_fn(trajs, params)
+        core = core_fn(core_trajs if core_trajs is not None else trajs, params)
     else:
         core = generalized_system_core(scores, weights, q=1.0, r=1.0)
 
@@ -154,11 +159,13 @@ def _compute_arm_estimate(
     if not trajs:
         raise ValueError(f"No trajectories for arm '{name}'")
 
-    scores = [t.structure_scores for t in trajs]
-    # Default to 0.0 for trajectories that don't carry an arm-conditional
-    # log prob (e.g. synthetic greedy entries injected from greedy.json).
-    log_probs = [t.conditional_logprobs.get(name, 0.0) for t in trajs]
-    n_tokens = [t.n_generated_tokens for t in trajs]
+    # A greedy decode is not a draw from the sampler, so every statistic of the
+    # distribution (mean, median, mode, deviance, ...) runs over the samples
+    # alone. The `greedy` method is the only one that reads the greedy decode.
+    samples = [t for t in trajs if not t.is_greedy] or trajs
+    scores = [t.structure_scores for t in samples]
+    log_probs = [t.conditional_logprobs.get(name, 0.0) for t in samples]
+    n_tokens = [t.n_generated_tokens for t in samples]
 
     # Compute estimates for all weighting methods. Methods that aren't
     # applicable to this arm's data (e.g. `greedy` with no greedy trajectory)
@@ -172,7 +179,8 @@ def _compute_arm_estimate(
         }
         try:
             estimates[method_name] = _compute_weighted_estimate(
-                method_name, trajs, scores, log_probs, n_tokens, method_refs
+                method_name, samples, scores, log_probs, n_tokens, method_refs,
+                core_trajs=trajs if method_name == "greedy" else None,
             )
         except MethodNotApplicableError:
             continue
@@ -185,7 +193,7 @@ def _compute_arm_estimate(
             orientation=list(orientation(t.structure_scores, prob_core)),
             deviance=float(deviance(t.structure_scores, prob_core, norm="l2")),
         )
-        for t in trajs
+        for t in samples
     ]
 
     return ArmEstimate(
@@ -208,7 +216,7 @@ def run_estimation_pipeline(
     data: ScoringData, judgment_file: str
 ) -> EstimationPipelineResult:
     """Run estimation pipeline on scored trajectories."""
-    by_arm = data.group_by_arm()
+    by_arm = data.group_by_arm(include_greedy=True)
     arm_names = data.arm_names or ["trunk"]
 
     arms: list[ArmEstimate] = []

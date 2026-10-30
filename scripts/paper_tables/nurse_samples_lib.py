@@ -22,13 +22,16 @@ import re
 import os
 from pathlib import Path
 
+def hu(x, nd=3):
+    """Round half up after clearing float noise, so one value prints the same in every table."""
+    from decimal import Decimal, ROUND_HALF_UP
+    return str(Decimal(repr(round(float(x), 5))).quantize(Decimal(1).scaleb(-nd), ROUND_HALF_UP))
+
+
 ROOT = Path("/Users/unrulyabstractions/work/OLD/queering-nlp-bias/out/nurse_sub/all")
 SCORING_JSON = ROOT / "scoring.json"
-# Per-arm default behaviors come from the same estimator file the main
-# paper's Table 1 (tab:case-study-cores) reads, so the caption values and
-# the table values agree to the last reported decimal. Deriving them from
-# scoring.json instead drops the greedy trajectory (n = 200 vs n = 201) and
-# shifts the third decimal.
+# Per-arm default behaviors come from the estimator file, which holds the means
+# of the 200 sampled trajectories.
 ESTIMATION_JSON = ROOT / "estimation.json"
 OUT = Path("/Users/unrulyabstractions/work/papers/homo/appendix/generated/extended_samples.tex")
 

@@ -469,10 +469,14 @@ class ScoringData(BaseSchema):
         self._continuation_tokens_cache = out  # type: ignore[attr-defined]
         return out
 
-    def group_by_arm(self) -> dict[str, list[TrajectoryScoringData]]:
-        """Group results by arm (trunk or branch), returning TrajectoryScoringData objects."""
+    def group_by_arm(self, include_greedy: bool = False) -> dict[str, list[TrajectoryScoringData]]:
+        """Group results by arm (trunk or branch), returning TrajectoryScoringData objects.
+
+        The greedy decode is not a sample, so it is left out unless `include_greedy` is set.
+        Only the estimation pipeline asks for it, for the `greedy` method's core.
+        """
         cont_tokens = self._load_continuation_tokens()
-        greedy_entries = self._load_greedy_entries()
+        greedy_entries = self._load_greedy_entries() if include_greedy else {}
 
         grouped: dict[str, list[TrajectoryScoringData]] = {}
         for result in self.results:

@@ -1,7 +1,7 @@
 """Write the paper's two local-bias sample tables (appendix/generated/extended_samples.tex and female_in_his.tex).
 
 Per-judge 0/1 verdicts are read from out/nurse_sub/<judge>/scoring.json; the ensemble score per cell is their mean;
-per-arm system barycenters come from out/nurse_sub/all/estimation.json (uniform estimator), as in Table C.3.
+per-arm system barycenters come from out/nurse_sub/all/estimation.json (uniform estimator, the mean of the 200 samples).
 Each table is trimmed to fit one page: --per-arm stratified samples per arm, --female top rows by female-minus-male margin.
 
 Usage: uv run python scripts/paper_tables/nurse_tables.py --judges opus gpt5 gemini haiku55 qwen deepseek [--per-arm 4] [--female 5] [--width 7.5cm]
@@ -10,7 +10,7 @@ from __future__ import annotations
 import argparse, json, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from nurse_samples_lib import bold_keywords, cell_color, cell_verdict, cleanup, latex_escape, stratified_pick
+from nurse_samples_lib import bold_keywords, cell_color, cell_verdict, cleanup, hu, latex_escape, stratified_pick
 
 ROOT = Path(__file__).resolve().parents[2] / "out" / "nurse_sub"
 PAPER = Path("/Users/unrulyabstractions/work/papers/homo/appendix/generated")
@@ -38,7 +38,8 @@ def load(judges):
 
 def row(it, judges, prefill):
     cont = bold_keywords(latex_escape(cleanup(it["text"])))
-    text = (rf"\textcolor{{black!55}}{{{bold_keywords(latex_escape(prefill))}}} " + cont) if prefill else cont
+    sep = "" if it["text"][:1] in ",.;:!?" else " "  # a continuation that opens with punctuation attaches to the prefill
+    text = (rf"\textcolor{{black!55}}{{{bold_keywords(latex_escape(prefill))}}}{sep}" + cont) if prefill else cont
     comment = f"% Source: <judge>/scoring.json results[arm={it['arm']}, traj_idx={it['traj_idx']}]; per-judge (male,female,hetero,same-sex): " + \
               ", ".join(f"{j}={','.join('NA' if v is None else str(v) for v in it['per_judge'][j])}" for j in judges)
     cells = [rf"\scriptsize\texttt{{{it['traj_idx']:03d}}}", rf"\scriptsize\itshape {text}"]
@@ -67,7 +68,7 @@ def main():
     parts = list(head)
     for arm in ARMS:
         picks = stratified_pick([i for i in items if i["arm"] == arm], a.per_arm)
-        core = " / ".join(f"{c:.3f}" for c in est[arm])
+        core = " / ".join(hu(c) for c in est[arm])
         cap = (rf"Generation samples for {TITLES[arm]}. System barycenter (\textit{{male / female / hetero / same-sex}}): {core}. "
                rf"Each score column shows the judges' verdicts in order ({order}); \verdictyes\ = yes, \verdictno\ = no. "
                r"Cell shading reflects the ensemble mean. In the trajectory column, character names, gendered pronouns, and role words are bolded.")
