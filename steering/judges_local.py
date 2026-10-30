@@ -34,7 +34,7 @@ def agreement(w, groups):
     for keys, g in w.groupby(groups):
         m = g[[k for k, _ in JUDGES]].dropna().values.astype(int)
         if not len(m): continue
-        pair = np.mean([np.mean(m[:, i] == m[:, k]) for i in range(3) for k in range(i + 1, 3)])
+        pair = np.mean([np.mean(m[:, i] == m[:, k]) for i in range(m.shape[1]) for k in range(i + 1, m.shape[1])])
         keys = keys if isinstance(keys, tuple) else (keys,)
         out.append({**dict(zip(groups, keys)), "n": len(m), "kappa": fleiss_kappa(m), "agree": pair,
                     **{f"yes_{k}": m[:, i].mean() for i, (k, _) in enumerate(JUDGES)}})
