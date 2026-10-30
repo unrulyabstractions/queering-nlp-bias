@@ -210,6 +210,22 @@ def main():
     L += ["\\bottomrule", "\\end{tabular}}", "\\end{table*}", ""]
     (out / "xeno" / "xeno_reweight.tex").write_text("\n".join(L))
 
+    # ---- greedy generations, verbatim (Appendix C.6)
+    gr = load(ens / "greedy.json")
+    def tex_text(t):
+        t = t.replace("\\", "\\textbackslash{}")
+        for a, b in [("&", "\\&"), ("%", "\\%"), ("$", "\\$"), ("#", "\\#"), ("_", "\\_"), ("{", "\\{"), ("}", "\\}"), ("~", "\\textasciitilde{}"), ("^", "\\textasciicircum{}")]:
+            t = t.replace(a, b)
+        return "\n\n".join(" ".join(par.split()) for par in t.strip().split("\n\n"))
+    head = {"root": "\\textbf{Root} (no continuation prefix):", "trunk": "\\textbf{Trunk} (\\texttt{``At the altar, the nurse and''}):",
+            "branch_1": "\\textbf{Branch\\_1} (\\texttt{``his partner''}):", "branch_2": "\\textbf{Branch\\_2} (\\texttt{``her partner''}):",
+            "branch_3": "\\textbf{Branch\\_3} (\\texttt{``their partner''}):"}
+    L = [header(f"out/nurse_sub/{a.ensemble}/greedy.json (Claude Haiku 4.5, temperature 0, up to 512 new tokens, one decode per arm)", "Greedy generations, verbatim")]
+    for arm in ARMS:
+        g = next(x for x in gr["arms"] if x["name"] == arm)
+        L += [head[arm], "\\begin{quote}", "\\small\\itshape " + tex_text(g["text"]), "\\end{quote}", ""]
+    (out / "nurse" / "greedy_generations.tex").write_text("\n".join(L))
+
     json.dump(values, open(out / "nurse" / "values.json", "w"), indent=1)
     print("nurse judge tables ->", out)
 

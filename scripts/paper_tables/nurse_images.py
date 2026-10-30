@@ -33,7 +33,13 @@ def main():
         white(e, 0, e.shape[1], 0, 46); white(e, 0, 2230, e.shape[0] - 170, e.shape[0])  # the footer text ends before the branch boxes at x = 2239
         save(e, out, f"evolution_{arm}")
     m = np.array(Image.open(viz / "method_comparison.png").convert("RGB"))
-    for name, (x, y) in {"mc_avg": (0, 175), "mc_greedy": (815, 175), "mc_mode": (0, 755), "mc_median": (815, 755)}.items():
+    # Crop both rows at the same height relative to their dashed 0.5 line, so the two rows show the same y-range
+    # (the bottom row used to be cut 35 px too low, clipping the "1.00" labels).
+    near = (np.abs(m[:, 90:800].astype(int) - 204).sum(2) < 12).sum(1)
+    lines = [y for y in range(m.shape[0]) if near[y] > 150]
+    assert len(lines) == 2, lines
+    y2 = 175 + (lines[1] - lines[0])
+    for name, (x, y) in {"mc_avg": (0, 175), "mc_greedy": (815, 175), "mc_mode": (0, y2), "mc_median": (815, y2)}.items():
         p = m[y:y + 500, x:x + 815].copy()
         if x == 0: white(p, 0, 40, 60, 420)
         save(p, out, name)
