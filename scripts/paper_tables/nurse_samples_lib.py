@@ -242,6 +242,9 @@ def build_arm_table(arm, items, core, prefill):
 
 
 def main():
+    # The original judges (opus, gpt5, gemini) store their reply texts in the fixed order q3, q2, q0, q1, so parsing
+    # replies by slot (below) mis-slots their verdicts. Use scripts/paper_tables/nurse_tables.py, which reads method_scores.
+    raise SystemExit("nurse_samples_lib.main() is retired: run scripts/paper_tables/nurse_tables.py instead")
     with open(SCORING_JSON) as f:
         data = json.load(f)
 

@@ -28,7 +28,7 @@ async def ask(spec, client, prompt):
         r = await client.messages.create(model=spec["model"], max_tokens=spec.get("max_tokens", MAX_TOKENS),  # this model takes no temperature
                                          messages=[{"role": "user", "content": prompt}])
         return "".join(b.text for b in r.content if b.type == "text"), (r.usage.input_tokens, r.usage.output_tokens)
-    r = await client.chat.completions.create(model=spec["model"], max_tokens=MAX_TOKENS, temperature=0,
+    r = await client.chat.completions.create(model=spec["model"], max_tokens=spec.get("max_tokens", MAX_TOKENS), temperature=0,
                                              messages=[{"role": "user", "content": prompt}], extra_body=spec.get("extra_body"))
     u = r.usage
     return (r.choices[0].message.content or ""), (getattr(u, "prompt_tokens", 0), getattr(u, "completion_tokens", 0))
