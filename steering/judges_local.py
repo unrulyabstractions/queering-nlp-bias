@@ -1,6 +1,6 @@
 """Judge agreement for the local-bias (nurse love story) study, in the same form as the global study's agreement table and figure.
 
-Reads out/nurse_sub/{opus,gpt5,gemini}/scoring.json (per-judge 0/1 verdicts per trajectory, arm and structure question).
+Reads out/nurse_sub/{opus,gpt5,gemini,haiku55,qwen,deepseek}/scoring.json (per-judge 0/1 verdicts per trajectory, arm and structure question).
 Usage: uv run python steering/judges_local.py --tex <paper>/appendix/generated/judges --img <paper>/images
 """
 from __future__ import annotations
@@ -44,7 +44,7 @@ def f2(v): return "--" if v is None or (isinstance(v, float) and np.isnan(v)) el
 
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--tex", required=True); ap.add_argument("--img", required=True)
-    ap.add_argument("--judges", nargs="+", default=["opus", "gpt5", "gemini"]); a = ap.parse_args()
+    ap.add_argument("--judges", nargs="+", default=["opus", "gpt5", "gemini", "haiku55", "qwen", "deepseek"]); a = ap.parse_args()
     global JUDGES; JUDGES = [(k, ALL_JUDGES[k]) for k in a.judges]; nJ = len(JUDGES)
     tex, img = Path(a.tex), Path(a.img); tex.mkdir(parents=True, exist_ok=True)
     w = load()

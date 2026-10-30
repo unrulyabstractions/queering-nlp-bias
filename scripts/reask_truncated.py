@@ -23,7 +23,7 @@ from src.common.text import strip_thinking_blocks
 import score_nurse_extra_judges as X
 
 ROOT = Path(__file__).parent.parent / "out" / "nurse_sub"
-TAG = re.compile(r"answer\s*:\s*\**\s*(0|1|yes|no)\b", re.I)
+TAG = re.compile(r"ANSWER\s*:\s*\**\s*[01]\b")  # the strict final line the prompt asks for; mid-reasoning "Answer: YES" does not count
 ORIGINAL = {"opus": "anthropic/opus", "gpt5": "openai/gpt-5", "gemini": "gemini/gemini-2.5-flash"}
 PERM = [3, 2, 0, 1]  # original judges: raw slot k holds the reply to question PERM[k]
 CAPS = [4096, 8192, 16384]

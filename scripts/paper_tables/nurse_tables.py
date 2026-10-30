@@ -4,7 +4,7 @@ Per-judge 0/1 verdicts are read from out/nurse_sub/<judge>/scoring.json; the ens
 per-arm system barycenters come from out/nurse_sub/all/estimation.json (uniform estimator), as in Table C.3.
 Each table is trimmed to fit one page: --per-arm stratified samples per arm, --female top rows by female-minus-male margin.
 
-Usage: uv run python scripts/paper_tables/nurse_tables.py --judges opus gpt5 gemini [--per-arm 4] [--female 5]
+Usage: uv run python scripts/paper_tables/nurse_tables.py --judges opus gpt5 gemini haiku55 qwen deepseek [--per-arm 4] [--female 5] [--width 7.5cm]
 """
 from __future__ import annotations
 import argparse, json, sys
@@ -16,8 +16,8 @@ ROOT = Path(__file__).resolve().parents[2] / "out" / "nurse_sub"
 PAPER = Path("/Users/unrulyabstractions/work/papers/homo/appendix/generated")
 ARMS = ["root", "trunk", "branch_1", "branch_2", "branch_3"]
 TITLES = {"root": r"\texttt{root}: prompt only", "trunk": r"\texttt{trunk}: prompt + ``At the altar, the nurse and''",
-          "branch_1": r"\texttt{branch\_1}: prompt + trunk + `` his partner''", "branch_2": r"\texttt{branch\_2}: prompt + trunk + `` her partner''",
-          "branch_3": r"\texttt{branch\_3}: prompt + trunk + `` their partner''"}
+          "branch_1": r"\texttt{branch\_1}: prompt + trunk + ``his partner''", "branch_2": r"\texttt{branch\_2}: prompt + trunk + ``her partner''",
+          "branch_3": r"\texttt{branch\_3}: prompt + trunk + ``their partner''"}
 NAMES = {"opus": "Opus 4.6", "gpt5": "GPT-5", "gemini": "Gemini 2.5 Flash", "haiku55": "Haiku 5.5", "qwen": "Qwen 3.7 Flash", "deepseek": "DeepSeek V3.2"}
 HEAD = r"\textbf{Idx} & \textbf{Trajectory} & $\alpha_{\text{male}}$ & $\alpha_{\text{female}}$ & $\alpha_{\text{hetero}}$ & $\alpha_{\text{same-sex}}$ \\"
 
