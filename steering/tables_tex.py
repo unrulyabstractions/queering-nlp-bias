@@ -141,6 +141,9 @@ def main():
     an = HERE / "out" / args.run / ANALYSIS_DIR; out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     summ = pd.read_csv(an / "summary.csv"); contr = pd.read_csv(an / "contrasts.csv"); agree = pd.read_csv(an / "agreement.csv")
     meta = json.load((an / "summary.json").open())
+    from plots import all_rows
+    LAB = {k: lab for k, lab, _ in all_rows(summ)}
+    lab = lambda k: LAB.get(k, k.replace("_", " "))
     resp = [json.loads(l) for l in (HERE / "out" / args.run / "responses.jsonl").open() if l.strip()]
     resp = [r for r in resp if r["arm"] in ORDER]
     n_per_arm = pd.Series([r["arm"] for r in resp]).value_counts().min()
@@ -213,7 +216,7 @@ def main():
         for _, r in g.iterrows():
             star = "$^{*}$" if r.p_holm < 0.05 else ""
             dv = f"{r['diff']:+.2f}".replace("+", "$+$").replace("-", "$-$")
-            tl.append(f"{tex_escape(r.axis.replace('_', ' '))} & {kind_of.get(r.axis, 'M')} & {r.mean_a:.2f} & {r.mean_b:.2f} & {dv}{star} \\\\")
+            tl.append(f"{tex_escape(lab(r.axis))} & {kind_of.get(r.axis, 'M')} & {r.mean_a:.2f} & {r.mean_b:.2f} & {dv}{star} \\\\")
         tl += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
         (out / f"steering_cmp_{k}.tex").write_text("\n".join(tl))
     (out / "steering_rates.tex").write_text(comparison_longtable(comp, ordered(judge_ids), "tab:steering-rates",
@@ -235,7 +238,7 @@ def main():
         row = ag.loc[ax]
         f2 = lambda v: "--" if (v is None or (isinstance(v, float) and np.isnan(v))) else f"{v:.2f}"
         dag = "$^{\\dagger}$" if (isinstance(row.fleiss_kappa, float) and (np.isnan(row.fleiss_kappa) or row.fleiss_kappa < 0.5)) else ""
-        al.append(f"{tex_escape(ax.replace('_',' '))}{dag} & {f2(row.fleiss_kappa)} & {f2(row.pairwise_agreement)} & {f2(row.get('yes_haiku55', float('nan')))} & {f2(row.get('yes_qwen', float('nan')))} & {f2(row.get('yes_deepseek', float('nan')))} \\\\")
+        al.append(f"{tex_escape(lab(ax))}{dag} & {f2(row.fleiss_kappa)} & {f2(row.pairwise_agreement)} & {f2(row.get('yes_haiku55', float('nan')))} & {f2(row.get('yes_qwen', float('nan')))} & {f2(row.get('yes_deepseek', float('nan')))} \\\\")
     al += ["\\end{longtable}", "\\end{center}", ""]
     (out / "steering_agreement.tex").write_text("\n".join(al))
     # catalogue, with the largest difference between two arms and which arms
@@ -253,7 +256,7 @@ def main():
         cl.append(f"\\multicolumn{{5}}{{@{{}}l}}{{\\textbf{{{tex_escape(fam)}}}}} \\\\")
         for a in [x for x in AXES if x["family"] == fam and x["id"] not in POLISH_ONLY]:
             d, arms = maxdiff(a["id"])
-            cl.append(f"{tex_escape(a['id'].replace('_',' '))} & {'J' if a['kind']=='judge' else 'M'} & {tex_escape(scrub(a['q']))} & {d} & {arms} \\\\")
+            cl.append(f"{tex_escape(lab(a['id']))} & {'J' if a['kind']=='judge' else 'M'} & {tex_escape(scrub(a['q']))} & {d} & {arms} \\\\")
     cl += ["\\end{longtable}", "\\end{center}", ""]
     (out / "steering_axes_catalogue.tex").write_text("\n".join(cl))
     print("tables ->", out)

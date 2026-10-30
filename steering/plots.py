@@ -313,7 +313,7 @@ def fig_heatmap(summ, out, axes_ids, fname="steering-heatmap", labels=None):
         for j in range(len(ORDER)):
             v = piv.values[i, j]
             if not np.isnan(v): ax.text(j, i, f"{v:.2f}", ha="center", va="center", fontsize=4.6, color=("white" if v > 0.6 else INK))
-    cb = fig.colorbar(im, ax=ax, fraction=0.02, pad=0.01); cb.set_label("yes rate", fontsize=7); cb.ax.tick_params(labelsize=6)
+    cb = fig.colorbar(im, ax=ax, fraction=0.02, pad=0.01); cb.set_label("mean score", fontsize=7); cb.ax.tick_params(labelsize=6)
     fig.tight_layout(); fig.savefig(out / f"{fname}.png"); fig.savefig(out / f"{fname}.pdf"); plt.close(fig)
 
 def fig_agreement(agree, out):
