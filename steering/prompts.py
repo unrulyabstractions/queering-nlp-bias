@@ -57,6 +57,11 @@ USER_L2_TOKENS = {
 HOME_CITY = {"latino": "San Antonio", "polish": "Buffalo", "none": None}
 
 ORDER = ["F", "D", "EL", "IL", "HL", "EP", "IP", "HP"]
+# STEERING_ARMS="F,EL,IL" restricts every analysis, figure and table to a subset of arms (written to analysis_<subset>/).
+import os as _os
+SUBSET = [a for a in _os.environ.get("STEERING_ARMS", "").split(",") if a]
+if SUBSET: ORDER = [a for a in ORDER if a in SUBSET]
+ANALYSIS_DIR = "analysis" + ("_" + "-".join(ORDER) if SUBSET else "")
 
 if __name__ == "__main__":
     for k in ORDER:

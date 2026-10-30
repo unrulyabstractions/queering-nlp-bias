@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np, pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from axes import AXES, JUDGE_AXES, SCRIPT_AXES
-from prompts import ORDER, ARMS
+from prompts import ORDER, ARMS, ANALYSIS_DIR
 
 HERE = Path(__file__).resolve().parent
 RNG = np.random.default_rng(20261029)
@@ -234,6 +234,8 @@ def group_comparisons(df, n_perm):
     rows = []
     for ax in axes_:
         for key, label, ga, gb in COMPARISONS:
+            ga = [x for x in ga if x in ORDER]; gb = [x for x in gb if x in ORDER]
+            if not ga or not gb or (key.endswith("_ei") and len(ga) + len(gb) < 2): continue
             a = df.loc[df.arm.isin(ga), ax].astype(float).dropna().values
             b = df.loc[df.arm.isin(gb), ax].astype(float).dropna().values
             if len(a) < 2 or len(b) < 2:
@@ -251,8 +253,9 @@ def group_comparisons(df, n_perm):
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--run", required=True); ap.add_argument("--perms", type=int, default=3000)
     args = ap.parse_args()
-    run_dir = HERE / "out" / args.run; out = run_dir / "analysis"; out.mkdir(exist_ok=True)
+    run_dir = HERE / "out" / args.run; out = run_dir / ANALYSIS_DIR; out.mkdir(exist_ok=True)
     resp, judg, judges, script = load(run_dir)
+    resp = {k: v for k, v in resp.items() if v["arm"] in ORDER}
     df = build_table(resp, judg, judges, script)
     arm_stats = arm_level(df)
     summ, contr, agree = summarize(df, judges, args.perms)

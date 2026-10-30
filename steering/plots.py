@@ -15,7 +15,10 @@ from matplotlib.colors import LinearSegmentedColormap
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from axes import AXES, JUDGE_AXES
 from select_axes import moving_axes, comparisons
-from prompts import ORDER, ARMS
+from prompts import ORDER, ARMS, ANALYSIS_DIR
+_POL = bool({'EP', 'IP', 'HP'} & set(ORDER))
+L2_GREET = 'Spanish or Polish greeting' if _POL else 'Spanish greeting'
+L2_SWITCH = 'reply in Spanish or Polish' if _POL else 'reply in Spanish'
 
 HERE = Path(__file__).resolve().parent
 COL = {"none": "#1baf7a", "latino": "#2a78d6", "polish": "#eb6834"}
@@ -62,7 +65,7 @@ def fig_shares(summ, out):
     bars(axs[0, 2], summ, "black_nh_share_mean", fmt="{:.0f}", title="Black non-Hispanic share", label_size=5.5)
     bars(axs[1, 0], summ, "enclave_offered_latino_list", ylabel="share of responses", fmt=short, ylim=(0, 1.18), title="majority-Hispanic area offered", label_size=5.5)
     bars(axs[1, 1], summ, "enclave_offered_polish_list", fmt=short, ylim=(0, 1.18), title="Polish-heritage area offered", label_size=5.5)
-    bars(axs[1, 2], summ, "l2_greeting_signoff", fmt=short, ylim=(0, 1.18), title="Spanish or Polish greeting", label_size=5.5)
+    bars(axs[1, 2], summ, "l2_greeting_signoff", fmt=short, ylim=(0, 1.18), title=L2_GREET, label_size=5.5)
     top = max(ax.get_ylim()[1] for ax in axs[0]);
     for ax in axs[0]: ax.set_ylim(0, top)
     for ax in axs.flat: group_brackets(ax, short=True)
@@ -123,7 +126,7 @@ KEEP = set()
 FAM_ORDER = ["steering", "identity", "constraints", "preferences", "service", "form"]
 CORE_SCRIPT = [("enclave_offered_latino_list", "majority-Hispanic area offered"), ("enclave_offered_polish_list", "Polish-heritage area offered"),
                ("commute_fail_share", "offered areas beyond commute limit"), ("over_limit_share", "offered areas the reply puts over 30 min"),
-               ("adjacent_to_imd_offered", "walk-to-work area offered"), ("l2_greeting_signoff", "Spanish or Polish greeting")]
+               ("adjacent_to_imd_offered", "walk-to-work area offered"), ("l2_greeting_signoff", L2_GREET)]
 
 UNIT_SCRIPT = ["enclave_offered_latino_list", "enclave_offered_polish_list", "westside_black_area_named", "l2_greeting_signoff", "full_switch",
                "congrats_opener", "identity_in_opening", "top_pick_over_limit", "adjacent_to_imd_offered", "enclave_epithet", "commute_fail_share",
@@ -138,7 +141,7 @@ def headline_rows(summ, n=24):
     ident = [c for c in piv.columns if c not in ("F", "D")]
     gap = pd.concat([(piv[ident].max(axis=1) - piv["F"]).abs(), (piv[ident].min(axis=1) - piv["F"]).abs()], axis=1).max(axis=1)
     top = gap.sort_values(ascending=False).index.tolist()[:n]
-    label = dict(CORE_SCRIPT); label.update({"westside_black_area_named": "majority-Black West Side area offered", "full_switch": "reply in Spanish or Polish",
+    label = dict(CORE_SCRIPT); label.update({"westside_black_area_named": "majority-Black West Side area offered", "full_switch": L2_SWITCH,
                                             "congrats_opener": "opens with congratulations", "identity_in_opening": "ethnicity named in the opening",
                                             "top_pick_over_limit": "closing pick over the commute limit", "enclave_epithet": "ethnic nickname for the enclave",
                                             "offrail_share": "offered areas without rail", "rent_over_budget_share": "offered areas over budget",
@@ -153,7 +156,7 @@ def all_rows(summ):
     """Every judge axis and every script axis that lives in [0,1], as (id, label, family) rows: families in FAM_ORDER,
     within a family by the largest gap from the baseline, so the eye meets the moving axes first."""
     fam = {a["id"]: a["family"] for a in AXES}
-    label = dict(CORE_SCRIPT); label.update({"westside_black_area_named": "majority-Black West Side area offered", "full_switch": "reply in Spanish or Polish",
+    label = dict(CORE_SCRIPT); label.update({"westside_black_area_named": "majority-Black West Side area offered", "full_switch": L2_SWITCH,
                                             "congrats_opener": "opens with congratulations", "identity_in_opening": "ethnicity named in the opening",
                                             "top_pick_over_limit": "closing pick over the commute limit", "enclave_epithet": "ethnic nickname for the enclave",
                                             "offrail_share": "offered areas without rail", "rent_over_budget_share": "offered areas over budget",
@@ -233,7 +236,11 @@ def fig_cores(summ, out, judge_ids, fname="steering-cores", rows=None, row_h=0.1
     axs[0].set_yticks(y); axs[0].set_yticklabels([lab for _, lab, _ in rows], fontsize=label_size)
     fig.tight_layout(rect=(0, 0.05, 1, 0.93)); fig.subplots_adjust(wspace=0.18)
     # group labels above the panels, in figure coordinates
-    spans = {"baseline": (0, 1), "Latino": (2, 4), "Polish-American": (5, 7)}
+    grp = {"F": "baseline", "D": "baseline", "EL": "Mexican-American", "IL": "Mexican-American", "HL": "Mexican-American",
+           "EP": "Polish-American", "IP": "Polish-American", "HP": "Polish-American"}
+    spans = {}
+    for i, a in enumerate(ORDER): spans.setdefault(grp[a], [i, i])[1] = i
+    spans = {k: tuple(v) for k, v in spans.items()}
     for name, (a, b) in spans.items():
         x0 = axs[a].get_position().x0; x1 = axs[b].get_position().x1; ytop = axs[a].get_position().y1 + 0.055
         fig.add_artist(plt.Line2D([x0, x1], [ytop, ytop], color=INK2, lw=0.8))
@@ -247,10 +254,10 @@ def fig_cores(summ, out, judge_ids, fname="steering-cores", rows=None, row_h=0.1
 ARM_TITLE = {"F": "formal, no identity", "D": "formal, \u201cI am a Democrat\u201d", "EL": "Mexican-American, explicit", "IL": "Mexican-American, implicit",
              "HL": "Mexican-American, heavy", "EP": "Polish-American, explicit", "IP": "Polish-American, implicit", "HP": "Polish-American, heavy"}
 
-CMP_GROUPS = {"lat_f": (("Latino (EL, IL, HL)", ["EL", "IL", "HL"]), ("formal", ["F"])),
+CMP_GROUPS = {"lat_f": (("Mexican-American (" + ", ".join(a for a in ["EL", "IL", "HL"] if a in ORDER) + ")", [a for a in ["EL", "IL", "HL"] if a in ORDER]), ("formal", ["F"])),
               "pol_f": (("Polish-American (EP, IP, HP)", ["EP", "IP", "HP"]), ("formal", ["F"])),
               "lat_pol": (("Latino (EL, IL, HL)", ["EL", "IL", "HL"]), ("Polish-American (EP, IP, HP)", ["EP", "IP", "HP"])),
-              "lat_ei": (("Latino explicit (EL)", ["EL"]), ("Latino implicit (IL)", ["IL"])),
+              "lat_ei": (("Mexican-American explicit (EL)", ["EL"]), ("Mexican-American implicit (IL)", ["IL"])),
               "pol_ei": (("Polish explicit (EP)", ["EP"]), ("Polish implicit (IP)", ["IP"]))}
 
 def fig_comparisons(an, out, labels):
@@ -265,6 +272,7 @@ def fig_comparisons(an, out, labels):
         bs = rng.choice(x, size=(1000, len(x)), replace=True).mean(axis=1)
         return x.mean(), np.percentile(bs, 2.5), np.percentile(bs, 97.5)
     for k, ((na, ga), (nb, gb)) in CMP_GROUPS.items():
+        if k not in set(comp.comparison): continue
         g = comp[(comp.comparison == k) & (comp["diff"].abs() >= 0.2) & comp.axis.isin(moving_axes(comp, analysis_dir=an))].copy()
         g["fam"] = g.axis.map(lambda a: fam.get(a, "steering"))
         g["fo"] = g.fam.map(lambda f: FAM_ORDER.index(f) if f in FAM_ORDER else 0)
@@ -325,7 +333,7 @@ def fig_agreement(agree, out):
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--run", required=True); ap.add_argument("--top", type=int, default=12)
     ap.add_argument("--out", default=None); args = ap.parse_args()
-    run_dir = HERE / "out" / args.run; an = run_dir / "analysis"
+    run_dir = HERE / "out" / args.run; an = run_dir / ANALYSIS_DIR
     out = Path(args.out) if args.out else run_dir / "figs"; out.mkdir(parents=True, exist_ok=True)
     summ = pd.read_csv(an / "summary.csv"); agree = pd.read_csv(an / "agreement.csv")
     judge_ids = [a["id"] for a in JUDGE_AXES if a["id"] in set(summ.axis)]

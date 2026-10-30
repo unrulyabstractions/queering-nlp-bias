@@ -8,7 +8,11 @@ import pandas as pd
 THRESHOLD = 0.2
 LABELS = {"lat_pol": "Latino vs Polish", "lat_f": "Latino vs formal", "pol_f": "Polish vs formal",
           "lat_ei": "Latino explicit vs implicit", "pol_ei": "Polish explicit vs implicit"}
-ORDER5 = ["lat_pol", "lat_f", "pol_f", "lat_ei", "pol_ei"]
+ORDER5_ALL = ["lat_pol", "lat_f", "pol_f", "lat_ei", "pol_ei"]
+import sys as _sys; _sys.path.insert(0, str(Path(__file__).resolve().parent))
+from prompts import ORDER as _ORDER
+_NEED = {"lat_pol": {"EL", "EP"}, "lat_f": {"EL", "F"}, "pol_f": {"EP", "F"}, "lat_ei": {"EL", "IL"}, "pol_ei": {"EP", "IP"}}
+ORDER5 = [k for k in ORDER5_ALL if _NEED[k] <= set(_ORDER)]
 
 def comparisons(analysis_dir: Path) -> pd.DataFrame:
     return pd.read_csv(Path(analysis_dir) / "comparisons.csv")
