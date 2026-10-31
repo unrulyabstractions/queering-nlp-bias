@@ -1,7 +1,7 @@
 """Judge agreement for the local-bias (nurse love story) study, in the same form as the global study's agreement table and figure.
 
 Reads out/nurse_sub/{opus,gpt5,gemini,haiku55,qwen,deepseek}/scoring.json (per-judge 0/1 verdicts per trajectory, arm and structure question).
-Usage: uv run python steering/judges_local.py --tex <paper>/appendix/generated/judges --img <paper>/images
+Usage: uv run python steering/judges_local.py --tex <paper>/appendix/generated/judges --img <paper>/images/judges
 """
 from __future__ import annotations
 import argparse, json, datetime, sys
@@ -46,7 +46,7 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--tex", required=True); ap.add_argument("--img", required=True)
     ap.add_argument("--judges", nargs="+", default=["opus", "gpt5", "gemini", "haiku55", "qwen", "deepseek"]); a = ap.parse_args()
     global JUDGES; JUDGES = [(k, ALL_JUDGES[k]) for k in a.judges]; nJ = len(JUDGES)
-    tex, img = Path(a.tex), Path(a.img); tex.mkdir(parents=True, exist_ok=True)
+    tex, img = Path(a.tex), Path(a.img); tex.mkdir(parents=True, exist_ok=True); img.mkdir(parents=True, exist_ok=True)
     w = load()
     by_axis = agreement(w, ["axis"]); by_cell = agreement(w, ["axis", "arm"])
     head = ("% Source: OLD/queering-nlp-bias/out/nurse_sub/{" + ",".join(k for k, _ in JUDGES) + "}/scoring.json, per-judge 0/1 verdicts;\n"
@@ -64,7 +64,7 @@ def main():
             r = g.iloc[0]
             L.append(f" & {arm.replace('_', '\\_')} & {f2(r.kappa)} & {f2(r.agree)} & " + " & ".join(f2(r[f"yes_{k}"]) for k, _ in JUDGES) + " \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
-    (tex / "judges_local_agreement.tex").write_text("\n".join(L))
+    (tex / "local-agreement.tex").write_text("\n".join(L))
     # figure: one row per question and arm, kappa (circle) and pairwise agreement (square)
     plt = plots.plt
     c = by_cell.copy(); c["label"] = c.axis + ", " + c.arm.str.replace("_", " ")
@@ -77,7 +77,7 @@ def main():
     ax.set_xlabel(f"Fleiss kappa (circles) and pairwise agreement (squares) across the {NUM[nJ]} judges"); ax.set_xlim(-0.2, 1.02)
     ax.legend(handles=[plt.Line2D([], [], marker="o", color="#2a78d6", ls=""), plt.Line2D([], [], marker="s", color="#eb6834", ls="")],
               labels=["Fleiss kappa", "pairwise agreement"], loc="lower left", fontsize=7)
-    fig.tight_layout(); fig.savefig(img / "judges-local-agreement.png"); fig.savefig(img / "judges-local-agreement.pdf"); plt.close(fig)
+    fig.tight_layout(); fig.savefig(img / "local-agreement.png"); plt.close(fig)
     print(by_axis.round(2).to_string(index=False)); print("cells:", len(by_cell), "-> ", tex, img)
 
 if __name__ == "__main__":

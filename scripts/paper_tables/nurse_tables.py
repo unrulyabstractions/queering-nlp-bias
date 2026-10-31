@@ -1,10 +1,10 @@
-"""Write the paper's two local-bias sample tables (appendix/generated/extended_samples.tex and female_in_his.tex).
+"""Write the paper's two local-bias sample tables (appendix/generated/local-bias/extended-samples.tex and female-in-his.tex).
 
 Per-judge 0/1 verdicts are read from out/nurse_sub/<judge>/scoring.json; the ensemble score per cell is their mean;
 per-arm system barycenters come from out/nurse_sub/all/estimation.json (uniform estimator, the mean of the 200 samples).
 Each table is trimmed to fit one page: --per-arm stratified samples per arm, --female top rows by female-minus-male margin.
 
-Usage: uv run python scripts/paper_tables/nurse_tables.py --judges opus gpt5 gemini haiku55 qwen deepseek [--per-arm 4] [--female 5] [--width 7.5cm]
+Usage: uv run python scripts/paper_tables/nurse_tables.py --out <paper>/appendix/generated --judges opus gpt5 gemini haiku55 qwen deepseek [--per-arm 4] [--female 5] [--width 7.5cm]
 """
 from __future__ import annotations
 import argparse, json, sys
@@ -13,7 +13,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from nurse_samples_lib import bold_keywords, cell_color, cell_verdict, cleanup, hu, latex_escape, stratified_pick
 
 ROOT = Path(__file__).resolve().parents[2] / "out" / "nurse_sub"
-PAPER = Path("/Users/unrulyabstractions/work/papers/homo/appendix/generated")
 ARMS = ["root", "trunk", "branch_1", "branch_2", "branch_3"]
 TITLES = {"root": r"\texttt{root}: prompt only", "trunk": r"\texttt{trunk}: prompt + ``At the altar, the nurse and''",
           "branch_1": r"\texttt{branch\_1}: prompt + trunk + ``his partner''", "branch_2": r"\texttt{branch\_2}: prompt + trunk + ``her partner''",
@@ -56,9 +55,9 @@ def table(label, caption, rows, width):
                       *rows, r"\bottomrule", r"\end{tabular}", r"\end{table}", ""])
 
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("--judges", nargs="+", required=True)
+    ap = argparse.ArgumentParser(); ap.add_argument("--judges", nargs="+", required=True); ap.add_argument("--out", required=True)
     ap.add_argument("--per-arm", type=int, default=4); ap.add_argument("--female", type=int, default=5); ap.add_argument("--width", default="9.4cm")
-    a = ap.parse_args(); J = a.judges
+    a = ap.parse_args(); J = a.judges; out = Path(a.out) / "local-bias"; out.mkdir(parents=True, exist_ok=True)
     items = load(J)
     est = {r["name"]: r["estimates"]["uniform"]["core"] for r in json.load(open(ROOT / "all" / "estimation.json"))["arms"]}
     prefills = {x["name"]: x.get("prefill", "") for x in json.load(open(ROOT / "generation.json"))["config"]["arms"]}
@@ -73,14 +72,14 @@ def main():
                rf"Each score column shows the judges' verdicts in order ({order}); \verdictyes\ = yes, \verdictno\ = no. "
                r"Cell shading reflects the ensemble mean. In the trajectory column, character names, gendered pronouns, and role words are bolded.")
         parts.append(table(f"tab:samples-{arm}", cap, [row(p, J, prefills.get(arm, "")) for p in picks], a.width))
-    (PAPER / "extended_samples.tex").write_text("\n".join(parts))
+    (out / "extended-samples.tex").write_text("\n".join(parts))
     fem = [i for i in items if i["arm"] == "branch_1" and i["scores"][1] >= 2 / 3 - 1e-9 and i["scores"][0] <= 1 / 3 + 1e-9]
     fem.sort(key=lambda i: (-(i["scores"][1] - i["scores"][0]), i["traj_idx"]))
     total = len(fem); fem = fem[: a.female]
     cap = (r"Trajectories from \texttt{branch\_1} (prefill \texttt{``his partner''}) where the ensemble nonetheless reads the nurse as female, "
            + (rf"all {len(fem)} of them, ordered by margin. " if len(fem) == total else rf"the {len(fem)} with the largest margin. ") + rf"The female-nurse default overrides the explicit male marker: bias stronger than markedness. "
            + rf"Each score column shows the judges' verdicts in order ({order}); \verdictyes\ = yes, \verdictno\ = no. Cell shading reflects the ensemble mean.")
-    (PAPER / "female_in_his.tex").write_text("\n".join(head) + table("tab:bias-stronger-markedness", cap, [row(p, J, prefills.get("branch_1", "")) for p in fem], a.width))
+    (out / "female-in-his.tex").write_text("\n".join(head) + table("tab:bias-stronger-markedness", cap, [row(p, J, prefills.get("branch_1", "")) for p in fem], a.width))
     print(f"samples: {a.per_arm} per arm; female-in-his: {len(fem)} of {total} matches")
 
 if __name__ == "__main__":

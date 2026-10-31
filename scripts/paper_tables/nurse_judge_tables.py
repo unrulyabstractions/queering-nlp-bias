@@ -3,13 +3,15 @@
 Reads out/nurse_sub/<judge>/{scoring,greedy,estimation}.json for every judge in --judges and the merged ensemble in
 out/nurse_sub/<ensemble>/{scoring,greedy,estimation}.json, and writes into --out (the paper's appendix/generated/):
 
-  nurse/case_study_cores.tex   tab:case-study-cores   ensemble default behavior and expected deviance per arm
-  nurse/judge_calibration.tex  tab:judge-agreement    per-judge vs ensemble default behavior per arm
-  nurse/greedy_root.tex        tab:greedy-root        each judge's reading of the greedy root story
-  nurse/judge_splits.tex       tab:judge-splits       where the judges disagree
-  stats/default_statistics.tex tab:default-statistics mean vs median, mode and greedy per arm
-  xeno/xeno_reweight.tex       tab:xeno-reweight      reorienting by reweighting the sampled trajectories
-  nurse/values.json            every number the hand-drawn figures and the prose quote, for checking
+  local-bias/default-behaviors.tex    tab:case-study-cores   ensemble default behavior and expected deviance per arm
+  local-bias/greedy-generations.tex                         the greedy decodes, verbatim
+  judges/local-calibration.tex        tab:judge-agreement    per-judge vs ensemble default behavior per arm
+  judges/local-greedy-root.tex        tab:greedy-root        each judge's reading of the greedy root story
+  judges/local-splits.tex             tab:judge-splits       where the judges disagree
+  foundations/default-statistics.tex  tab:default-statistics mean vs median, mode and greedy per arm
+  xeno-reproduction/reweighting.tex   tab:xeno-reweight      reorienting by reweighting the sampled trajectories
+
+and out/nurse_sub/<ensemble>/values.json, every number the hand-drawn figures and the prose quote, for checking.
 
 Usage: uv run python scripts/paper_tables/nurse_judge_tables.py --judges opus gpt5 gemini haiku55 qwen deepseek \
            --ensemble all --out ~/work/papers/homo/appendix/generated
@@ -45,7 +47,7 @@ def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--judges", nargs="+", required=True); ap.add_argument("--ensemble", default="all")
     ap.add_argument("--out", required=True); a = ap.parse_args()
     out = Path(a.out).expanduser(); J = a.judges; nJ = len(J); ens = ROOT / a.ensemble
-    for d in ("nurse", "stats", "xeno"): (out / d).mkdir(parents=True, exist_ok=True)
+    for d in ("local-bias", "judges", "foundations", "xeno-reproduction"): (out / d).mkdir(parents=True, exist_ok=True)
     est = load(ens / "estimation.json"); E = {arm["name"]: arm["estimates"] for arm in est["arms"]}
     S = score_matrix(ens); values = {"judges": J, "arms": {}}
     jsrc = "{" + ",".join(J) + "}"
@@ -75,7 +77,7 @@ def main():
             cells.append(c)
         L.append(f"{esc(arm)} & {d} & " + " & ".join(cells) + " \\\\")
     L += ["\\bottomrule", "\\end{tabular}}", "\\end{table}", ""]
-    (out / "nurse" / "case_study_cores.tex").write_text("\n".join(L))
+    (out / "local-bias" / "default-behaviors.tex").write_text("\n".join(L))
 
     # ---- per-judge calibration
     JE = {j: {arm["name"]: arm["estimates"] for arm in load(ROOT / j / "estimation.json")["arms"]} for j in J}
@@ -94,7 +96,7 @@ def main():
             values["arms"][arm].setdefault("per_judge", {})[j] = [round(float(v), 6) for v in c]
         L.append(" & \\textit{Ensemble} & " + " & ".join(hu(v) for v in core[arm]) + " \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
-    (out / "nurse" / "judge_calibration.tex").write_text("\n".join(L))
+    (out / "judges" / "local-calibration.tex").write_text("\n".join(L))
     # commitment: mean of min(v, 1 - v) over every arm's uniform core (lower = more committed)
     values["commitment"] = {j: round(float(np.mean([min(v, 1 - v) for arm in ARMS for v in JE[j][arm]["uniform"]["core"]])), 4) for j in J}
 
@@ -116,7 +118,7 @@ def main():
         values["greedy_root"][j] = s
         L.append(f"{LABEL[j]} & " + " & ".join("--" if v is None else f"${int(round(v))}$" for v in s) + f" & {reading(s)} \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
-    (out / "nurse" / "greedy_root.tex").write_text("\n".join(L))
+    (out / "judges" / "local-greedy-root.tex").write_text("\n".join(L))
 
     # ---- judge splits
     V = {j: load(ROOT / j / "scoring.json")["results"] for j in J}
@@ -136,7 +138,6 @@ def main():
                 yes = sum(others); no = len(others) - yes
                 if yes != no and vs[jj] != (1 if yes > no else 0): minority[j][q] += 1
     values["split_cells"] = {arm: split[arm] for arm in ARMS}; values["minority"] = minority
-    order = "\\,".join(LABEL[j].split()[0] for j in J)
     L = [header(f"out/nurse_sub/{jsrc}/scoring.json (per-judge 0/1 verdicts) and out/nurse_sub/{a.ensemble}/scoring.json (ensemble mean per cell); "
                 "200 sampled trajectories per arm, 4 axes. A split cell is one where the judges are not unanimous", "Judge splits"),
          "\\begin{table}[hbt!]", "\\centering\\footnotesize",
@@ -163,7 +164,7 @@ def main():
         L.append(f"{esc(ens_sc[i]['arm'])} \\#{i} & {AX[q]} & " + "\\,".join("--" if v is None else str(v) for v in vs)
                  + f" $\\to$ {hu(e, 2)} & {{\\scriptsize\\itshape {esc(txt)}\\ldots}} \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
-    (out / "nurse" / "judge_splits.tex").write_text("\n".join(L))
+    (out / "judges" / "local-splits.tex").write_text("\n".join(L))
 
     # ---- default statistics
     L = [header(f"out/nurse_sub/{a.ensemble}/estimation.json, arms[*].estimates.{{uniform,median,mode,greedy}}.core", "Default behavior under four statistics"),
@@ -180,7 +181,7 @@ def main():
         values["statistics"][arm] = {"median": md.tolist(), "mode": mo.tolist(), "greedy": g.tolist(), "gaps": [round(float(x), 4) for x in row]}
         L.append(f"{esc(arm)} & " + " & ".join(hu(x, 2) for x in row) + f" & {'yes' if agree else 'no'} & {'yes' if gre else 'no'} \\\\")
     L += ["\\bottomrule", "\\end{tabular}", "\\end{table}", ""]
-    (out / "stats" / "default_statistics.tex").write_text("\n".join(L))
+    (out / "foundations" / "default-statistics.tex").write_text("\n".join(L))
 
     # ---- xeno reweight
     betas = [0, 2, 4, 8, 16]
@@ -203,7 +204,7 @@ def main():
             values["xeno"].setdefault(arm, {})[b] = [round(float(x), 6) for x in (*z, Ed, Vd, Er, H, math.exp(H), ess)]
             L.append((f"{esc(arm)}" if bi == 0 else "") + f" & {b} & " + " & ".join(hu(x) for x in (*z, Ed, Vd, Er, H, math.exp(H), ess)) + " \\\\")
     L += ["\\bottomrule", "\\end{tabular}}", "\\end{table*}", ""]
-    (out / "xeno" / "xeno_reweight.tex").write_text("\n".join(L))
+    (out / "xeno-reproduction" / "reweighting.tex").write_text("\n".join(L))
 
     # ---- greedy generations, verbatim (Appendix C.6)
     gr = load(ens / "greedy.json")
@@ -220,9 +221,9 @@ def main():
     for arm in ARMS:
         g = next(x for x in gr["arms"] if x["name"] == arm)
         L += [head[arm], "\\begin{quote}", "\\small\\itshape " + tex_text(g["text"]), "\\end{quote}", ""]
-    (out / "nurse" / "greedy_generations.tex").write_text("\n".join(L))
+    (out / "local-bias" / "greedy-generations.tex").write_text("\n".join(L))
 
-    json.dump(values, open(out / "nurse" / "values.json", "w"), indent=1)
+    json.dump(values, open(ens / "values.json", "w"), indent=1)
     print("nurse judge tables ->", out)
 
 if __name__ == "__main__":

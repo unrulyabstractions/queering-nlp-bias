@@ -3,7 +3,8 @@
 Writes out/nurse_sub/<judge>/scoring.json and greedy.json in the same format as the opus/gpt5/gemini runs, so
 scripts/merge_judge_runs.py can average any set of judges. Resumable through out/nurse_sub/<judge>/_calls.jsonl.
 
-Usage: uv run python scripts/score_nurse_extra_judges.py --judge haiku55|qwen|deepseek [--concurrency 16]
+Usage: uv run python scripts/score_nurse_extra_judges.py --judge haiku55|qwen|deepseek [--concurrency 16] [--offline]
+--offline rebuilds the judge's files from _calls.jsonl, creates no API client, and stops if a reply is missing.
 """
 from __future__ import annotations
 import argparse, asyncio, copy, datetime, json, os, sys, time
@@ -34,9 +35,11 @@ async def ask(spec, client, prompt):
     return (r.choices[0].message.content or ""), (getattr(u, "prompt_tokens", 0), getattr(u, "completion_tokens", 0))
 
 async def main():
-    ap = argparse.ArgumentParser(); ap.add_argument("--judge", required=True, choices=list(JUDGES)); ap.add_argument("--concurrency", type=int, default=16)
+    ap = argparse.ArgumentParser(); ap.add_argument("--judge", required=True, choices=list(JUDGES)); ap.add_argument("--concurrency", type=int, default=16); ap.add_argument("--offline", action="store_true")
     a = ap.parse_args(); spec = JUDGES[a.judge]
-    if spec["provider"] == "anthropic":
+    if a.offline:
+        client = None
+    elif spec["provider"] == "anthropic":
         import anthropic; client = anthropic.AsyncAnthropic()
     else:
         import openai; client = openai.AsyncOpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.environ["OPENROUTER_API_KEY"])
@@ -54,6 +57,7 @@ async def main():
     tasks += [("greedy", i, q) for i in range(len(greedy_base["arms"])) for q in range(len(questions))]
     todo = [t for t in tasks if t not in done]
     print(f"judge={a.judge} calls={len(tasks)} todo={len(todo)}", flush=True)
+    if a.offline and todo: sys.exit(f"{a.judge}: {len(todo)} replies missing from {calls_path}; run without --offline to score them")
     sem = asyncio.Semaphore(a.concurrency); lock = asyncio.Lock(); t0 = time.time(); n = 0
     async def one(kind, i, q):
         nonlocal n
